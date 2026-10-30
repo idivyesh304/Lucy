@@ -48,6 +48,8 @@ jobs:
           ./gradlew assembleDebug --no-daemon 2>&1 | tee ../build.log
           test ${PIPESTATUS[0]} -eq 0
           cp app/build/outputs/apk/debug/app-debug.apk ../Lucy-1.0.${{ github.run_number }}.apk
+          echo "Signing certificate:"
+          $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)/apksigner verify --print-certs ../Lucy-1.0.${{ github.run_number }}.apk | head -3
 
       - name: Report build errors
         if: failure()

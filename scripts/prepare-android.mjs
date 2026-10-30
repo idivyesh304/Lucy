@@ -72,6 +72,20 @@ for (const p of ['android.permission.RECEIVE_BOOT_COMPLETED', 'android.permissio
 fs.writeFileSync(mf, man);
 const appGradle = 'android/app/build.gradle';
 let ag = fs.readFileSync(appGradle, 'utf8');
+if (!ag.includes('signingConfigs.lucy')) {
+  ag = ag.replace(/android \{/, `android {
+    signingConfigs {
+        lucy {
+            storeFile file('../../resources/android/lucy-debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+    buildTypes {
+        debug { signingConfig signingConfigs.lucy }
+    }`);
+}
 if (!ag.includes('androidx.core:core:')) ag = ag.replace(/dependencies \{/, 'dependencies {\n    implementation "androidx.core:core:$androidxCoreVersion"');
 fs.writeFileSync(appGradle, ag);
 console.log('✅ Alarm engine added');

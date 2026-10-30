@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -23,10 +23,11 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - uses: android-actions/setup-android@v3
-
       - name: Install
-        run: npm ci
+        run: |
+          echo "Android SDK: $ANDROID_HOME"
+          ls "$ANDROID_HOME/platforms" || true
+          npm ci
 
       - name: Create Android project
         run: |

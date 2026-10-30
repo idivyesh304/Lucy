@@ -2,9 +2,18 @@
   "appId": "com.dzynlab.lucy",
   "appName": "Lucy",
   "webDir": "www",
-  "android": { "backgroundColor": "#0e0d12" },
+  "android": {
+    "backgroundColor": "#F6F3FF"
+  },
   "plugins": {
-    "SystemBars": { "insetsHandling": "css", "initialViewportFitValueHint": "cover" },
-    "LocalNotifications": { "smallIcon": "ic_stat_lucy", "iconColor": "#FF5A6E" }
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover",
+      "style": "LIGHT"
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_lucy",
+      "iconColor": "#7C5CFF"
+    }
   }
 }

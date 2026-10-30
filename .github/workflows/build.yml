@@ -41,11 +41,24 @@ jobs:
           cp resources/android/lucy-debug.keystore ~/.android/debug.keystore
 
       - name: Build APK
+        shell: bash
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon 2>&1 | tee ../build.log
+          test ${PIPESTATUS[0]} -eq 0
           cp app/build/outputs/apk/debug/app-debug.apk ../Lucy-1.0.${{ github.run_number }}.apk
+
+      - name: Report build errors
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          touch build.log
+          grep -nE "error:|e: |What went wrong|FAILURE|Exception|> " build.log | head -120 > errors.txt || true
+          tail -60 build.log >> errors.txt
+          gh release delete build-errors --yes --cleanup-tag -R ${{ github.repository }} || true
+          gh release create build-errors -R ${{ github.repository }} --prerelease --title "Build errors (run ${{ github.run_number }})" --notes-file errors.txt
 
       - name: Publish download
         uses: softprops/action-gh-release@v2

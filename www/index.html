@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="color-scheme" content="dark light">
+  <title>Lucy</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="app"></main>
+  <nav id="tabs">
+    <button data-a="tab" data-v="today"><span>🏠</span>Today</button>
+    <button data-a="tab" data-v="reminders"><span>⏰</span>Reminders</button>
+    <button data-a="tab" data-v="clients"><span>🤝</span>Clients</button>
+    <button data-a="tab" data-v="money"><span>💰</span>Money</button>
+    <button data-a="tab" data-v="more"><span>✨</span>More</button>
+  </nav>
+  <div id="sheet-wrap" hidden><div id="sheet-bg" data-a="close"></div><div id="sheet"></div></div>
+  <div id="toast" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>

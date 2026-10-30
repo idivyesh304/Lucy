@@ -2098,7 +2098,7 @@
     return `
     ${banners()}
     <div class="hero">
-      <div class="lucy-badge"><div class="lucy-face">\u263A</div>Lucy \xB7 ${DAYNAME[new Date(now).getDay()]}, ${new Date(now).getDate()} ${MON[new Date(now).getMonth()]}</div>
+      <div class="lucy-badge"><img class="lucy-logo" src="lucy-icon.png" alt="">Lucy \xB7 ${DAYNAME[new Date(now).getDay()]}, ${new Date(now).getDate()} ${MON[new Date(now).getMonth()]}</div>
       <h1>${esc(greeting(name(), now))}</h1>
       <div class="sub">${esc(mood)}</div>
       <div class="chips"><span class="chip">\u2705 ${dn} done today</span>${st > 1 ? `<span class="chip">\u{1F525} ${st}-day streak</span>` : ""}${act.length ? `<span class="chip">\u{1F33F} Routine ${rCount}/${act.length}</span>` : ""}</div>
@@ -2654,7 +2654,7 @@
     }, 60);
   }
   function onboardingSheet() {
-    openSheet(`<div style="text-align:center"><div class="lucy-face big">\u263A</div>
+    openSheet(`<div style="text-align:center"><img class="lucy-logo big" src="lucy-icon.png" alt="Lucy">
     <h3>Hi, I'm Lucy \u{1F44B}</h3><div class="sub">I'll remember everything, so you don't have to.</div></div>
     <label>What should I call you?</label><input id="ob-name" value="${esc(S.settings.name)}">
     <div class="card" style="margin-top:12px"><b>\u{1F33F} Your daily routine is ready</b><div class="sub" style="margin-top:4px">Wake up 7:30 AM \u2192 long walk 9:30 PM, ${S.routine.length} reminders. Change any time in More \u2192 Settings.</div></div>

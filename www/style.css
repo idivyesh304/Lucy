@@ -232,3 +232,6 @@ h3 { margin: 0 0 6px; font-size: 17px; }
 .t-sub { font-size: 16px; opacity: .95; margin-top: 6px; max-width: 320px; animation: rise .5s .7s both; }
 .t-tap { font-size: 12px; opacity: .7; margin-top: 22px; animation: rise .5s 1.2s both; }
 @keyframes rise { from { transform: translateY(16px); opacity: 0; } }
+
+.lucy-logo { width: 30px; height: 30px; border-radius: 9px; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+.lucy-logo.big { width: 96px; height: 96px; border-radius: 26px; margin: 6px auto 10px; display: block; box-shadow: 0 10px 28px rgba(124,92,255,.3); }

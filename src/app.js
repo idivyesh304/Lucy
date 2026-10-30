@@ -495,7 +495,7 @@ function renderToday() {
   return `
     ${banners()}
     <div class="hero">
-      <div class="lucy-badge"><div class="lucy-face">☺</div>Lucy · ${L.DAYNAME[new Date(now).getDay()]}, ${new Date(now).getDate()} ${L.MON[new Date(now).getMonth()]}</div>
+      <div class="lucy-badge"><img class="lucy-logo" src="lucy-icon.png" alt="">Lucy · ${L.DAYNAME[new Date(now).getDay()]}, ${new Date(now).getDate()} ${L.MON[new Date(now).getMonth()]}</div>
       <h1>${esc(L.greeting(name(), now))}</h1>
       <div class="sub">${esc(mood)}</div>
       <div class="chips"><span class="chip">✅ ${dn} done today</span>${st > 1 ? `<span class="chip">🔥 ${st}-day streak</span>` : ''}${act.length ? `<span class="chip">🌿 Routine ${rCount}/${act.length}</span>` : ''}</div>
@@ -1003,7 +1003,7 @@ function noteSheet(n) {
   setTimeout(() => { const b = $(n.title ? '#note-body' : '#note-title'); if (b) b.focus(); }, 60);
 }
 function onboardingSheet() {
-  openSheet(`<div style="text-align:center"><div class="lucy-face big">☺</div>
+  openSheet(`<div style="text-align:center"><img class="lucy-logo big" src="lucy-icon.png" alt="Lucy">
     <h3>Hi, I'm Lucy 👋</h3><div class="sub">I'll remember everything, so you don't have to.</div></div>
     <label>What should I call you?</label><input id="ob-name" value="${esc(S.settings.name)}">
     <div class="card" style="margin-top:12px"><b>🌿 Your daily routine is ready</b><div class="sub" style="margin-top:4px">Wake up 7:30 AM → long walk 9:30 PM, ${S.routine.length} reminders. Change any time in More → Settings.</div></div>

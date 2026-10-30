@@ -31,8 +31,8 @@ copyDir(SRC, RES);
 const colorFile = path.join(RES, 'values', 'ic_launcher_background.xml');
 fs.writeFileSync(colorFile, `<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FF5A6E</color>
-    <color name="lucy_splash_bg">#0E0D12</color>
+    <color name="ic_launcher_background">#3A86FF</color>
+    <color name="lucy_splash_bg">#F6F3FF</color>
 </resources>
 `);
 

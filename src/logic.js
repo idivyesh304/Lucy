@@ -338,3 +338,55 @@ export function money(n) {
   const last3 = s.slice(-3), rest = s.slice(0, -3);
   return (n < 0 ? '-' : '') + '₹' + (rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' : '') + last3;
 }
+
+/* ---------------- v2: routine, journal, colours ---------------- */
+export const ROUTINE_DEFAULT = [
+  { key: 'wake', emoji: '⏰', label: 'Wake up', time: '07:30', ring: true, say: 'Good morning {name}! It is {time}. Time to wake up and win the day.' },
+  { key: 'warmwater', emoji: '🍵', label: 'Lukewarm water', time: '07:40', say: '{name}, time for your glass of lukewarm water.' },
+  { key: 'gym', emoji: '🏋️', label: 'Gym', time: '08:00', say: '{name}, it is gym time. Let\'s go!' },
+  { key: 'breakfast', emoji: '🍳', label: 'Breakfast', time: '09:00', say: '{name}, breakfast time.' },
+  { key: 'water1', emoji: '💧', label: 'Drink water', time: '10:00', say: '{name}, drink some water.' },
+  { key: 'coffee1', emoji: '☕', label: 'Black coffee', time: '11:00', say: '{name}, black coffee time.' },
+  { key: 'midmorning', emoji: '🍎', label: 'Mid-morning snack', time: '11:30', say: '{name}, time for your mid-morning snack.' },
+  { key: 'water2', emoji: '💧', label: 'Drink water', time: '12:15', say: '{name}, drink some water.' },
+  { key: 'lunch', emoji: '🍛', label: 'Lunch', time: '13:30', say: '{name}, it is lunch time.' },
+  { key: 'water3', emoji: '💧', label: 'Drink water', time: '14:15', say: '{name}, drink some water.' },
+  { key: 'afternoon', emoji: '🥗', label: 'Afternoon snack', time: '16:00', say: '{name}, time for your afternoon snack.' },
+  { key: 'water4', emoji: '💧', label: 'Drink water', time: '16:30', say: '{name}, drink some water.' },
+  { key: 'coffee2', emoji: '☕', label: 'Black coffee', time: '18:00', say: '{name}, black coffee time.' },
+  { key: 'water5', emoji: '💧', label: 'Drink water', time: '18:30', say: '{name}, drink some water.' },
+  { key: 'evening', emoji: '🥪', label: 'Evening snack', time: '19:30', say: '{name}, time for your evening snack.' },
+  { key: 'water6', emoji: '💧', label: 'Drink water', time: '20:00', say: '{name}, drink some water.' },
+  { key: 'dinner', emoji: '🍽️', label: 'Dinner', time: '21:00', say: '{name}, dinner time.' },
+  { key: 'walk', emoji: '🚶', label: 'Long walk', time: '21:30', say: '{name}, time for your long walk.' }
+];
+
+export const JOURNAL_QS = [
+  { id: 'rating', q: 'How would I rate today?', emoji: '⭐', type: 'rating' },
+  { id: 'smile', q: 'What made me smile today?', emoji: '😊' },
+  { id: 'proud', q: 'What am I most proud of today?', emoji: '🏅' },
+  { id: 'work', q: 'Which client or work moment went well?', emoji: '💼' },
+  { id: 'drain', q: 'What drained my energy, and how can I avoid it?', emoji: '🔋' },
+  { id: 'learn', q: 'What did I learn today?', emoji: '🧠' },
+  { id: 'thanks', q: 'Who helped me today? Did I thank them?', emoji: '🤝' },
+  { id: 'inspire', q: 'A shot, frame or idea that inspired me today', emoji: '🎥' },
+  { id: 'health', q: 'What did I do for my health today?', emoji: '💪' },
+  { id: 'love', q: 'How did I show love to my family today?', emoji: '❤️' },
+  { id: 'replay', q: 'If I could replay today, what would I change?', emoji: '🔁' },
+  { id: 'grateful', q: 'Three things I\'m grateful for', emoji: '🙏' },
+  { id: 'tomorrow', q: 'My number one priority for tomorrow', emoji: '🎯' }
+];
+
+export const CAT_COLOR = { Work: '#3A86FF', 'Follow-up': '#FF8A00', Meeting: '#7C5CFF', Money: '#12B886', Family: '#FF5CA8',
+  Health: '#19C6B7', Home: '#F59F00', Documents: '#5C7CFA', Personal: '#E64980' };
+export const SHOP_CATS = [['Company', '🏢'], ['Wife', '💝'], ['Family', '👨‍👩‍👧'], ['Personal', '🙋'], ['Gadgets', '📱'], ['Other', '🛍️']];
+export const LEARN_CATS = [['AI', '🤖'], ['Books', '📖'], ['YouTube', '▶️'], ['Practice', '🎯'], ['Crime', '🕵️'], ['Food', '🍲'], ['Fitness', '🏃'], ['Coding', '💻'], ['Tech', '🔧']];
+export const PERSONAL_CATS = ['Personal', 'Family', 'Health', 'Home', 'Documents'];
+export const COMPANY_CATS = ['Work', 'Meeting', 'Follow-up', 'Money'];
+
+export function fill(tpl, vars) { return String(tpl).replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? vars[k] : m)); }
+export function spokenTime(hhmm) {
+  const [h, m] = String(hhmm).split(':').map(Number);
+  const h12 = h % 12 || 12, ap = h >= 12 ? 'PM' : 'AM';
+  return m ? `${h12} ${String(m).padStart(2, '0')} ${ap}` : `${h12} ${ap}`;
+}

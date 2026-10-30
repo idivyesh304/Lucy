@@ -231,7 +231,7 @@ public class AlarmStore {
                 ContextCompat.checkSelfPermission(c, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
-        int id = a.optInt("id");
+        int id = a.has("notifId") ? a.optInt("notifId") : a.optInt("id");
         boolean insistent = a.optBoolean("insistent");
         String channel = insistent ? CH_ALARM : ("quiet".equals(a.optString("channel")) ? CH_QUIET : CH_REMIND);
         String title = a.optString("title", "Lucy");

@@ -268,6 +268,15 @@ function renderMoney() {
       stat('Expected this month', short(r.expected), 'pending receivables') + stat('Average retainer', r.avg ? short(r.avg) : '—', 'per active client') +
       stat('Expenses this month', short(r.expenses), 'logged') + stat('Collected minus expenses', short(r.net), 'this month, not full profit') + '</div>';
     h += '<div class="panel"><h3>Collected, last 6 months</h3>' + chart(r.history, short) + '</div>';
+    const g = B.growthPlan();
+    h += '<h2>Growth plan<button class="link" data-a="edit-growth">Edit</button></h2>';
+    h += '<div class="panel gold"><div class="row" style="justify-content:space-between"><div><div class="eyebrow">Plan revenue</div><div class="num" style="font-size:26px;font-weight:600;margin-top:4px">' + short(g.planRevenue) + '<span class="sub"> / month</span></div></div><div class="right"><div class="eyebrow">Clients</div><div class="num" style="font-size:26px;font-weight:600;margin-top:4px">' + g.planClients + '</div></div></div>' +
+      '<div class="sub mt">' + (g.planRevenue >= r.target ? 'This plan covers your ' + short(r.target) + ' target with ' + short(g.planRevenue - r.target) + ' to spare.' : 'This plan is ' + short(r.target - g.planRevenue) + ' short of your ' + short(r.target) + ' target.') + '</div></div>';
+    h += g.rows.map((t) => { const pct = t.count ? Math.min(1, t.have / t.count) : 0; return '<div class="tier"><div class="row"><div class="grow"><b>' + esc(t.name) + '</b> <span class="sub">· ' + money(t.price) + ' / month</span></div><div class="num">' + t.have + ' / ' + t.count + '</div></div><div class="bar mt" style="margin-top:8px"><i style="width:' + Math.round(pct * 100) + '%"></i></div><div class="sub" style="margin-top:6px;font-size:12.5px">' + short(t.revenue) + ' when full' + (t.have ? ' · now ' + short(t.haveMrr) : '') + '</div></div>'; }).join('');
+    h += '<h2>Team plan · ' + g.teamHave + ' / ' + g.teamNeed + ' hired</h2><div class="list">' + g.team.map((m, i) => '<div class="item"><div class="badge" style="width:34px;height:34px">' + icon(/editor/i.test(m.role) ? 'film' : /design/i.test(m.role) ? 'edit' : /sales|market/i.test(m.role) ? 'trend' : /photo|video/i.test(m.role) ? 'camera' : /social/i.test(m.role) ? 'chat' : 'briefcase', 16) + '</div><div class="grow"><div class="t">' + esc(m.role) + '</div><div class="m">' + (m.have >= m.need ? '<span class="gold">Team complete</span>' : (m.need - m.have) + ' to hire') + (m.salary ? ' · ' + money(m.salary) + ' each' : '') + '</div></div><div class="row" style="gap:6px"><button class="iconbtn" style="width:32px;height:32px" data-a="team-dec" data-i="' + i + '">−</button><span class="num" style="min-width:42px;text-align:center">' + m.have + '/' + m.need + '</span><button class="iconbtn" style="width:32px;height:32px" data-a="team-inc" data-i="' + i + '">+</button></div></div>').join('') + '</div>';
+    if (g.salaryKnown) h += '<div class="stats">' + stat('Team payroll (full team)', short(g.payrollPlan), 'per month') + stat('Plan revenue minus payroll', short(g.planRevenue - g.payrollPlan), 'before other costs') + '</div>';
+    else h += '<div class="sub" style="margin:0 2px 12px">Add salaries in Edit to see payroll against revenue.</div>';
+    if (g.clientsPerEditor) h += '<div class="sub" style="margin:0 2px 12px">Workload check: ' + g.planClients + ' clients across your editors is about <b class="gold">' + Math.round(g.clientsPerEditor) + ' clients per editor</b>.</div>';
     h += '<div class="sub" style="margin:4px 2px">Lucy uses only your real entries. Revenue is money received; it is not profit.</div>';
     h += '<button class="btn ghost block" data-a="edit-target">' + icon('target', 16) + 'Change monthly target</button>';
   } else if (s === 'cash') {
@@ -829,6 +838,15 @@ document.addEventListener('click', async (ev) => {
       else go('home');
       break;
     case 'sub-profile': go('more', 'profile'); break;
+    case 'team-inc': case 'team-dec': { const m = S.growth.team[Number(el.dataset.i)]; m.have = Math.max(0, Number(m.have || 0) + (a === 'team-inc' ? 1 : -1)); save(); render(); if (a === 'team-inc') { celebrate(m.have >= m.need ? 'big' : 'small', m.have >= m.need ? { title: 'Team complete', sub: m.role + ': all ' + m.need + ' hired.' } : undefined); } break; }
+    case 'edit-growth': {
+      const g = S.growth;
+      openSheet('<h3>Growth plan</h3><div class="sub">Client tiers by monthly retainer, and the team you need.</div>' +
+        '<h2>Client tiers</h2>' + g.tiers.map((t, i) => '<div class="grid3"><div><label>Tier</label><input data-gt="name" data-i="' + i + '" value="' + esc(t.name) + '"></div><div><label>Retainer</label><input type="number" data-gt="price" data-i="' + i + '" value="' + t.price + '"></div><div><label>Clients</label><input type="number" data-gt="count" data-i="' + i + '" value="' + t.count + '"></div></div>').join('') +
+        '<h2>Team</h2>' + g.team.map((m, i) => '<div class="grid3"><div><label>Role</label><input data-gm="role" data-i="' + i + '" value="' + esc(m.role) + '"></div><div><label>Needed</label><input type="number" data-gm="need" data-i="' + i + '" value="' + m.need + '"></div><div><label>Salary each</label><input type="number" data-gm="salary" data-i="' + i + '" value="' + (m.salary || '') + '" placeholder="₹"></div></div>').join('') +
+        '<button class="btn block" data-a="close">Done</button>');
+      break;
+    }
     case 'new-sp': specialSheet(null, v); break;
     case 'edit-sp': specialSheet(S.specialDays.find((x) => x.id === id)); break;
     case 'sp-type': document.querySelectorAll('#sp-type button').forEach((b) => b.classList.toggle('on', b === el)); $('#sheet').dataset.sptype = v; break;
@@ -1124,6 +1142,8 @@ document.addEventListener('input', (ev) => {
   else if (t.id === 'note-title' || t.id === 'note-body') { const n = S.notes.find((x) => x.id === Number(t.dataset.nid)); if (n) { n[t.id === 'note-title' ? 'title' : 'body'] = t.value; n.updated = Date.now(); save(); } }
   else if (t.dataset.j) { const k = B.today(); S.journal[k] = Object.assign(S.journal[k] || {}, { [t.dataset.j]: t.value }); save(); }
   else if (t.dataset.set === 'name') { S.settings.name = t.value; save(); }
+  else if (t.dataset.gt) { const x = S.growth.tiers[Number(t.dataset.i)]; x[t.dataset.gt] = t.dataset.gt === 'name' ? t.value : Number(t.value) || 0; save(); }
+  else if (t.dataset.gm) { const x = S.growth.team[Number(t.dataset.i)]; x[t.dataset.gm] = t.dataset.gm === 'role' ? t.value : Number(t.value) || 0; save(); }
   else if (t.dataset.prof) { S.profile[t.dataset.prof] = t.value; if (t.dataset.prof === 'nickname' && t.value.trim()) S.settings.name = t.value.trim(); save(); }
   else if (t.id === 'ask') { t.style.height = 'auto'; t.style.height = Math.min(140, t.scrollHeight) + 'px'; }
 });

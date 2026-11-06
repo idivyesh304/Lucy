@@ -476,3 +476,5 @@ h1 b { background: linear-gradient(100deg, #FFF1CF 0%, #D8B56A 35%, #F3D9A0 55%,
 #tabs button.lucy-tab { min-height: 52px; }
 #tabs button.lucy-tab .orb .tab-av { width: 62px; height: 62px; border: 0; margin: 0; box-shadow: none; }
 #tabs button.lucy-tab .orb .tab-av .avatar-wrap.lucy-photo .av-img img { object-position: 70% 30%; transform: scale(1.35); transform-origin: 70% 38%; }
+.tier { position: relative; padding: 14px 16px; margin-bottom: 10px; border-radius: 16px; border: 1px solid var(--line); background: linear-gradient(160deg, rgba(255,255,255,.04), rgba(255,255,255,.015)); }
+.grid3 { display: grid; grid-template-columns: 1.4fr 1fr .8fr; gap: 8px; }

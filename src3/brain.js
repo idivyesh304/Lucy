@@ -221,6 +221,7 @@ export function aiSystem(mode) {
     'Rules: never invent numbers, clients, contacts or facts. Use only the data below or clearly label something as an estimate or assumption. If information is missing, say what is missing. Motivation must always lead to a concrete next action.\n\n' +
     'Now: ' + new Date(now).toString().slice(0, 21) + ' (Asia/Kolkata).\n' +
     'Profile: ' + profileLine() + '\n' +
+    'Growth plan: ' + (function () { const g = growthPlan(); return g.rows.map((r) => r.count + ' ' + r.name + ' clients at ' + L.money(r.price) + ' (have ' + r.have + ')').join('; ') + ' = ' + L.money(g.planRevenue) + '/month from ' + g.planClients + ' clients. Team plan: ' + g.team.map((m) => m.need + ' ' + m.role + ' (hired ' + m.have + ')').join(', ') + '.'; })() + '\n' +
     'Upcoming special days (next 30 days):\n' + (upcomingSpecial(30).map((x) => '- ' + specialTitle(x.sd, x.at) + ' on ' + L.fmtDate(x.at)).join('\n') || '- none') + '\n' +
     'Vision:\n' + (st.vision || []).map((v) => '- ' + v).join('\n') + '\n' +
     'Revenue mission this month: target ' + L.money(rev.target) + ', collected ' + L.money(rev.collected) + ', outstanding receivables ' + L.money(rev.outstanding) + ', monthly recurring (retainers) ' + L.money(rev.mrr) + ' from ' + rev.activeClients + ' clients, expenses logged ' + L.money(rev.expenses) + '.\n' +
@@ -249,4 +250,23 @@ export function parseActions(text) {
 function profileLine() {
   const p = S.profile || {};
   return [p.fullName, p.role && p.company ? p.role + ', ' + p.company : '', p.city, p.dob ? 'born ' + p.dob : '', p.anniversary ? 'married ' + p.anniversary + (p.spouse ? ' to ' + p.spouse : '') : '', p.about].filter(Boolean).join('; ');
+}
+
+// Growth plan: client tiers (by retainer) and the team needed to deliver them.
+export function growthPlan() {
+  const g = S.growth, tiers = g.tiers.slice().sort((a, b) => b.price - a.price);
+  const active = S.clients.filter((c) => c.active !== false && Number(c.retainer) > 0);
+  const rows = tiers.map((t, i) => {
+    const lower = i < tiers.length - 1 ? (t.price + tiers[i + 1].price) / 2 : 0;
+    const upper = i > 0 ? (tiers[i - 1].price + t.price) / 2 : Infinity;
+    const have = active.filter((c) => Number(c.retainer) >= lower && Number(c.retainer) < upper);
+    return { name: t.name, price: Number(t.price), count: Number(t.count), have: have.length, haveMrr: have.reduce((a, c) => a + Number(c.retainer), 0), revenue: Number(t.price) * Number(t.count) };
+  });
+  const planRevenue = rows.reduce((a, r) => a + r.revenue, 0), planClients = rows.reduce((a, r) => a + r.count, 0);
+  const team = g.team.map((m) => ({ role: m.role, need: Number(m.need) || 0, have: Number(m.have) || 0, salary: Number(m.salary) || 0 }));
+  const teamNeed = team.reduce((a, m) => a + m.need, 0), teamHave = team.reduce((a, m) => a + m.have, 0);
+  const salaryKnown = team.every((m) => m.salary > 0);
+  const payrollPlan = team.reduce((a, m) => a + m.need * m.salary, 0);
+  return { rows: rows, planRevenue: planRevenue, planClients: planClients, team: team, teamNeed: teamNeed, teamHave: teamHave, salaryKnown: salaryKnown, payrollPlan: payrollPlan,
+    clientsPerEditor: (team.find((m) => /editor/i.test(m.role)) || {}).need ? planClients / team.find((m) => /editor/i.test(m.role)).need : null };
 }

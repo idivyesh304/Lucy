@@ -344,8 +344,8 @@ function renderMoney() {
     const list = S.expenses.slice().sort((a, b2) => b2.date - a.date);
     const month = list.filter((e) => e.recurring || L.dayKey(e.date).slice(0, 7) === mk);
     const pr = B.payroll();
-    if (pr.list.length) h += '<button class="panel gold" style="width:100%;text-align:left" data-a="sub" data-v="team"><div class="row"><div class="badge">' + icon('users', 18) + '</div><div class="grow"><b>Team salaries · ' + short(pr.total) + ' / month</b><div class="sub">' + pr.paidCount + ' of ' + pr.list.length + ' paid this month · ' + short(pr.total - pr.paidAmount) + ' to pay. Paid salaries are added here automatically.</div></div>' + icon('right', 18) + '</div></button>';
-    h += '<div class="stats">' + stat('This month', short(month.reduce((a, e) => a + Number(e.amount), 0)), month.length + ' entries') + stat('Recurring', short(list.filter((e) => e.recurring).reduce((a, e) => a + Number(e.amount), 0)), 'every month') + '</div>';
+    if (pr.list.length) h += '<button class="panel gold" style="width:100%;text-align:left" data-a="sub" data-v="team"><div class="row"><div class="badge">' + icon('users', 18) + '</div><div class="grow"><b>Team salaries · ' + short(pr.total) + ' / month</b><div class="sub">Every month · ' + pr.paidCount + ' of ' + pr.list.length + ' paid this month · ' + short(pr.total - pr.paidAmount) + ' to pay. Counted in your monthly expenses automatically.</div></div>' + icon('right', 18) + '</div></button>';
+    h += '<div class="stats">' + stat('This month', short(month.reduce((a, e) => a + Number(e.amount), 0) + pr.total), month.length + ' entries' + (pr.total ? ' + salaries' : '')) + stat('Every month', short(list.filter((e) => e.recurring).reduce((a, e) => a + Number(e.amount), 0) + pr.total), 'fixed costs incl. salaries') + '</div>';
     h += listOf(list.slice(0, 60).map((e) => '<div class="item" data-a="edit-exp" data-id="' + e.id + '"><div class="badge">' + icon('card', 18) + '</div><div class="grow"><div class="t">' + esc(e.title) + '</div><div class="m">' + esc(e.cat || 'Other') + ' · ' + (e.recurring ? 'Every month' : L.fmtDate(e.date)) + '</div></div><div class="amount out">' + money(e.amount) + '</div></div>'), 'No expenses yet. Tap + to log salaries, rent, software and more.');
   }
   return h;
@@ -518,7 +518,7 @@ function renderMore() {
 
 function renderClients() {
   if (view.id) return renderClient(clientById(view.id));
-  const rows = S.clients.slice().sort((a, b2) => clientName(a).localeCompare(clientName(b2))).map((c) => '<div class="item" data-a="open-client" data-id="' + c.id + '"><div class="badge">' + icon('briefcase', 18) + '</div><div class="grow"><div class="t">' + esc(clientName(c)) + '</div><div class="m">' + esc([c.businessType, c.active === false ? 'Inactive' : (Number(c.retainer) ? money(c.retainer) + '/month' : '')].filter(Boolean).join(' · ') || 'Client') + '</div></div>' + icon('right', 18) + '</div>');
+  const rows = S.clients.slice().sort((a, b2) => clientName(a).localeCompare(clientName(b2))).map((c) => '<div class="item" data-a="open-client" data-id="' + c.id + '"><div class="badge">' + icon('briefcase', 18) + '</div><div class="grow"><div class="t">' + esc(clientName(c)) + '</div><div class="m">' + esc([c.pkg, c.active === false ? 'Inactive' : c.billing === 'once' ? 'One time ' + money(c.amount || 0) : (Number(c.retainer) ? money(c.retainer) + '/month · renews ' + (c.nextDate ? L.fmtDate(c.nextDate) : '') : '')].filter(Boolean).join(' · ') || 'Client') + '</div></div>' + icon('right', 18) + '</div>');
   return topbar('Clients', { back: 'More' }) + listOf(rows, 'No clients yet. Tap + to add one.');
 }
 function renderClient(c) {
@@ -529,9 +529,9 @@ function renderClient(c) {
   const btn = (href, ic, l) => href ? '<a class="btn small ghost" href="' + esc(href) + '" target="_blank" rel="noopener">' + icon(ic, 15) + l + '</a>' : '';
   const rems = S.reminders.filter((r) => r.clientId === c.id && r.status === 'pending');
   const pays = S.payments.filter((p) => p.clientId === c.id);
-  const det = [['Contact', [c.firstName, c.lastName].filter(Boolean).join(' ')], ['Phone', c.personalPhone], ['Business type', c.businessType], ['Address', c.address], ['Office', c.companyPhone], ['Work we do', c.work], ['Package', c.pkg], ['Retainer', Number(c.retainer) ? money(c.retainer) + ' / month' : ''], ['Email', c.email]].filter((d) => d[1]);
+  const det = [['Contact', c.phone || c.personalPhone], ['Package', c.pkg], ['Billing', c.billing === 'once' ? 'One time · ' + money(c.amount || 0) : Number(c.retainer || c.amount) ? money(c.retainer || c.amount) + ' every month' : ''], [c.billing === 'once' ? 'Due' : 'Next renewal', c.nextDate ? L.fmtDate(c.nextDate) : '']].filter((d) => d[1]);
   return topbar(esc(clientName(c)), { back: 'Clients' }) +
-    '<div class="actions" style="margin-top:0">' + btn(c.personalPhone && 'tel:' + tel(c.personalPhone), 'phone', 'Call') + btn((c.personalPhone || c.companyPhone) && 'https://wa.me/' + wa(c.personalPhone || c.companyPhone), 'chat', 'WhatsApp') + btn(c.email && 'mailto:' + c.email, 'mail', 'Email') + btn(link('ig', c.instagram), 'camera', 'Instagram') + btn(link('fb', c.facebook), 'globe', 'Facebook') + btn(link('g', c.gmb), 'globe', 'Google') + '<button class="btn small line" data-a="edit-client" data-id="' + c.id + '">' + icon('edit', 15) + 'Edit</button></div>' +
+    '<div class="actions" style="margin-top:0">' + btn((c.phone || c.personalPhone) && 'tel:' + tel(c.phone || c.personalPhone), 'phone', 'Call') + btn((c.phone || c.personalPhone) && 'https://wa.me/' + wa(c.phone || c.personalPhone), 'chat', 'WhatsApp') + '<button class="btn small line" data-a="edit-client" data-id="' + c.id + '">' + icon('edit', 15) + 'Edit</button></div>' +
     (det.length ? '<div class="list mt">' + det.map((d) => '<div class="item"><div class="grow"><div class="m">' + d[0] + '</div><div class="t">' + esc(d[1]) + '</div></div></div>').join('') + '</div>' : '') +
     '<h2>Notes and meeting prep</h2><textarea id="client-notes" data-cid="' + c.id + '" placeholder="What they want, budget, last discussion">' + esc(c.notes || '') + '</textarea>' +
     '<h2>Follow-ups<button class="link" data-a="new-rem-client" data-id="' + c.id + '">Add</button></h2>' + listOf(rems.map((r) => remRow(r)), 'No pending follow-ups.') +
@@ -665,6 +665,10 @@ function renderConnections() {
 }
 function renderBackup() {
   return topbar('Backup', { back: 'More' }) + '<div class="panel"><div class="row"><span class="status-dot ' + (H.driveEnabled() ? 'ok' : '') + '"></span><b class="grow">Google Drive</b><span class="sub">' + (H.driveEnabled() ? 'Automatic' : 'Off') + '</span></div><div class="sub mt">' + (H.driveEnabled() ? 'Every change is saved to your Drive, with a dated copy each day for 14 days.' : 'Turn on in Connections for automatic backup.') + '</div></div>' +
+    '<h2>Start fresh</h2><div class="panel"><div class="sub">Choose what to delete. Your profile, settings, routine and Lucy herself stay.</div>' +
+    [['clients', 'Clients', 1], ['payments', 'Money in and out', 1], ['expenses', 'Expenses', 1], ['loans', 'Loans and EMIs', 1], ['reminders', 'Reminders', 1], ['leads', 'Leads', 1], ['ideas', 'Ideas', 1], ['notes', 'Notes', 1], ['shopping', 'Shopping', 1], ['learning', 'Learning', 1], ['chat', 'Chat with Lucy', 1], ['log', 'Activity history', 1], ['team', 'Team members', 0], ['special', 'Special days', 0], ['dreams', 'Dreams', 0], ['journal', 'Journal, streaks and mission history', 0], ['profile', 'Keep my profile photo', 1]]
+      .map(([k, l, on]) => '<div class="row" style="padding:7px 0"><input type="checkbox" id="fr-' + k + '" ' + (on ? 'checked' : '') + '><span>' + l + '</span></div>').join('') +
+    '<button class="btn danger block" data-a="fresh-start">Delete selected and start fresh</button></div>' +
     '<h2>Copy a backup</h2><textarea id="bk-out" readonly style="min-height:100px;font-size:12px">' + esc(JSON.stringify(S)) + '</textarea><button class="btn block" data-a="copy-bk">Copy backup</button>' +
     '<h2>Restore</h2><div class="sub">Paste a backup from Lucy 1, 2 or 3.</div><textarea id="bk-in" class="mt" style="font-size:12px"></textarea><button class="btn danger block" data-a="restore">Restore (replaces current data)</button>';
 }
@@ -800,10 +804,11 @@ function loanPaid(id) {
   else { celebrate('small'); toast('Payment recorded'); }
 }
 function expenseSheet(e) {
+  setTimeout(() => { if (e) $('#sheet').dataset.kind = e.recurring ? 'monthly' : 'once'; else delete $('#sheet').dataset.kind; }, 0);
   openSheet('<h3>' + (e ? 'Edit expense' : 'New expense') + '</h3><label>What</label><input id="e-title" value="' + esc(e ? e.title : '') + '" placeholder="e.g. Adobe subscription">' +
     '<div class="grid2"><div><label>Amount (₹)</label><input id="e-amt" type="number" value="' + (e ? e.amount : '') + '"></div><div><label>Date</label><input id="e-date" type="date" value="' + L.dayKey(e ? e.date : Date.now()) + '"></div></div>' +
     '<label>Category</label><select id="e-cat">' + C.EXPENSE_CATS.map((c) => '<option ' + (e && e.cat === c ? 'selected' : '') + '>' + c + '</option>').join('') + '</select>' +
-    '<div class="row mt"><input type="checkbox" id="e-rec" ' + (e && e.recurring ? 'checked' : '') + '><span>Repeats every month</span></div>' +
+    '<label>Is this expense</label><div class="seg" id="e-kind"><button class="' + (e && e.recurring ? 'on' : '') + '" data-a="e-kind" data-v="monthly">Every month</button><button class="' + (e && !e.recurring ? 'on' : '') + '" data-a="e-kind" data-v="once">One time</button></div>' +
     '<button class="btn block" data-a="save-exp" data-id="' + (e ? e.id : '') + '">Save</button>' + (e ? '<button class="btn danger block" data-a="del-exp" data-id="' + e.id + '">Delete</button>' : ''));
 }
 
@@ -881,6 +886,22 @@ document.addEventListener('click', async (ev) => {
       else go('home');
       break;
     case 'sub-profile': go('more', 'profile'); break;
+    case 'c-bill': document.querySelectorAll('#c-bill button').forEach((b) => b.classList.toggle('on', b === el)); $('#sheet').dataset.bill = v;
+      $('#c-date-l').textContent = v === 'monthly' ? 'Next renewal date' : 'Payment due date';
+      $('#c-hint').textContent = v === 'monthly' ? 'Every month on the renewal date, Lucy adds this amount to your receivables automatically.' : 'Lucy adds this amount to your receivables once.'; break;
+    case 'e-kind': document.querySelectorAll('#e-kind button').forEach((b) => b.classList.toggle('on', b === el)); $('#sheet').dataset.kind = v; break;
+    case 'fresh-start': {
+      const keep = { profile: $('#fr-profile').checked, settings: true };
+      const wipe = ['clients', 'payments', 'reminders', 'loans', 'expenses', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'chat', 'log'].filter((k) => { const cb = $('#fr-' + k); return !cb || cb.checked; });
+      if ($('#fr-team').checked) wipe.push('employees');
+      if ($('#fr-special').checked) wipe.push('specialDays');
+      if ($('#fr-dreams').checked) wipe.push('dreams');
+      if ($('#fr-journal').checked) { S.journal = {}; S.affirm = { done: {}, custom: S.affirm.custom || [], spoken: {} }; S.routineLog = {}; S.mission = {}; }
+      if (!confirm('Delete ' + wipe.length + ' kinds of data on every device? Your Google Drive keeps daily copies for 14 days if you need anything back.')) break;
+      wipe.forEach((k) => { S[k] = []; });
+      if (!keep.profile) S.profile = Object.assign({}, S.profile, { photo: '' });
+      save(); go('home'); toast('Fresh start. Everything is clean.'); celebrate('small'); break;
+    }
     case 'new-emp': empSheet(null, v); break;
     case 'edit-emp': empSheet(S.employees.find((x) => x.id === id)); break;
     case 'save-emp': {
@@ -898,7 +919,7 @@ document.addEventListener('click', async (ev) => {
     case 'emp-paid': {
       const e = S.employees.find((x) => x.id === id), mk = B.payroll().month; e.paid = e.paid || {};
       if (e.paid[mk]) { delete e.paid[mk]; S.expenses = S.expenses.filter((x) => x.empPay !== e.id + ':' + mk); toast('Marked as not paid'); }
-      else { e.paid[mk] = Date.now(); S.expenses.push({ id: nid(), title: 'Salary · ' + e.name, amount: Number(e.salary) || 0, date: Date.now(), cat: 'Salaries', recurring: false, empPay: e.id + ':' + mk }); celebrate('small'); toast('Salary marked paid'); }
+      else { e.paid[mk] = Date.now(); celebrate('small'); toast('Salary marked paid'); }
       save(); closeSheet(); render(); break;
     }
     case 'upi-open': setTimeout(() => toast('After paying in your UPI app, tap Mark salary paid'), 600); return;
@@ -990,7 +1011,8 @@ document.addEventListener('click', async (ev) => {
     case 'save-exp': {
       const title = $('#e-title').value.trim(), amt = Number($('#e-amt').value);
       if (!title || !amt) { toast('Add what and how much'); break; }
-      const data = { title: title, amount: amt, date: fromInputs($('#e-date').value, '12:00'), cat: $('#e-cat').value, recurring: $('#e-rec').checked };
+      const kind = $('#sheet').dataset.kind; if (!kind) { toast('Choose: every month or one time'); break; }
+      const data = { title: title, amount: amt, date: fromInputs($('#e-date').value, '12:00'), cat: $('#e-cat').value, recurring: kind === 'monthly' };
       if (id) Object.assign(S.expenses.find((e) => e.id === id), data); else S.expenses.push(Object.assign({ id: nid() }, data));
       save(); closeSheet(); render(); break;
     }
@@ -1059,7 +1081,7 @@ document.addEventListener('click', async (ev) => {
     case 'price-lead': pricingSheet(leadById(id)); break;
     case 'calc-price': calcPrice(); break;
     case 'lead-outreach': { const l = leadById(id); go('lucy'); ask('Write a short, personal WhatsApp outreach message and a follow-up message for ' + l.name + ' (' + (l.industry || '') + ', ' + (l.city || '') + '). What we know: ' + (l.reason || l.notes || 'not much yet') + '. Recommended service: ' + (l.service || 'to decide') + '.', 'chat'); break; }
-    case 'lead-to-client': { const l = leadById(id); l.status = 'Won'; l.wonAt = Date.now(); S.clients.push({ id: nid(), company: l.name, businessType: l.industry, companyPhone: l.phone, email: l.email, instagram: l.instagram, address: l.city, retainer: 0, active: true, notes: l.notes || '', created: Date.now() }); save(); celebrate('big', { title: 'New client', sub: l.name + ' is now a DZYN LAB client.' }); go('more', 'clients'); break; }
+    case 'lead-to-client': { const l = leadById(id); l.status = 'Won'; l.wonAt = Date.now(); const nc = { id: nid(), company: l.name, phone: l.phone || '', personalPhone: l.phone || '', billing: 'monthly', amount: 0, retainer: 0, active: true, notes: l.notes || '', created: Date.now(), nextDate: L.startOfDay(Date.now()) }; S.clients.push(nc); save(); setTimeout(() => clientSheet(nc), 400); celebrate('big', { title: 'New client', sub: l.name + ' is now a DZYN LAB client.' }); go('more', 'clients'); break; }
     case 'del-lead': if (confirm('Delete this lead?')) { S.leads = S.leads.filter((l) => l.id !== id); save(); view.id = null; render(); } break;
     case 'add-idea': { const t = $('#idea-new').value.trim(); if (!t) break; const sel = $('#idea-client'); S.ideas.push({ id: nid(), text: t, scope: segOf('idea', 'company'), clientId: sel ? (Number(sel.value) || null) : null, created: Date.now() }); save(); render(); celebrate('small'); break; }
     case 'edit-idea': { const n = S.ideas.find((x) => x.id === id); openSheet('<h3>Idea</h3><textarea id="n-text" style="min-height:160px">' + esc(n.text) + '</textarea><button class="btn block" data-a="save-idea" data-id="' + id + '">Save</button><button class="btn ghost block" data-a="idea-rem" data-id="' + id + '">Make it a reminder</button><button class="btn danger block" data-a="del-idea" data-id="' + id + '">Delete</button>'); break; }
@@ -1146,19 +1168,32 @@ function fab() {
   if (view.sub === 'notes') { const n = { id: nid(), title: '', body: '', created: Date.now(), updated: Date.now() }; S.notes.push(n); save({ local: true }); return noteSheet(n); }
   const t = $('#idea-new') || $('#shop-new') || $('#learn-new'); if (t) t.focus();
 }
-const CLIENT_FIELDS = [['firstName', 'First name'], ['lastName', 'Last name'], ['personalPhone', 'Personal number', 'tel'], ['company', 'Company name'], ['businessType', 'Business type'], ['address', 'Company address'],
-  ['companyPhone', 'Company number', 'tel'], ['work', 'Work we do'], ['pkg', 'Package'], ['retainer', 'Monthly retainer (₹)', 'number'], ['email', 'Email', 'email'], ['instagram', 'Instagram'], ['facebook', 'Facebook'], ['gmb', 'Google Business link']];
 function clientSheet(c) {
   c = c || {};
-  openSheet('<h3>' + (c.id ? 'Edit client' : 'New client') + '</h3>' + CLIENT_FIELDS.map(([k, l, t]) => '<label>' + l + '</label><input id="c-' + k + '" type="' + (t || 'text') + '" value="' + esc(c[k] || '') + '">').join('') +
-    '<div class="row mt"><input type="checkbox" id="c-active" ' + (c.active === false ? '' : 'checked') + '><span>Active client</span></div><button class="btn block" data-a="save-client" data-id="' + (c.id || '') + '">Save</button>' + (c.id ? '<button class="btn danger block" data-a="del-client" data-id="' + c.id + '">Delete</button>' : ''));
+  const monthly = c.billing ? c.billing === 'monthly' : (c.id ? !!Number(c.retainer) : true);
+  openSheet('<h3>' + (c.id ? 'Edit client' : 'New client') + '</h3>' +
+    '<label>Client name</label><input id="c-name" value="' + esc(clientName(c.id ? c : null) || '') + '" placeholder="Business or person">' +
+    '<label>Contact number</label><input id="c-phone" type="tel" value="' + esc(c.phone || c.personalPhone || '') + '" placeholder="98xxxxxxxx">' +
+    '<label>Package</label><input id="c-pkg" value="' + esc(c.pkg || '') + '" placeholder="e.g. Elevate · 8 reels + 12 posts">' +
+    '<label>Billing</label><div class="seg" id="c-bill"><button class="' + (monthly ? 'on' : '') + '" data-a="c-bill" data-v="monthly">Every month</button><button class="' + (monthly ? '' : 'on') + '" data-a="c-bill" data-v="once">One time</button></div>' +
+    '<div class="grid2"><div><label>Amount (₹)</label><input id="c-amount" type="number" inputmode="numeric" value="' + esc(c.amount || c.retainer || '') + '"></div>' +
+    '<div><label id="c-date-l">' + (monthly ? 'Next renewal date' : 'Payment due date') + '</label><input id="c-date" type="date" value="' + (c.nextDate ? L.dayKey(c.nextDate) : L.dayKey(Date.now())) + '"></div></div>' +
+    '<div class="hint" id="c-hint">' + (monthly ? 'Every month on the renewal date, Lucy adds this amount to your receivables automatically.' : 'Lucy adds this amount to your receivables once.') + '</div>' +
+    '<div class="row mt"><input type="checkbox" id="c-active" ' + (c.active === false ? '' : 'checked') + '><span>Active client</span></div>' +
+    '<button class="btn block" data-a="save-client" data-id="' + (c.id || '') + '">Save</button>' + (c.id ? '<button class="btn danger block" data-a="del-client" data-id="' + c.id + '">Delete</button>' : ''));
+  $('#sheet').dataset.bill = monthly ? 'monthly' : 'once';
 }
 function saveClient(id) {
-  const d = {}; CLIENT_FIELDS.forEach(([k, , t]) => { const v = $('#c-' + k).value.trim(); d[k] = t === 'number' ? Number(v) || 0 : v; });
-  d.active = $('#c-active').checked;
-  if (!d.company && !d.firstName) return toast('Add a company or first name');
-  if (id) Object.assign(clientById(id), d); else { const c = Object.assign({ id: nid(), notes: '', created: Date.now() }, d); S.clients.push(c); view.id = c.id; celebrate('small'); }
-  save(); closeSheet(); render();
+  const name = $('#c-name').value.trim(); if (!name) return toast('Add the client name');
+  const billing = $('#sheet').dataset.bill || 'monthly', amount = Number($('#c-amount').value) || 0;
+  const nextDate = L.startOfDay(fromInputs($('#c-date').value, '09:00'));
+  const d = { company: name, firstName: '', lastName: '', phone: $('#c-phone').value.trim(), personalPhone: $('#c-phone').value.trim(), pkg: $('#c-pkg').value.trim(), billing: billing, amount: amount,
+    retainer: billing === 'monthly' ? amount : 0, active: $('#c-active').checked };
+  let c;
+  if (id) { c = clientById(id); const changedDate = !c.nextDate || L.dayKey(c.nextDate) !== L.dayKey(nextDate); Object.assign(c, d); if (changedDate) { c.nextDate = nextDate; c.renewDay = new Date(nextDate).getDate(); } }
+  else { c = Object.assign({ id: nid(), notes: '', created: Date.now(), nextDate: nextDate }, d); S.clients.push(c); view.id = c.id; celebrate('small'); }
+  if (billing === 'once' && amount && !c.onceBilled) { S.payments.push({ id: nid(), type: 'in', party: name, amount: amount, due: nextDate, note: c.pkg || 'One-time project', clientId: c.id, status: 'pending', created: Date.now(), auto: true }); c.onceBilled = true; }
+  B.billClients(); save(); closeSheet(); render();
 }
 function leadNewSheet() {
   openSheet('<h3>New lead</h3><label>Business name</label><input id="l-name"><div class="grid2"><div><label>Industry</label><input id="l-ind"></div><div><label>City</label><input id="l-city" value="' + esc(S.settings.hunter.city) + '"></div></div><label>Website or Instagram</label><input id="l-web"><button class="btn block" data-a="save-new-lead">Add lead</button>');
@@ -1271,6 +1306,7 @@ function openHash() {
   }
   openHash();
   startNeural(); startTilt();
+  if (B.billClients()) save();
   B.ensureMission(); save({ local: true });
   render();
   if (!S.onboarded) {
@@ -1281,6 +1317,7 @@ function openHash() {
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState === 'visible') {
       await H.pullFromDrive(() => render());
+      if (B.billClients()) save();
       B.ensureMission(); render(); showOpening();
       H.queueSchedule(buildSchedule);
     }

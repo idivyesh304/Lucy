@@ -92,7 +92,7 @@ export function revenue() {
   const active = S.clients.filter((c) => c.active !== false && Number(c.retainer) > 0);
   const mrr = active.reduce((a, c) => a + Number(c.retainer || 0), 0);
   const avg = active.length ? mrr / active.length : 0;
-  const expenses = S.expenses.filter((e) => (e.recurring && e.date <= now) || inThisMonth(e.date)).reduce((a, e) => a + Number(e.amount || 0), 0);
+  const expenses = S.expenses.filter((e) => (e.recurring && e.date <= now) || inThisMonth(e.date)).reduce((a, e) => a + Number(e.amount || 0), 0) + S.employees.filter((e) => e.active !== false).reduce((a, e) => a + (Number(e.salary) || 0), 0);
   const target = Number(S.settings.revenueTarget) || 0;
   const gap = Math.max(0, target - collected);
   const clientsNeeded = avg ? Math.ceil(Math.max(0, target - mrr) / avg) : null;
@@ -279,4 +279,26 @@ export function payroll() {
   const total = list.reduce((a, e) => a + (Number(e.salary) || 0), 0);
   const paid = list.filter((e) => e.paid && e.paid[mk]);
   return { list: list, total: total, paidCount: paid.length, paidAmount: paid.reduce((a, e) => a + (Number(e.salary) || 0), 0), due: list.filter((e) => !(e.paid && e.paid[mk])), month: mk };
+}
+
+// Monthly clients: on each renewal date, add that month's amount to receivables (once per cycle).
+export function billClients() {
+  const today = L.startOfDay(Date.now()), soon = L.addDays(today, 3);
+  let changed = false;
+  S.clients.forEach((c) => {
+    if (c.active === false || c.billing === 'once' || !Number(c.retainer || c.amount) || !c.nextDate) return;
+    let guard = 0;
+    while (c.nextDate <= soon && guard++ < 24) {
+      const key = c.id + ':' + L.dayKey(c.nextDate);
+      if (!S.payments.some((p) => p.cycle === key)) {
+        S.payments.push({ id: S.seq++, type: 'in', party: c.company || c.firstName || 'Client', amount: Number(c.retainer || c.amount), due: c.nextDate, note: (c.pkg ? c.pkg + ' · ' : '') + 'Monthly renewal', clientId: c.id, status: 'pending', created: Date.now(), auto: true, cycle: key });
+      }
+      const d = new Date(c.nextDate), day = c.renewDay || d.getDate();
+      c.renewDay = day;
+      const ny = d.getFullYear(), nm = d.getMonth() + 1;
+      c.nextDate = new Date(ny, nm, Math.min(day, new Date(ny, nm + 1, 0).getDate())).getTime();
+      changed = true;
+    }
+  });
+  return changed;
 }

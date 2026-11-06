@@ -5,6 +5,8 @@ import * as H from './helper.js';
 import { buildSchedule, nextLoanDue } from './schedule.js';
 import * as V from './voice.js';
 import { avatar, setAvatarState } from './avatar.js';
+import { mountLucy } from './lucy3d.js';
+import { startNeural, startTilt, countUp } from './fx.js';
 import { celebrate, setTapPoint } from './celebrate.js';
 import { $, esc, hm, toTime, fromInputs, fmtHM, money, short, toast, openSheet, closeSheet, sheetOpen, listOf, seg, sw, catIcon, catStyle, ring, chart, imageToDataUrl, icon, L, C } from './ui.js';
 
@@ -20,7 +22,7 @@ const alertStart = B.alertStart;
 const segOf = (k, d) => view.seg[k] || d;
 
 onSave(() => { H.queueDriveSave(); H.queueSchedule(buildSchedule); });
-V.onVoiceState((s) => { setAvatarState(s); const el = $('.lucy-state'); if (el) el.textContent = stateLabel(s); });
+V.onVoiceState((s) => { setAvatarState(s); const el = $('.lucy-state'); if (el) el.textContent = stateLabel(s); const c = $('.lucy-state-chip'); if (c) c.textContent = stateLabel(s).toUpperCase(); });
 function stateLabel(s) { return s === 'speaking' ? 'Speaking' : s === 'listening' ? 'Listening' : s === 'thinking' ? 'Thinking' : 'Online'; }
 
 /* =============================== navigation =============================== */
@@ -44,7 +46,12 @@ function render() {
   const f = $('.fab');
   if (showFab && !f) document.body.insertAdjacentHTML('beforeend', '<button class="fab" data-a="fab" aria-label="Add">' + icon('plus', 26) + '</button>');
   if (!showFab && f) f.remove();
-  if (view.tab === 'lucy') { const c = $('#chat-end'); if (c) c.scrollIntoView({ block: 'end' }); }
+  if (view.tab === 'lucy') {
+    const holo = $('.lucy-holo'); if (holo) mountLucy(holo, 'lucy.jpg');
+    setAvatarState(V.isSpeaking() ? 'speaking' : view.chatBusy ? 'thinking' : 'idle');
+    const c = $('#chat-end'); if (c && S.chat.length) c.scrollIntoView({ block: 'end' });
+  }
+  countUp($('#app'));
 }
 function topbar(title, opts) {
   opts = opts || {};
@@ -96,7 +103,7 @@ function renderHome() {
   h += top.length ? '<div class="list">' + top.map((x, i) => topRow(x, i)).join('') + '</div>' : '<div class="panel empty">Nothing urgent. Your Top 5 fills itself from reminders, payments and lead follow-ups.</div>';
 
   h += '<h2>Revenue mission<button class="link" data-a="tab" data-v="money">Open</button></h2>';
-  h += '<div class="panel"><div class="row" style="gap:16px">' + ring(rev.pct, Math.round(rev.pct * 100) + '%', 'of target') +
+  h += '<div class="panel"><div class="row" style="gap:16px">' + ring(rev.pct, '<span data-count="' + Math.round(rev.pct * 100) + '" data-fmt="pct">' + Math.round(rev.pct * 100) + '%</span>', 'of target') +
     '<div class="grow"><div class="sub">Collected this month</div><div class="num" style="font-size:24px;font-weight:600">' + short(rev.collected) + '</div>' +
     '<div class="sub">Target ' + short(rev.target) + ' · gap ' + short(rev.gap) + '</div>' +
     (rev.outstanding ? '<div class="sub mt" style="margin-top:6px"><span class="gold">' + short(rev.outstanding) + '</span> waiting to be collected</div>' : '') + '</div></div></div>';
@@ -200,7 +207,7 @@ function renderMoney() {
   if (s === 'mission') {
     const r = B.revenue();
     h += '<div class="panel gold hero"><div class="eyebrow">Revenue mission · ' + L.MON[new Date().getMonth()] + '</div>' +
-      '<div class="row mt2" style="gap:16px">' + ring(r.pct, Math.round(r.pct * 100) + '%', 'collected', 124) + '<div class="grow"><div class="num" style="font-size:28px;font-weight:600">' + short(r.collected) + '</div><div class="sub">of ' + short(r.target) + ' target</div><div class="sub" style="margin-top:6px">Gap <span class="gold">' + short(r.gap) + '</span></div></div></div>' +
+      '<div class="row mt2" style="gap:16px">' + ring(r.pct, '<span data-count="' + Math.round(r.pct * 100) + '" data-fmt="pct">' + Math.round(r.pct * 100) + '%</span>', 'collected', 124) + '<div class="grow"><div class="num" style="font-size:28px;font-weight:600">' + short(r.collected) + '</div><div class="sub">of ' + short(r.target) + ' target</div><div class="sub" style="margin-top:6px">Gap <span class="gold">' + short(r.gap) + '</span></div></div></div>' +
       '<div class="sub mt">' + (r.clientsNeeded != null ? 'At your average retainer of ' + money(Math.round(r.avg)) + ', you need about <b class="gold">' + r.clientsNeeded + ' more retainer clients</b> to reach ' + short(r.target) + ' a month.' : 'Add monthly retainer amounts to your clients so Lucy can calculate how many clients you need.') + '</div></div>';
     h += '<div class="stats">' +
       stat('Monthly recurring', short(r.mrr), r.activeClients + ' retainer clients') + stat('Outstanding', short(r.outstanding), 'waiting to be collected') +
@@ -316,7 +323,13 @@ const QUICK = [
 function renderLucy() {
   const prov = S.settings.provider === 'chatgpt' ? 'chatgpt' : 'claude';
   let h = '<div class="topbar"><div><div class="eyebrow">Lucy</div></div><div class="row" style="gap:8px"><button class="iconbtn" data-a="toggle-speak" aria-label="Voice">' + icon(S.settings.speak ? 'volume' : 'stop', 18) + '</button><button class="iconbtn" data-a="tab" data-v="more">' + icon('grid', 19) + '</button></div></div>';
-  h += '<div class="lucy-stage">' + avatar('big') + '<div class="fade"></div></div><div class="lucy-state">' + stateLabel(V.isSpeaking() ? 'speaking' : view.chatBusy ? 'thinking' : 'idle') + '</div>';
+  const holo = !S.settings.avatarImg;
+  const st0 = V.isSpeaking() ? 'speaking' : view.chatBusy ? 'thinking' : 'idle';
+  h += '<div class="lucy-stage ' + (holo ? 'holo' : '') + '"><div class="hud-rings"><i></i><i></i><i></i><span class="hud-tick t1"></span><span class="hud-tick t2"></span></div>' +
+    (holo ? '<div class="lucy-holo"><img class="holo-fallback" src="lucy.jpg" alt="Lucy"></div><div class="holo-floor"></div>' : avatar('big')) + '<div class="fade"></div>' +
+    '<div class="hud-corner tl"></div><div class="hud-corner tr"></div><div class="hud-corner bl"></div><div class="hud-corner br"></div>' +
+    '<div class="hud-read l"><b>LUCY</b><span>v3 · neural</span></div><div class="hud-read r"><b class="lucy-state-chip">' + stateLabel(st0).toUpperCase() + '</b><span>' + (S.settings.provider === 'chatgpt' ? 'ChatGPT' : 'Claude') + ' link</span></div></div>' +
+    '<div class="lucy-wave">' + Array.from({ length: 29 }, (_, i) => '<i style="--i:' + i + '"></i>').join('') + '</div><div class="lucy-state">' + stateLabel(st0) + '</div>';
   h += '<div class="seg" style="margin-top:14px"><button class="' + (prov === 'claude' ? 'on' : '') + '" data-a="provider" data-v="claude">Claude</button><button class="' + (prov === 'chatgpt' ? 'on' : '') + '" data-a="provider" data-v="chatgpt">ChatGPT</button></div>';
   if (!H.ready()) h += '<button class="panel" style="width:100%;text-align:left" data-a="open-connections"><div class="row"><div class="badge">' + icon('key', 18) + '</div><div class="grow"><b>Connect Lucy\'s brain</b><div class="sub">Lucy can already speak and coach you. Add your Claude and ChatGPT keys so she can think, research and write for you.</div></div></div></button>';
   h += '<div class="hscroll">' + QUICK.map((q) => '<button class="chip" data-a="quick" data-v="' + q[0] + '">' + icon(q[0] === 'hunter' ? 'search' : q[0] === 'pricing' ? 'coins' : 'spark', 14) + q[1] + '</button>').join('') + '</div>';
@@ -1096,6 +1109,7 @@ function openHash() {
     navigator.serviceWorker.addEventListener('message', (e) => { if (e.data && e.data.open) { location.hash = e.data.open; openHash(); render(); } });
   }
   openHash();
+  startNeural(); startTilt();
   B.ensureMission(); save({ local: true });
   render();
   if (!S.onboarded) {
@@ -1115,4 +1129,4 @@ function openHash() {
   setInterval(() => { if (document.visibilityState === 'visible' && H.driveEnabled() && !sheetOpen() && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) H.pullFromDrive(() => render()); }, 60000);
 })();
 
-window.__lucy = { get S() { return S; }, buildSchedule: buildSchedule, render: render, B: B };
+window.__lucy = { get S() { return S; }, buildSchedule: buildSchedule, render: render, B: B, state: setAvatarState };

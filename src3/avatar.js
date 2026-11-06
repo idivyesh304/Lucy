@@ -2,6 +2,7 @@
 // States: idle (breathing, blinking), speaking (mouth and core pulse), listening (halo pulse).
 import { S } from './store.js';
 import { onWord } from './voice.js';
+import { setLucyState } from './lucy3d.js';
 
 export function avatar(cls) {
   const custom = !!S.settings.avatarImg;
@@ -84,6 +85,7 @@ function startTalk() {
 function stopTalk() { clearTimeout(talkTimer); talkTimer = null; }
 
 export function setAvatarState(state) {
+  setLucyState(state);
   if (state === 'speaking') startTalk(); else stopTalk();
   document.querySelectorAll('.avatar-wrap').forEach((el) => {
     el.classList.toggle('speaking', state === 'speaking');

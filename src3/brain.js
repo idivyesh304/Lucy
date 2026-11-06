@@ -1,4 +1,5 @@
 // Lucy's local intelligence: priorities, briefing, revenue maths, loans, affirmations, AI context.
+import * as MG from './magnet.js';
 import { upcoming as upcomingSpecial, specialTitle } from './special.js';
 import * as L from '../src/logic.js';
 import * as C from './content.js';
@@ -127,7 +128,7 @@ export function loanOutstanding(l) {
 }
 
 /* ---------------- Affirmations ---------------- */
-export function allAffirmations() { return C.AFFIRMATIONS.concat(S.affirm.custom || []); }
+export function allAffirmations() { return MG.magnetAffirmations().concat(MG.dreamAffirmations(), C.AFFIRMATIONS.filter((a) => a.cat !== 'Money'), S.affirm.custom || []); }
 export function pickAffirmation(seed) {
   const all = allAffirmations();
   return all[Math.abs(seed) % all.length];
@@ -136,15 +137,18 @@ export function todaysAffirmations() {
   const all = allAffirmations();
   const d = Math.floor(L.startOfDay(Date.now()) / L.DAY);
   const pick = [];
-  const cats = C.AFFIRM_CATS;
-  for (let i = 0; i < 3; i++) {
+  const mm = MG.magnetAffirmations(), dr = MG.dreamAffirmations();
+  pick.push(mm[d % mm.length], mm[(d * 7 + 3) % mm.length]);
+  if (dr.length) pick.push(dr[d % dr.length]);
+  const cats = C.AFFIRM_CATS.filter((c) => c !== 'Money');
+  for (let i = 0; i < 1; i++) {
     const cat = cats[(d * 3 + i) % cats.length];
     const pool = all.filter((a) => a.cat === cat);
     const a = pool.length ? pool[(d + i) % pool.length] : all[(d * 7 + i) % all.length];
     if (!pick.includes(a)) pick.push(a);
   }
   const custom = (S.affirm.custom || []).filter((a) => a.pinned);
-  return custom.concat(pick).slice(0, 4);
+  return custom.concat(pick).slice(0, 5);
 }
 export function affirmStreak() {
   let n = 0, d = Date.now();
@@ -155,12 +159,10 @@ export function affirmStreak() {
 }
 export function openingCard() {
   const seed = Math.floor(Date.now() / (20 * L.MIN));
-  if (seed % 3 === 0) { const l = C.LINES[seed % C.LINES.length]; return { kind: 'line', title: 'Lucy', text: l }; }
-  if (seed % 3 === 1 && S.dreams.some((x) => !x.achieved)) {
-    const ds = S.dreams.filter((x) => !x.achieved); const dr = ds[seed % ds.length];
-    return { kind: 'dream', title: 'Your dream', text: dr.title + (dr.why ? '. ' + dr.why : ''), dream: dr };
-  }
-  const a = pickAffirmation(seed);
+  const dm = MG.dreamManifestations();
+  if (seed % 3 === 1 && dm.length) { const x = dm[seed % dm.length]; const a0 = MG.dreamAffirmations().find((a) => a.dream && a.dream.id === x.dream.id); return { kind: 'dream', title: 'Manifest · ' + x.dream.title, text: x.text, dream: x.dream, affirm: a0 }; }
+  const mm = MG.magnetAffirmations();
+  const a = seed % 3 === 0 ? mm[seed % mm.length] : pickAffirmation(seed);
   return { kind: 'affirm', title: 'Affirmation · ' + a.cat, text: a.text, affirm: a };
 }
 

@@ -8,6 +8,7 @@ import { avatar, setAvatarState } from './avatar.js';
 import { mountLucy } from './lucy3d.js';
 import { startNeural, startTilt, countUp } from './fx.js';
 import * as SP from './special.js';
+import * as MG from './magnet.js';
 import { celebrate, setTapPoint } from './celebrate.js';
 import { $, esc, hm, toTime, fromInputs, fmtHM, money, short, toast, openSheet, closeSheet, sheetOpen, listOf, seg, sw, catIcon, catStyle, ring, chart, imageToDataUrl, icon, L, C } from './ui.js';
 
@@ -43,7 +44,7 @@ function render() {
   renderTabs();
   const fabTabs = { plan: 1, money: 1 };
   const fabSubs = { team: 1, clients: 1, leads: 1, ideas: 1, notes: 1, shopping: 1, learning: 1 };
-  const showFab = (fabTabs[view.tab] && !view.sub) || (view.tab === 'ascend' && ['dreams', 'affirm'].includes(segOf('ascend', 'affirm'))) || (view.tab === 'more' && fabSubs[view.sub] && !view.id);
+  const showFab = (fabTabs[view.tab] && !view.sub) || (view.tab === 'ascend' && ['dreams', 'affirm'].includes(segOf('ascend', 'manifest'))) || (view.tab === 'more' && fabSubs[view.sub] && !view.id);
   const f = $('.fab');
   if (showFab && !f) document.body.insertAdjacentHTML('beforeend', '<button class="fab" data-a="fab" aria-label="Add">' + icon('plus', 26) + '</button>');
   if (!showFab && f) f.remove();
@@ -368,9 +369,11 @@ function loanRow(l, ic) {
 
 /* =============================== ASCEND =============================== */
 function renderAscend() {
-  const s = segOf('ascend', 'affirm');
-  let h = topbar('Ascend', { eyebrow: 'Mindset · dreams · discipline' }) + seg('ascend', [['affirm', 'Affirm'], ['dreams', 'Dreams'], ['founder', 'Founder'], ['journal', 'Journal']], s);
-  if (s === 'affirm') {
+  const s = segOf('ascend', 'manifest');
+  let h = topbar('Ascend', { eyebrow: 'Mindset · dreams · discipline' }) + seg('ascend', [['manifest', 'Manifest'], ['affirm', 'Affirm'], ['dreams', 'Dreams'], ['founder', 'Founder'], ['journal', 'Journal']], s);
+  if (s === 'manifest') {
+    h += renderManifest();
+  } else if (s === 'affirm') {
     const list = B.todaysAffirmations(), done = S.affirm.done[B.today()] || [];
     h += '<div class="stats">' + stat('Affirmation streak', '<span class="num">' + B.affirmStreak() + '</span> days', '') + stat('Today', done.length + ' / ' + list.length, 'completed') + '</div>';
     h += list.map((a) => affCard(a, done.includes(a.id))).join('');
@@ -397,6 +400,32 @@ function renderAscend() {
     if (past.length) h += '<h2>Past entries</h2>' + past.map((d) => { const x = S.journal[d]; return '<div class="panel"><b>' + L.fmtDate(new Date(d + 'T12:00').getTime()) + '</b>' + (x.rating ? ' <span class="gold">· ' + x.rating + '/10</span>' : '') + C.JOURNAL_QS.filter((q) => x[q.id] && q.type !== 'rating').slice(0, 3).map((q) => '<div class="sub" style="margin-top:6px">' + esc(x[q.id]) + '</div>').join('') + '</div>'; }).join('');
   }
   return h;
+}
+function renderManifest() {
+  const k = B.today(), m = S.manifest[k] || {}, ra = MG.ritualAffirmation(), dm = MG.dreamManifestations();
+  const dots = (key, n) => '<div class="r369"><div class="r369-h"><b>' + n + '×</b><span>' + ({ m: 'Morning', a: 'Afternoon', n: 'Evening' })[key] + '</span></div><div class="r369-dots">' + Array.from({ length: n }, (_, i) => '<i class="' + (i < (m[key] || 0) ? 'on' : '') + '"></i>').join('') + '</div><button class="btn small ' + ((m[key] || 0) >= n ? 'ghost' : '') + '" data-a="r369" data-k="' + key + '" data-n="' + n + '">' + ((m[key] || 0) >= n ? 'Done' : 'Say it') + '</button></div>';
+  let h = '<div class="panel gold hero mg-hero"><div class="eyebrow">Money magnet · 3-6-9 ritual</div><div class="mg-quote">' + esc(ra.text) + '</div>' +
+    '<div class="sub">Say it out loud with feeling. Each tap, Lucy says it with you.</div>' + dots('m', 3) + dots('a', 6) + dots('n', 9) +
+    '<div class="a" style="margin-top:12px">' + icon('bolt', 15) + '<span>' + esc(ra.action) + '</span></div></div>';
+  h += '<h2>Your future, written as done</h2><div class="panel"><div class="serif mg-script">' + esc(MG.futureScript()) + '</div>' +
+    '<div class="actions"><button class="btn small" data-a="mg-hear-script">' + icon('volume', 15) + 'Lucy reads it to me</button></div>' +
+    '<label>Write it in your own words (scripting)</label><textarea data-mg="script" rows="4" placeholder="Today is ... I am ... I have ...">' + esc(m.script || '') + '</textarea></div>';
+  h += '<h2>Manifest your dreams</h2>';
+  h += dm.length ? dm.map((x) => '<div class="mg-dream">' + (x.dream.img ? '<img src="' + x.dream.img + '" alt="">' : '<span class="bigicon">' + icon(dreamIcon(x.dream), 34) + '</span>') + '<div class="shade"></div><div class="in"><div class="eyebrow">' + esc(x.dream.cat || 'Dream') + '</div><b>' + esc(x.dream.title) + '</b><p class="serif">' + esc(x.text) + '</p>' +
+    '<div class="actions"><button class="btn small" data-a="mg-visual" data-id="' + x.dream.id + '">' + icon('play', 15) + 'Visualise 60 seconds</button><button class="btn small ghost" data-a="mg-hear" data-id="' + x.dream.id + '">' + icon('volume', 15) + 'Hear</button></div></div></div>').join('')
+    : '<button class="panel" style="width:100%;text-align:left" data-a="seg-go" data-tab="ascend" data-k="ascend" data-v="dreams"><div class="row"><div class="badge">' + icon('star', 18) + '</div><div class="grow"><b>Add your dreams first</b><div class="sub">Lucy writes personal affirmations and manifestations for each one: car, home, watch, office, film, bank balance.</div></div>' + icon('right', 18) + '</div></button>';
+  h += '<h2>Gratitude in advance</h2><div class="panel">' + MG.gratitudeInAdvance().map((g) => '<div class="mg-thanks">' + icon('heart', 15) + '<span>' + esc(g) + '</span></div>').join('') +
+    '<div class="actions"><button class="btn small ghost" data-a="mg-hear-thanks">' + icon('volume', 15) + 'Hear</button><button class="btn small ' + (m.thanks ? 'ghost' : '') + '" data-a="mg-thanks">' + (m.thanks ? 'Felt it today' : 'I felt it') + '</button></div></div>';
+  return h;
+}
+function visualise(d) {
+  const x = MG.dreamManifestations().find((y) => y.dream.id === d.id); if (!x) return;
+  const ov = $('#overlay');
+  ov.innerHTML = '<div class="mg-vis">' + (d.img ? '<img src="' + d.img + '" alt="">' : '<span class="bigicon">' + icon(dreamIcon(d), 60) + '</span>') + '<div class="shade"></div><div class="in"><div class="eyebrow">Close your eyes after reading</div><h1>' + esc(d.title) + '</h1><p class="serif">' + esc(x.text) + '</p><p class="serif" style="opacity:.8">' + esc(x.affirm) + '</p><div class="mg-timer"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="45"/><circle class="p" cx="50" cy="50" r="45"/></svg><span id="mg-sec">60</span></div><button class="btn ghost" data-a="mg-vis-close">Done</button></div></div>';
+  ov.hidden = false;
+  V.speak(x.text + ' ' + x.affirm, { force: true });
+  let n = 60; clearInterval(visualise.t);
+  visualise.t = setInterval(() => { n--; const el = $('#mg-sec'); if (el) el.textContent = n; if (n <= 0 || ov.hidden) { clearInterval(visualise.t); if (!ov.hidden) { celebrate('small'); const k = B.today(); S.manifest[k] = Object.assign(S.manifest[k] || {}, { vis: ((S.manifest[k] || {}).vis || 0) + 1 }); save(); } } }, 1000);
 }
 function affCard(a, done, custom) {
   return '<div class="aff ' + (done ? 'done' : '') + '"><div class="row" style="justify-content:space-between"><span class="eyebrow">' + esc(a.cat || 'Personal') + '</span>' + (done ? '<span class="gold" style="font-size:12px;font-weight:600">COMPLETED</span>' : '') + '</div>' +
@@ -1082,6 +1111,20 @@ document.addEventListener('click', async (ev) => {
     }
     case 'settle': { const p = payById(id); if (p) settleSheet(p); break; }
     case 'settle-go': settleGo(id); break;
+    case 'r369': {
+      const k = B.today(), key = el.dataset.k, n = Number(el.dataset.n); S.manifest[k] = S.manifest[k] || {};
+      const cur = S.manifest[k][key] || 0; if (cur >= n) break;
+      S.manifest[k][key] = cur + 1; V.speak(MG.ritualAffirmation().text, { force: true });
+      save(); render();
+      if (S.manifest[k][key] >= n) { celebrate('coins'); if (['m', 'a', 'n'].every((x) => (S.manifest[k][x] || 0) >= ({ m: 3, a: 6, n: 9 })[x])) setTimeout(() => celebrate('big', { title: '3-6-9 complete', sub: 'You said it 18 times today. Now go and act like it is already true.' }), 400); }
+      break;
+    }
+    case 'mg-hear-script': V.speak(MG.futureScript(), { force: true }); break;
+    case 'mg-hear': { const x = MG.dreamManifestations().find((y) => y.dream.id === id); if (x) V.speak(x.affirm + ' ' + x.text, { force: true }); break; }
+    case 'mg-visual': visualise(dreamById(id)); break;
+    case 'mg-vis-close': $('#overlay').hidden = true; V.stopSpeaking(); break;
+    case 'mg-hear-thanks': V.speak(MG.gratitudeInAdvance().join(' '), { force: true }); break;
+    case 'mg-thanks': { const k = B.today(); S.manifest[k] = Object.assign(S.manifest[k] || {}, { thanks: true }); save(); render(); celebrate('small'); break; }
     case 'open-office': officeSheet(S.office.find((x) => x.id === el.dataset.id)); break;
     case 'new-office': { const o = { id: 'of-' + nid(), cat: 'Other', name: 'New office expense', amount: 0, dueDay: 5, variable: false, paid: {}, note: '' }; S.office.push(o); save({ local: true }); officeSheet(o); break; }
     case 'save-office': { const o = S.office.find((x) => x.id === el.dataset.id); Object.assign(o, { amount: Number($('#of-amt').value) || 0, dueDay: Number($('#of-day').value) || 1, name: $('#of-name').value.trim() || o.name, note: $('#of-note').value.trim(), variable: $('#of-var').checked }); save(); toast('Saved'); officeSheet(o); render(); break; }
@@ -1280,7 +1323,7 @@ function fab() {
   if (view.tab === 'plan') return segOf('plan', 'today') === 'special' ? specialSheet(null, 'Birthday') : reminderSheet();
   if (view.tab === 'money') { const s = segOf('money', 'mission'); if (s === 'loans') return loanSheet(null, 'bank'); if (s === 'expenses') return expenseSheet(); return paySheet(); }
   if (view.tab === 'ascend') {
-    if (segOf('ascend', 'affirm') === 'dreams') { dreamImg = null; return dreamSheet(); }
+    if (segOf('ascend', 'manifest') === 'dreams') { dreamImg = null; return dreamSheet(); }
     return openSheet('<h3>Your own affirmation</h3><label>Affirmation</label><textarea id="af-text" placeholder="I am…"></textarea><label>Area</label><select id="af-cat">' + C.AFFIRM_CATS.map((c) => '<option>' + c + '</option>').join('') + '</select><label>Linked action (optional)</label><input id="af-action" placeholder="What will you do today because of it?"><div class="row mt"><input type="checkbox" id="af-pin" checked><span>Show every day</span></div><button class="btn block" data-a="save-aff">Save</button>');
   }
   if (view.sub === 'team') return empSheet();
@@ -1361,6 +1404,7 @@ document.addEventListener('input', (ev) => {
   const t = ev.target;
   if (t.id === 'client-notes') { const c = clientById(t.dataset.cid); if (c) { c.notes = t.value; save(); } }
   else if (t.id === 'note-title' || t.id === 'note-body') { const n = S.notes.find((x) => x.id === Number(t.dataset.nid)); if (n) { n[t.id === 'note-title' ? 'title' : 'body'] = t.value; n.updated = Date.now(); save(); } }
+  else if (t.dataset.mg) { const k = B.today(); S.manifest[k] = Object.assign(S.manifest[k] || {}, { [t.dataset.mg]: t.value }); save(); }
   else if (t.dataset.j) { const k = B.today(); S.journal[k] = Object.assign(S.journal[k] || {}, { [t.dataset.j]: t.value }); save(); }
   else if (t.dataset.set === 'name') { S.settings.name = t.value; save(); }
   else if (t.dataset.gt) { const x = S.growth.tiers[Number(t.dataset.i)]; x[t.dataset.gt] = t.dataset.gt === 'name' ? t.value : Number(t.value) || 0; save(); }
@@ -1416,6 +1460,7 @@ function openHash() {
   else if (h === '#money-loans') { view.tab = 'money'; view.seg.money = 'loans'; }
   else if (h === '#more-team') { view.tab = 'more'; view.sub = 'team'; }
   else if (h === '#money-expenses') { view.tab = 'money'; view.seg.money = 'expenses'; }
+  else if (h === '#ascend-manifest') { view.tab = 'ascend'; view.seg.ascend = 'manifest'; }
   else if (h === '#plan-special') { view.tab = 'plan'; view.seg.plan = 'special'; }
   else if (h === '#more-review') { view.tab = 'more'; view.sub = 'review'; }
   history.replaceState(null, '', location.pathname);

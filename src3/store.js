@@ -23,7 +23,7 @@ export function defaults() {
     routine: C.ROUTINE_DEFAULT.map((r) => ({ key: r.key, icon: r.icon, label: r.label, time: r.time, on: true, ring: !!r.ring, speak: true })),
     routineLog: {}, reminders: [], clients: [], payments: [], loans: [], expenses: [], dreams: [],
     affirm: { done: {}, custom: [], spoken: {} }, mission: {}, leads: [], ideas: [], notes: [], shopping: [], learning: [],
-    journal: {}, chat: [], log: [], celebrated: {},
+    journal: {}, chat: [], log: [], celebrated: {}, manifest: {},
     specialDays: [], employees: [], office: [],
     growth: {
       tiers: [{ name: 'Premium', price: 50000, count: 15 }, { name: 'Growth', price: 30000, count: 15 }, { name: 'Starter', price: 25000, count: 15 }],
@@ -69,6 +69,7 @@ export function migrate(d) {
     out.v = 3;
   }
   out.profile = Object.assign(defaults().profile, d.profile || {});
+  if (!out.manifest || typeof out.manifest !== 'object') out.manifest = {};
   // Office expenses: add the standard items once (never removes or changes existing ones)
   if (!out.officeSeeded) {
     out.office = Array.isArray(d.office) ? d.office : [];

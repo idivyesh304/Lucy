@@ -1,4 +1,5 @@
 // Builds the list of iPhone notifications for the next 7 days. The helper sends them on time.
+import * as MG from './magnet.js';
 import { specialSchedule } from './special.js';
 import * as L from '../src/logic.js';
 import * as C from './content.js';
@@ -67,6 +68,12 @@ export function buildSchedule() {
     const b = hm(st.briefTime);
     push(L.atTime(day, b.h, b.m), L.greeting(nm, L.atTime(day, b.h, b.m)), 'Your morning briefing is ready. Open Lucy before you start working.', 'brief', '#home');
     if (st.inspireOn) {
+      const ra = MG.ritualAffirmation();
+      if (ra) {
+        push(L.atTime(day, 10, 12), '3-6-9 · morning', 'Say or write it 3 times: ' + ra.text, 'ritual', '#ascend-manifest');
+        push(L.atTime(day, 15, 12), '3-6-9 · afternoon', 'Write it 6 times now: ' + ra.text, 'ritual', '#ascend-manifest');
+        push(L.atTime(day, 19, 48), '3-6-9 · evening', 'Write it 9 times and feel it done: ' + ra.text, 'ritual', '#ascend-manifest');
+      }
       for (let h = Number(st.inspireStart); h <= Number(st.inspireEnd); h++) {
         const t = L.atTime(day, h, 0);
         const n = inspiration(day, h);
@@ -130,18 +137,14 @@ export function nextLoanDue(ln, now) {
 
 function inspiration(day, h) {
   const seed = Math.floor(day / L.DAY) * 31 + h;
-  const pick = seed % 4;
-  if (pick === 0 || pick === 2) {
-    const a = pickAffirmation(seed);
-    return { title: 'Affirmation · ' + a.cat, body: a.text + (a.action ? ' Action: ' + a.action : '') };
-  }
-  if (pick === 1) {
-    const dreams = S.dreams.filter((x) => !x.achieved);
-    if (dreams.length) {
-      const dr = dreams[seed % dreams.length];
-      return { title: 'Your dream: ' + dr.title, body: (dr.why ? dr.why + ' ' : '') + 'Every focused hour today brings it closer.' };
-    }
+  const pick = seed % 5;
+  const mm = MG.magnetAffirmations(), dm = MG.dreamManifestations();
+  if (pick === 0 || pick === 3) { const a = mm[seed % mm.length]; return { title: 'Money magnet', body: a.text + ' Today: ' + a.action }; }
+  if (pick === 1 || pick === 4) {
+    if (dm.length) { const x = dm[seed % dm.length]; return { title: 'Manifest: ' + x.dream.title, body: (pick === 1 ? x.affirm : x.text) }; }
     return { title: 'Remember your potential', body: C.POTENTIAL[seed % C.POTENTIAL.length] };
   }
+  if (pick === 2 && h === 21) { return { title: '3-6-9 · night', body: 'Write it 9 times before sleep: ' + MG.ritualAffirmation().text }; }
+  if (pick === 2) { const a = pickAffirmation(seed); return { title: 'Affirmation · ' + a.cat, body: a.text + (a.action ? ' Today: ' + a.action : '') }; }
   return { title: 'Lucy', body: C.LINES[seed % C.LINES.length] };
 }

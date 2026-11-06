@@ -16,7 +16,7 @@ self.addEventListener('fetch', (e) => {
   const fonts = /fonts\.(googleapis|gstatic)\.com$/.test(url.hostname);
   if (!sameOrigin && !fonts) return;
   // network first for the app itself (so updates arrive), cache fallback offline
-  e.respondWith(fetch(req).then((res) => {
+  e.respondWith(fetch(req, sameOrigin ? { cache: 'no-cache' } : undefined).then((res) => {
     if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
     return res;
   }).catch(() => caches.match(req).then((r) => r || caches.match('index.html'))));

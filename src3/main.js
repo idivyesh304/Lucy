@@ -299,7 +299,7 @@ function payRow(p) {
 }
 function renderMoney() {
   const s = segOf('money', 'mission');
-  let h = topbar('Money', { eyebrow: 'Money magnet' }) + seg('money', [['mission', 'Mission'], ['cash', 'In & out'], ['loans', 'Loans & EMIs'], ['expenses', 'Expenses']], s);
+  let h = topbar('Money', { eyebrow: 'Money magnet' }) + seg('money', [['mission', 'Mission'], ['cash', 'In & out'], ['office', 'Office'], ['loans', 'EMIs'], ['expenses', 'Expenses']], s);
   if (s === 'mission') {
     const r = B.revenue();
     h += '<div class="panel gold hero"><div class="eyebrow">Revenue mission · ' + L.MON[new Date().getMonth()] + '</div>' +
@@ -341,6 +341,12 @@ function renderMoney() {
     if (!S.loans.filter((l) => !l.closed).length) h += '<div class="panel empty">No loans added. Tap + to add a bank loan, personal loan, product EMI or a friendly loan.</div>';
     const closed = S.loans.filter((l) => l.closed);
     if (closed.length) h += '<h2>Closed</h2>' + listOf(closed.map((l) => loanRow(l, 'check')));
+  } else if (s === 'office') {
+    const om = B.officeMonth();
+    h += '<div class="stats">' + stat('Office bills this month', short(om.total), '') + stat('Paid', short(om.paid), short(Math.max(0, om.total - om.paid)) + ' left') + '</div>';
+    h += '<div class="sub" style="margin:0 2px 10px">Tap any item to set its amount, due day and pay it. Lucy reminds you before each due day.</div><h2>Office expenses<button class="link" data-a="new-office">Add</button></h2><div class="list">' + om.rows.map((r) => { const o = r.o;
+      return '<div class="item' + (r.status === 'off' ? ' off' : '') + '" data-a="open-office" data-id="' + esc(o.id) + '"><div class="badge" style="width:36px;height:36px">' + icon(OFFICE_ICON[o.cat] || 'building', 17) + '</div><div class="grow"><div class="t">' + esc(o.name) + '</div><div class="m">' + (r.status === 'off' ? 'Not tracking' : r.status === 'unset' ? 'Tap to set amount' : (o.variable ? 'About ' : '') + money(o.amount) + ' · due on ' + o.dueDay + (o.note ? ' · ' + esc(o.note) : '')) + '</div></div>' +
+        '<div class="right"><div class="m" style="font-size:12px">' + (r.status === 'paid' ? '<span class="good">Paid ' + money(r.paid) + '</span>' : r.status === 'part' ? '<span class="gold">Part ' + money(r.paid) + '</span>' : r.status === 'due' ? '<span class="warn">Due</span>' : '') + '</div></div></div>'; }).join('') + '</div>';
   } else {
     const mk = L.dayKey(Date.now()).slice(0, 7);
     const list = S.expenses.slice().sort((a, b2) => b2.date - a.date);
@@ -348,10 +354,8 @@ function renderMoney() {
     const pr = B.payroll();
     if (pr.list.length) h += '<button class="panel gold" style="width:100%;text-align:left" data-a="sub" data-v="team"><div class="row"><div class="badge">' + icon('users', 18) + '</div><div class="grow"><b>Team salaries · ' + short(pr.total) + ' / month</b><div class="sub">Every month · ' + pr.paidCount + ' of ' + pr.list.length + ' paid this month · ' + short(pr.total - pr.paidAmount) + ' to pay. Counted in your monthly expenses automatically.</div></div>' + icon('right', 18) + '</div></button>';
     const om = B.officeMonth();
-    h += '<div class="stats">' + stat('This month', short(month.reduce((a, e) => a + Number(e.amount), 0) + pr.total + om.total), 'office, salaries and other') + stat('Office bills', short(om.total), short(om.paid) + ' paid') + '</div>';
-    h += '<h2>Office expenses<button class="link" data-a="new-office">Add</button></h2><div class="list">' + om.rows.map((r) => { const o = r.o;
-      return '<div class="item' + (r.status === 'off' ? ' off' : '') + '" data-a="open-office" data-id="' + esc(o.id) + '"><div class="badge" style="width:36px;height:36px">' + icon(OFFICE_ICON[o.cat] || 'building', 17) + '</div><div class="grow"><div class="t">' + esc(o.name) + '</div><div class="m">' + (r.status === 'off' ? 'Not tracking' : r.status === 'unset' ? 'Tap to set amount' : (o.variable ? 'About ' : '') + money(o.amount) + ' · due on ' + o.dueDay + (o.note ? ' · ' + esc(o.note) : '')) + '</div></div>' +
-        '<div class="right"><div class="m" style="font-size:12px">' + (r.status === 'paid' ? '<span class="good">Paid ' + money(r.paid) + '</span>' : r.status === 'part' ? '<span class="gold">Part ' + money(r.paid) + '</span>' : r.status === 'due' ? '<span class="warn">Due</span>' : '') + '</div></div></div>'; }).join('') + '</div>';
+    h += '<div class="stats">' + stat('This month', short(month.reduce((a, e) => a + Number(e.amount), 0) + pr.total + om.total), 'office, salaries and other') + stat('Every month', short(list.filter((e) => e.recurring).reduce((a, e) => a + Number(e.amount), 0) + pr.total + om.total), 'fixed costs') + '</div>';
+    h += '<button class="panel" style="width:100%;text-align:left" data-a="seg-go" data-tab="money" data-k="money" data-v="office"><div class="row"><div class="badge">' + icon('building', 18) + '</div><div class="grow"><b>Office expenses · ' + short(om.total) + ' / month</b><div class="sub">' + short(om.paid) + ' paid this month. Rent, light bill, internet, subscriptions and more.</div></div>' + icon('right', 18) + '</div></button>';
     h += '<h2>Other expenses</h2>';
     h += listOf(list.slice(0, 60).map((e) => '<div class="item" data-a="edit-exp" data-id="' + e.id + '"><div class="badge">' + icon('card', 18) + '</div><div class="grow"><div class="t">' + esc(e.title) + '</div><div class="m">' + esc(e.cat || 'Other') + ' · ' + (e.recurring ? 'Every month' : L.fmtDate(e.date)) + '</div></div><div class="amount out">' + money(e.amount) + '</div></div>'), 'No expenses yet. Tap + to log salaries, rent, software and more.');
   }
@@ -1321,6 +1325,7 @@ function addToMission(text, ref) {
 }
 function fab() {
   if (view.tab === 'plan') return segOf('plan', 'today') === 'special' ? specialSheet(null, 'Birthday') : reminderSheet();
+  if (view.tab === 'money' && segOf('money', 'mission') === 'office') { const o = { id: 'of-' + nid(), cat: 'Other', name: 'New office expense', amount: 0, dueDay: 5, variable: false, paid: {}, note: '' }; S.office.push(o); save({ local: true }); return officeSheet(o); }
   if (view.tab === 'money') { const s = segOf('money', 'mission'); if (s === 'loans') return loanSheet(null, 'bank'); if (s === 'expenses') return expenseSheet(); return paySheet(); }
   if (view.tab === 'ascend') {
     if (segOf('ascend', 'manifest') === 'dreams') { dreamImg = null; return dreamSheet(); }
@@ -1459,7 +1464,7 @@ function openHash() {
   } else if (h === '#plan' || h === '#money' || h === '#ascend' || h === '#home') { view.tab = h.slice(1); }
   else if (h === '#money-loans') { view.tab = 'money'; view.seg.money = 'loans'; }
   else if (h === '#more-team') { view.tab = 'more'; view.sub = 'team'; }
-  else if (h === '#money-expenses') { view.tab = 'money'; view.seg.money = 'expenses'; }
+  else if (h === '#money-expenses') { view.tab = 'money'; view.seg.money = 'office'; }
   else if (h === '#ascend-manifest') { view.tab = 'ascend'; view.seg.ascend = 'manifest'; }
   else if (h === '#plan-special') { view.tab = 'plan'; view.seg.plan = 'special'; }
   else if (h === '#more-review') { view.tab = 'more'; view.sub = 'review'; }
@@ -1467,6 +1472,15 @@ function openHash() {
 }
 
 /* =============================== start =============================== */
+// When a new Lucy version is published, reload into it (never while you are typing or a sheet is open).
+async function newVersionReady() {
+  try {
+    const t = await (await fetch('config.js?nc=' + Date.now(), { cache: 'no-store' })).text();
+    const m = t.match(/build:\s*'?(\w+)/), cur = String((window.LUCY_CONFIG || {}).build || '');
+    if (m && cur && cur !== 'dev' && m[1] !== cur && !sheetOpen() && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) { location.reload(); return true; }
+  } catch (e) {}
+  return false;
+}
 (async function start() {
   if ('serviceWorker' in navigator) {
     try { await navigator.serviceWorker.register('sw.js'); } catch (e) { console.warn('sw', e); }
@@ -1474,6 +1488,7 @@ function openHash() {
   }
   openHash();
   startNeural(); startTilt();
+  setTimeout(newVersionReady, 4000);
   if (B.billClients()) save();
   B.ensureMission(); save({ local: true });
   render();
@@ -1484,6 +1499,7 @@ function openHash() {
   } else showOpening();
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState === 'visible') {
+      if (await newVersionReady()) return;
       await H.pullFromDrive(() => render());
       if (B.billClients()) save();
       B.ensureMission(); render(); showOpening();

@@ -1,0 +1,46 @@
+name: Build Lucy Android app
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['android-twa/**', '.github/workflows/android.yml', 'web/manifest.webmanifest', 'web/icons/**']
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - name: Generate Android project
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          cd android-twa
+          npm init -y >/dev/null
+          npm i @bubblewrap/core@1.25.0
+          node make.cjs ./app
+      - name: Build and sign APK
+        run: |
+          cd android-twa/app
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon -q
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          UNSIGNED=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          $BT/zipalign -f -p 4 "$UNSIGNED" aligned.apk
+          $BT/apksigner sign --ks ../../resources/android/lucy-debug.keystore --ks-pass pass:android --ks-key-alias androiddebugkey --key-pass pass:android --out ../../Lucy.apk aligned.apk
+          $BT/apksigner verify ../../Lucy.apk && ls -la ../../Lucy.apk
+      - name: Publish download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete lucy-android -y --cleanup-tag 2>/dev/null || true
+          gh release create lucy-android Lucy.apk --title "Lucy for Android" --notes "Lucy 3 for Android. Same app, data and notifications as the iPhone and laptop. Build ${{ github.run_number }}."
+      - name: Report failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "Android build failed in run ${{ github.run_id }}" > err.txt && (gh release delete android-errors -y --cleanup-tag 2>/dev/null; gh release create android-errors err.txt --title "Android build error" --notes "Run ${{ github.run_id }}" --prerelease)

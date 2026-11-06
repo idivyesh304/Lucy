@@ -533,7 +533,7 @@ function renderConnections() {
         '<div class="row mt"><span class="status-dot ' + (s && s.chatgpt ? 'ok' : '') + '"></span><b class="grow">ChatGPT</b><span class="sub">' + (s ? (s.chatgpt ? s.openaiModel : 'No key') : '') + '</span></div><input id="key-openai" type="password" class="mt" placeholder="Paste OpenAI API key (sk-…)"><select id="model-openai" class="mt">' + [['gpt-6.1-sol', 'GPT-6.1 Sol (recommended)'], ['gpt-6-astra', 'GPT-6 Astra (most capable)'], ['gpt-6-luna', 'GPT-6 Luna (faster)']].map((o) => '<option value="' + o[0] + '" ' + (s && s.openaiModel === o[0] ? 'selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' +
         '<button class="btn block" data-a="save-ai">Save AI settings</button><div class="hint">Keys are stored only in your private helper, never on this phone or in Google Drive. API use is billed by Anthropic and OpenAI per use.</div></div>';
       h += '<h2>Google Drive</h2><div class="panel"><div class="row"><span class="status-dot ' + (H.driveEnabled() && s && s.drive ? 'ok' : H.sync.state === 'error' ? 'err' : '') + '"></span><b class="grow">Your data in Drive</b><span class="sub">' + (H.driveEnabled() ? (H.sync.last ? 'Synced ' + L.fmtWhen(H.sync.last) : 'On') : 'Off') + '</span></div>' +
-        (s && !s.googleReady ? '<input id="g-id" class="mt" placeholder="Google OAuth Client ID"><input id="g-secret" type="password" class="mt" placeholder="Google OAuth Client secret"><button class="btn small ghost mt" data-a="save-google">Save Google details</button>' : '') +
+        (!s || !s.googleReady ? '<input id="g-id" class="mt" placeholder="Google OAuth Client ID"><input id="g-secret" type="password" class="mt" placeholder="Google OAuth Client secret"><button class="btn small ghost mt" data-a="save-google">Save Google details</button>' : '') +
         '<div class="actions"><button class="btn small" data-a="drive-connect">' + icon('cloud', 15) + (s && s.drive ? 'Reconnect' : 'Connect Google Drive') + '</button>' + (H.driveEnabled() ? '<button class="btn small ghost" data-a="drive-sync">Sync now</button>' : '') + '</div>' + (H.sync.error ? '<div class="hint bad">' + esc(H.sync.error) + '</div>' : '') +
         (url ? '<div class="hint">Google redirect address: ' + esc(url) + '/oauth/callback</div>' : '') + '</div>';
     }
@@ -752,7 +752,7 @@ document.addEventListener('click', async (ev) => {
       else if (view.tab === 'more' && view.sub) { view.sub = null; render(); }
       else go('home');
       break;
-    case 'sub': go('more', v); break;
+    case 'sub': go('more', v); if (v === 'connections') refreshStatus(true); break;
     case 'seg': view.seg[el.dataset.k] = v; if (el.dataset.k === 'cashdir' && sheetOpen()) break; render(); window.scrollTo(0, 0); break;
     case 'seg-go': view.seg[el.dataset.k] = v; go(el.dataset.tab); break;
     case 'close': closeSheet(); render(); break;
@@ -920,7 +920,7 @@ document.addEventListener('click', async (ev) => {
         if (a === 'pk-create') await H.api.setup(pk);
         device.set('passkey', pk);
         await refreshStatus(true);
-        if (!connStatus) { device.set('passkey', ''); toast('That passkey did not match'); render(); break; }
+        if (!connStatus && a === 'pk-enter') { device.set('passkey', ''); toast('That passkey did not match'); render(); break; }
         toast('Connected to your helper'); render();
       } catch (e) { toast(e.message); }
       break;

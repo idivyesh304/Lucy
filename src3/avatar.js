@@ -3,10 +3,9 @@
 import { S } from './store.js';
 
 export function avatar(cls) {
-  if (S.settings.avatarImg) {
-    return '<div class="avatar-wrap img ' + (cls || '') + '"><div class="av-halo"></div><img src="' + S.settings.avatarImg + '" alt="Lucy"><div class="av-wave"></div></div>';
-  }
-  return '<div class="avatar-wrap ' + (cls || '') + '">' + SVG + '</div>';
+  const custom = !!S.settings.avatarImg;
+  const src = custom ? S.settings.avatarImg : 'lucy.jpg';
+  return '<div class="avatar-wrap img ' + (custom ? 'custom ' : 'lucy-photo ') + (cls || '') + '"><div class="av-halo"></div><div class="av-img"><img src="' + src + '" alt="Lucy"></div><div class="av-shine"></div><div class="av-wave"></div></div>';
 }
 
 const SVG = `<svg class="lucy-svg" viewBox="0 0 300 420" role="img" aria-label="Lucy">

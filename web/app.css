@@ -299,3 +299,33 @@ h3 { font-family: var(--display); font-size: 17px; font-weight: 600; margin: 0 0
 .t-tap { font-size: 12px; color: var(--muted); margin-top: 22px; animation: rise .5s 1.1s both; }
 @keyframes rise { from { transform: translateY(14px); opacity: 0; } }
 .fade-in { animation: rise .4s both; }
+
+/* ===== Lucy photo avatar (default look) ===== */
+.avatar-wrap.img .av-img { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+.avatar-wrap.img .av-img img { width: 100%; height: 100%; object-fit: cover; transform-origin: 60% 40%; animation: lucy-breathe 7s ease-in-out infinite; transition: filter .6s; }
+.avatar-wrap.img .av-shine, .avatar-wrap.img .av-wave { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; }
+@keyframes lucy-breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.025) translateY(-0.6%); } }
+@keyframes lucy-talk { 0%,100% { filter: brightness(1) saturate(1.05); } 50% { filter: brightness(1.22) saturate(1.35) drop-shadow(0 0 18px rgba(255,190,120,.35)); } }
+@keyframes lucy-listen { 0%,100% { filter: brightness(1.05) drop-shadow(0 0 10px rgba(159,231,255,.25)); } 50% { filter: brightness(1.15) drop-shadow(0 0 26px rgba(159,231,255,.55)); } }
+@keyframes lucy-think { from { filter: hue-rotate(0deg) saturate(1.2); } to { filter: hue-rotate(360deg) saturate(1.2); } }
+@keyframes lucy-sweep { 0% { transform: translateX(-120%); } 100% { transform: translateX(160%); } }
+.avatar-wrap.img.speaking .av-img img { animation: lucy-breathe 7s ease-in-out infinite, lucy-talk .9s ease-in-out infinite; }
+.avatar-wrap.img.listening .av-img img { animation: lucy-breathe 7s ease-in-out infinite, lucy-listen 1.6s ease-in-out infinite; }
+.avatar-wrap.img.thinking .av-img img { animation: lucy-breathe 7s ease-in-out infinite, lucy-think 4s linear infinite; }
+/* light sweep across the visor while she talks or thinks */
+.lucy-stage .avatar-wrap.img .av-shine { overflow: hidden; }
+.lucy-stage .avatar-wrap.img .av-shine::after { content: ''; position: absolute; top: 22%; height: 14%; width: 45%; left: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.22), transparent); filter: blur(6px); transform: translateX(-120%); opacity: 0; }
+.lucy-stage .avatar-wrap.img.speaking .av-shine::after, .lucy-stage .avatar-wrap.img.thinking .av-shine::after { opacity: 1; animation: lucy-sweep 2.2s ease-in-out infinite; }
+/* stage: full-bleed portrait that melts into the dark background */
+.lucy-stage { height: 58vh; max-height: 560px; }
+.lucy-stage .avatar-wrap.img { border-radius: 0; aspect-ratio: auto; width: 100%; height: 100%; overflow: visible; }
+.lucy-stage .avatar-wrap.img .av-halo { display: none; }
+.lucy-stage .avatar-wrap.lucy-photo .av-img { -webkit-mask-image: radial-gradient(ellipse 75% 80% at 55% 45%, #000 55%, transparent 100%); mask-image: radial-gradient(ellipse 75% 80% at 55% 45%, #000 55%, transparent 100%); }
+.lucy-stage .avatar-wrap.lucy-photo .av-img img { object-position: 55% 30%; }
+.lucy-stage .avatar-wrap.custom .av-img { border-radius: 28px; }
+/* small circles (tab bar, opening card, onboarding): zoom on her face */
+.tab-av .avatar-wrap.lucy-photo .av-img img, .aff-orb .avatar-wrap.lucy-photo .av-img img { transform: scale(2.3); transform-origin: 68% 32%; animation: none; }
+.tab-av .avatar-wrap.img .av-halo, .aff-orb .avatar-wrap.img .av-halo { display: none; }
+.aff-orb { width: 96px; height: 96px; background: #000; }
+#sheet .avatar-wrap.lucy-photo { border-radius: 24px; overflow: hidden; }
+.lucy-state { position: relative; z-index: 2; margin-top: 6px; }

@@ -1,11 +1,11 @@
 export const TRACK = ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'office'];
 // Merging two copies of Lucy's data. Shared by the app and the helper, so both merge the same way.
-const ARR_KEYS = ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'office', 'chat', 'log'];
+const ARR_KEYS = ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'office', 'archive', 'chat', 'log'];
 const MAP_KEYS = ['journal', 'manifest', 'routineLog', 'mission', 'celebrated'];
 export function records(d) {
   if (!d || typeof d !== 'object') return 0;
   let n = 0;
-  ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning'].forEach((k) => { if (Array.isArray(d[k])) n += d[k].length; });
+  ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'archive'].forEach((k) => { if (Array.isArray(d[k])) n += d[k].length; });
   (d.office || []).forEach((o) => { if (Number(o.amount)) n++; Object.values(o.paid || {}).forEach((x) => { n += ((x && x.parts) || []).length; }); });
   (d.payments || []).forEach((p) => { n += (p.parts || []).length; });
   return n;

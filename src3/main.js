@@ -224,7 +224,7 @@ function specialSheet(sd, type) {
     '<div class="grid2"><div><label>Relation</label><input id="sp-rel" value="' + esc(sd.relation || '') + '" placeholder="Family, friend, client"></div><div><label>Phone (optional)</label><input id="sp-phone" type="tel" value="' + esc(sd.phone || '') + '"></div></div>' +
     '<label>Gift or wish idea</label><input id="sp-note" value="' + esc(sd.note || '') + '">' +
     '<div class="row mt"><input type="checkbox" id="sp-7" ' + (sd.remind7 === false ? '' : 'checked') + '><span>Also remind me 7 days before</span></div>' +
-    '<button class="btn block" data-a="save-sp" data-id="' + (sd.id || '') + '">Save</button>' + (sd.id ? '<button class="btn danger block" data-a="del-sp" data-id="' + sd.id + '">Delete</button>' : ''));
+    '<button class="btn block" data-a="save-sp" data-id="' + (sd.id || '') + '">Save</button>' + (sd.id ? '<button class="btn danger block" data-a="del-sp" data-id="' + sd.id + '">Move to Past</button>' : ''));
   $('#sheet').dataset.sptype = sd.type;
 }
 const upiLink = (e, amt, note) => 'upi://pay?pa=' + String(e.upi).trim() + '&pn=' + encodeURIComponent(e.name) + '&am=' + Number(amt).toFixed(2) + '&cu=INR&tn=' + encodeURIComponent(note);
@@ -235,7 +235,7 @@ function renderTeam() {
     stat('Paid in ' + mon, pr.paidCount + ' / ' + pr.list.length, short(pr.paidAmount)) + stat('Still to pay', short(pr.total - pr.paidAmount), pr.due.length + ' people') + '</div>';
   const roles = S.growth.team.map((m) => m.role).concat([...new Set(S.employees.map((e) => e.role))].filter((r) => !S.growth.team.some((m) => m.role.toLowerCase() === String(r).toLowerCase())));
   roles.forEach((r) => {
-    const list = S.employees.filter((e) => String(e.role).toLowerCase() === String(r).toLowerCase());
+    const list = S.employees.filter((e) => !e.past && String(e.role).toLowerCase() === String(r).toLowerCase());
     if (!list.length) return;
     h += '<h2>' + esc(r) + '</h2>' + listOf(list.map(empRow));
   });
@@ -264,7 +264,7 @@ function empSheet(e, role) {
     '<div class="grid2"><div><label>Joining date</label><input id="em-joined" type="date" value="' + esc(e.joined || '') + '"></div><div><label>Birthday</label><input id="em-dob" type="date" value="' + esc(e.dob || '') + '"></div></div>' +
     '<label>Note</label><input id="em-note" value="' + esc(e.note || '') + '">' +
     '<div class="row mt"><input type="checkbox" id="em-active" ' + (e.active === false ? '' : 'checked') + '><span>Currently working</span></div>' +
-    '<button class="btn block" data-a="save-emp" data-id="' + (e.id || '') + '">Save</button>' + (e.id ? '<button class="btn danger block" data-a="del-emp" data-id="' + e.id + '">Delete</button>' : ''));
+    '<button class="btn block" data-a="save-emp" data-id="' + (e.id || '') + '">Save</button>' + (e.id ? (e.past ? '<button class="btn block" data-a="past-emp-back" data-id="' + e.id + '">Bring back to team</button>' : '<button class="btn ghost block" data-a="del-emp" data-id="' + e.id + '">Move to Past team</button>') : ''));
 }
 function renderProfile() {
   const p = S.profile;
@@ -590,19 +590,20 @@ function approveAction(i, j) {
 
 /* =============================== MORE =============================== */
 function renderMore() {
-  const subs = { team: renderTeam, profile: renderProfile, clients: renderClients, leads: renderLeads, ideas: renderIdeas, notes: renderNotes, shopping: renderShopping, learning: renderLearning, review: renderReview, settings: renderSettings, connections: renderConnections, backup: renderBackup };
+  const subs = { team: renderTeam, profile: renderProfile, clients: renderClients, leads: renderLeads, ideas: renderIdeas, notes: renderNotes, shopping: renderShopping, learning: renderLearning, review: renderReview, settings: renderSettings, connections: renderConnections, backup: renderBackup, past: renderPast };
   if (view.sub && subs[view.sub]) return subs[view.sub]();
   const row = (sub, ic, t, s) => '<button class="mrow" data-a="sub" data-v="' + sub + '"><div class="badge">' + icon(ic, 20) + '</div><span class="grow"><b>' + t + '</b><small>' + s + '</small></span>' + icon('right', 18, 'chev') + '</button>';
   const openLeads = S.leads.filter((l) => !['Won', 'Lost'].includes(l.status)).length;
   return topbar('More', { eyebrow: 'Everything else' }) +
     '<button class="mrow profile-row" data-a="sub" data-v="profile"><div class="pf-mini">' + (S.profile.photo ? '<img src="' + S.profile.photo + '" alt="">' : icon('user', 22)) + '</div><span class="grow"><b>' + esc(S.profile.fullName || nm()) + '</b><small>My profile · birthday, contacts, company</small></span>' + icon('right', 18, 'chev') + '</button>' +
-    row('clients', 'briefcase', 'Clients', S.clients.length + ' clients · retainers, notes, payments') +
+    row('clients', 'briefcase', 'Clients', S.clients.filter((c) => !c.past).length + ' clients · retainers, notes, payments') +
     row('team', 'users', 'Team', S.employees.filter((e) => e.active !== false).length + ' people · phone, UPI, salary') +
     row('leads', 'target', 'Leads · Hunter', openLeads + ' open leads · research and pricing') +
     row('ideas', 'bulb', 'Ideas', S.ideas.length + ' ideas · company and brands') +
     row('notes', 'note', 'Notes', S.notes.length + ' notes') +
     row('shopping', 'cart', 'Shopping', S.shopping.filter((x) => !x.done).length + ' to buy') +
     row('learning', 'book', 'Learning', S.learning.filter((x) => !x.done).length + ' in queue') +
+    row('past', 'clock', 'Past', 'Old clients, past team and anything moved out · all history kept') +
     row('review', 'chart', 'Weekly review', 'Personal · company · money · ascend') +
     row('connections', 'link', 'Connections', (H.ready() ? 'Helper connected' : 'Set up notifications, Drive and AI')) +
     row('settings', 'gear', 'Settings', 'Routine, voice, notifications, business rules') +
@@ -611,7 +612,7 @@ function renderMore() {
 
 function renderClients() {
   if (view.id) return renderClient(clientById(view.id));
-  const rows = S.clients.slice().sort((a, b2) => clientName(a).localeCompare(clientName(b2))).map((c) => '<div class="item" data-a="open-client" data-id="' + c.id + '"><div class="badge">' + icon('briefcase', 18) + '</div><div class="grow"><div class="t">' + esc(clientName(c)) + '</div><div class="m">' + esc([c.pkg, c.active === false ? 'Inactive' : c.billing === 'once' ? 'One time ' + money(c.amount || 0) : (Number(c.retainer) ? money(c.retainer) + '/month · renews ' + (c.nextDate ? L.fmtDate(c.nextDate) : '') : '')].filter(Boolean).join(' · ') || 'Client') + '</div></div>' + icon('right', 18) + '</div>');
+  const rows = S.clients.filter((c) => !c.past).slice().sort((a, b2) => clientName(a).localeCompare(clientName(b2))).map((c) => '<div class="item" data-a="open-client" data-id="' + c.id + '"><div class="badge">' + icon('briefcase', 18) + '</div><div class="grow"><div class="t">' + esc(clientName(c)) + '</div><div class="m">' + esc([c.pkg, c.active === false ? 'Inactive' : c.billing === 'once' ? 'One time ' + money(c.amount || 0) : (Number(c.retainer) ? money(c.retainer) + '/month · renews ' + (c.nextDate ? L.fmtDate(c.nextDate) : '') : '')].filter(Boolean).join(' · ') || 'Client') + '</div></div>' + icon('right', 18) + '</div>');
   return topbar('Clients', { back: 'More' }) + listOf(rows, 'No clients yet. Tap + to add one.');
 }
 function renderClient(c) {
@@ -623,7 +624,8 @@ function renderClient(c) {
   const rems = S.reminders.filter((r) => r.clientId === c.id && r.status === 'pending');
   const pays = S.payments.filter((p) => p.clientId === c.id);
   const det = [['Contact', c.phone || c.personalPhone], ['Package', c.pkg], ['Billing', c.billing === 'once' ? 'One time · ' + money(c.amount || 0) : Number(c.retainer || c.amount) ? money(c.retainer || c.amount) + ' every month' : ''], [c.billing === 'once' ? 'Due' : 'Next renewal', c.nextDate ? L.fmtDate(c.nextDate) : '']].filter((d) => d[1]);
-  return topbar(esc(clientName(c)), { back: 'Clients' }) +
+  return topbar(esc(clientName(c)), { back: c.past ? 'Past' : 'Clients' }) +
+    (c.past ? '<div class="panel gold"><div class="row"><div class="grow"><b>Past client</b><div class="sub">Moved to Past on ' + L.fmtDate(c.past) + '. Everything below is kept.</div></div><button class="btn small" data-a="past-client-back" data-id="' + c.id + '">Bring back</button></div></div>' : '') +
     '<div class="actions" style="margin-top:0">' + btn((c.phone || c.personalPhone) && 'tel:' + tel(c.phone || c.personalPhone), 'phone', 'Call') + btn((c.phone || c.personalPhone) && 'https://wa.me/' + wa(c.phone || c.personalPhone), 'chat', 'WhatsApp') + '<button class="btn small line" data-a="edit-client" data-id="' + c.id + '">' + icon('edit', 15) + 'Edit</button></div>' +
     (det.length ? '<div class="list mt">' + det.map((d) => '<div class="item"><div class="grow"><div class="m">' + d[0] + '</div><div class="t">' + esc(d[1]) + '</div></div></div>').join('') + '</div>' : '') +
     '<h2>Notes and meeting prep</h2><textarea id="client-notes" data-cid="' + c.id + '" placeholder="What they want, budget, last discussion">' + esc(c.notes || '') + '</textarea>' +
@@ -806,7 +808,7 @@ function reminderSheet(r, preset) {
     '<label>Client</label><select id="f-client"><option value="">None</option>' + S.clients.map((c) => '<option value="' + c.id + '" ' + (c.id === base.clientId ? 'selected' : '') + '>' + esc(clientName(c)) + '</option>').join('') + '</select>' +
     '<button class="btn block" data-a="save-rem" data-id="' + (r ? r.id : '') + '">' + (r ? 'Save' : 'Add reminder') + '</button>' +
     (r && r.status === 'pending' ? '<div class="actions"><button class="btn small ghost" data-a="done" data-id="' + r.id + '">Done</button><button class="btn small ghost" data-a="snooze" data-id="' + r.id + '" data-v="60">Snooze 1 hour</button><button class="btn small ghost" data-a="tomorrow" data-id="' + r.id + '">Move to tomorrow</button></div>' : '') +
-    (r ? '<button class="btn danger block" data-a="del-rem" data-id="' + r.id + '">Delete</button>' : ''));
+    (r ? '<button class="btn danger block" data-a="del-rem" data-id="' + r.id + '">Move to Past</button>' : ''));
 }
 function smartFill() {
   const el = $('#f-task'); if (!el) return;
@@ -850,7 +852,7 @@ function paySheet(p, preset) {
     '<label>Who</label><input id="p-party" list="p-cl" value="' + esc(base.party) + '"><datalist id="p-cl">' + S.clients.map((c) => '<option value="' + esc(clientName(c)) + '">').join('') + '</datalist>' +
     '<div class="grid2"><div><label>Amount (₹)</label><input id="p-amount" type="number" inputmode="numeric" value="' + esc(base.amount) + '"></div><div><label>Due date</label><input id="p-due" type="date" value="' + L.dayKey(base.due) + '"></div></div>' +
     '<label>Note</label><input id="p-note" value="' + esc(base.note) + '"><button class="btn block" data-a="save-pay" data-id="' + (p ? p.id : '') + '">Save</button>' +
-    (p && p.status === 'pending' ? '<button class="btn ghost block" data-a="settle" data-id="' + p.id + '">' + (p.type === 'in' ? 'Mark received' : 'Mark paid') + '</button>' : '') + (p ? '<button class="btn danger block" data-a="del-pay" data-id="' + p.id + '">Delete</button>' : ''));
+    (p && p.status === 'pending' ? '<button class="btn ghost block" data-a="settle" data-id="' + p.id + '">' + (p.type === 'in' ? 'Mark received' : 'Mark paid') + '</button>' : '') + (p ? '<button class="btn danger block" data-a="del-pay" data-id="' + p.id + '">Move to Past</button>' : ''));
   $('#sheet').dataset.ptype = base.type;
 }
 // Full, half or custom amount, chosen before anything is confirmed.
@@ -954,7 +956,7 @@ function loanSheet(l, type) {
     '<label>Note</label><input id="ln-note" value="' + v('note') + '">' +
     '<button class="btn block" data-a="save-loan" data-id="' + (l ? l.id : '') + '" data-t="' + t + '">Save</button>' +
     (l && !l.closed ? '<button class="btn ghost block" data-a="loan-paid" data-id="' + l.id + '">' + (friend ? 'Record a payment' : 'Mark this month\'s EMI paid') + '</button>' : '') +
-    (l ? '<button class="btn danger block" data-a="del-loan" data-id="' + l.id + '">Delete</button>' : ''));
+    (l ? '<button class="btn danger block" data-a="del-loan" data-id="' + l.id + '">Move to Past</button>' : ''));
 }
 function saveLoan(id, t) {
   const g = (s) => { const e = $('#' + s); return e ? e.value.trim() : ''; };
@@ -995,7 +997,7 @@ function expenseSheet(e) {
     '<div class="grid2"><div><label>Amount (₹)</label><input id="e-amt" type="number" value="' + (e ? e.amount : '') + '"></div><div><label>Date</label><input id="e-date" type="date" value="' + L.dayKey(e ? e.date : Date.now()) + '"></div></div>' +
     '<label>Category</label><select id="e-cat">' + C.EXPENSE_CATS.map((c) => '<option ' + (e && e.cat === c ? 'selected' : '') + '>' + c + '</option>').join('') + '</select>' +
     '<label>Is this expense</label><div class="seg" id="e-kind"><button class="' + (e && e.recurring ? 'on' : '') + '" data-a="e-kind" data-v="monthly">Every month</button><button class="' + (e && !e.recurring ? 'on' : '') + '" data-a="e-kind" data-v="once">One time</button></div>' +
-    '<button class="btn block" data-a="save-exp" data-id="' + (e ? e.id : '') + '">Save</button>' + (e ? '<button class="btn danger block" data-a="del-exp" data-id="' + e.id + '">Delete</button>' : ''));
+    '<button class="btn block" data-a="save-exp" data-id="' + (e ? e.id : '') + '">Save</button>' + (e ? '<button class="btn danger block" data-a="del-exp" data-id="' + e.id + '">Move to Past</button>' : ''));
 }
 
 /* =============================== actions: ascend =============================== */
@@ -1031,7 +1033,7 @@ function dreamSheet(d) {
     '<label>Target date</label><input id="d-date" type="date" value="' + (d && d.targetDate ? L.dayKey(d.targetDate) : '') + '">' +
     '<label>Why I want it</label><textarea id="d-why" placeholder="How it will feel, what it proves">' + esc(d ? d.why : '') + '</textarea>' +
     '<button class="btn block" data-a="save-dream" data-id="' + (d ? d.id : '') + '">Save</button>' +
-    (d ? '<button class="btn ghost block" data-a="dream-achieved" data-id="' + d.id + '">' + (d.achieved ? 'Mark as not yet achieved' : 'I achieved this') + '</button><button class="btn danger block" data-a="del-dream" data-id="' + d.id + '">Delete</button>' : ''));
+    (d ? '<button class="btn ghost block" data-a="dream-achieved" data-id="' + d.id + '">' + (d.achieved ? 'Mark as not yet achieved' : 'I achieved this') + '</button><button class="btn danger block" data-a="del-dream" data-id="' + d.id + '">Move to Past</button>' : ''));
 }
 let dreamImg = null;
 
@@ -1067,6 +1069,7 @@ document.addEventListener('click', async (ev) => {
   switch (a) {
     case 'tab': if (v === 'more') { view.tab = 'more'; view.sub = null; view.id = null; closeSheet(); render(); window.scrollTo(0, 0); } else go(v); break;
     case 'back':
+      if (view.tab === 'more' && view.id && view.fromPast) { view.id = null; view.fromPast = false; view.sub = 'past'; render(); }
       if (view.tab === 'more' && view.id) { view.id = null; render(); }
       else if (view.tab === 'more' && view.sub) { view.sub = null; render(); }
       else go('home');
@@ -1101,7 +1104,7 @@ document.addEventListener('click', async (ev) => {
         if (sd) Object.assign(sd, rec); else S.specialDays.push(Object.assign({ id: nid(), created: Date.now() }, rec)); }
       save(); closeSheet(); render(); if (!id) celebrate('small'); toast('Saved'); break;
     }
-    case 'del-emp': if (confirm('Delete this team member?')) { S.employees = S.employees.filter((x) => x.id !== id); save(); closeSheet(); render(); } break;
+    case 'del-emp': { const e = S.employees.find((x) => x.id === id); if (e && confirm('Move ' + (e.name || 'this person') + ' to Past team? Salary history stays saved, and you can bring them back any time.')) { e.past = Date.now(); e.active = false; save(); closeSheet(); toast('Moved to Past team'); render(); } break; }
     case 'emp-paid': salarySheet(S.employees.find((x) => x.id === id)); break;
     case 'upi-open': setTimeout(() => toast('After paying in your UPI app, tap Mark salary paid'), 600); return;
     case 'team-inc': case 'team-dec': { const m = S.growth.team[Number(el.dataset.i)]; m.have = Math.max(0, Number(m.have || 0) + (a === 'team-inc' ? 1 : -1)); save(); render(); if (a === 'team-inc') { celebrate(m.have >= m.need ? 'big' : 'small', m.have >= m.need ? { title: 'Team complete', sub: m.role + ': all ' + m.need + ' hired.' } : undefined); } break; }
@@ -1123,7 +1126,12 @@ document.addEventListener('click', async (ev) => {
       if (id) Object.assign(S.specialDays.find((x) => x.id === id), data); else S.specialDays.push(Object.assign({ id: nid(), created: Date.now() }, data));
       save(); closeSheet(); view.seg.plan = 'special'; render(); celebrate('small'); toast('Lucy will remind you'); break;
     }
-    case 'del-sp': if (confirm('Delete this special day?')) { S.specialDays = S.specialDays.filter((x) => x.id !== id); save(); closeSheet(); render(); } break;
+    case 'past-back': { const e = S.archive.find((x) => String(x.id) === el.dataset.id); if (e) { const it = Object.assign({}, e.item, { id: nid() }); (S[e.kind] = S[e.kind] || []).push(it); S.archive = S.archive.filter((x) => x !== e); save(); toast('Brought back'); render(); } break; }
+    case 'past-client-back': { const c = S.clients.find((x) => x.id === id); if (c) { delete c.past; c.active = true; view.fromPast = false; save(); toast(clientName(c) + ' is an active client again'); render(); } break; }
+    case 'past-emp-back': { const e = S.employees.find((x) => x.id === id); if (e) { delete e.past; e.active = true; save(); closeSheet(); toast((e.name || 'Team member') + ' is back in the team'); render(); } break; }
+    case 'past-open-client': view.sub = 'clients'; view.id = id; view.fromPast = true; render(); break;
+    case 'past-kind': view.pastKind = el.dataset.v; render(); break;
+    case 'del-sp': toPast('specialDays', id); closeSheet(); render(); break;
     case 'sub': go('more', v); if (v === 'connections') refreshStatus(true); break;
     case 'seg': view.seg[el.dataset.k] = v; if (el.dataset.k === 'cashdir' && sheetOpen()) break; render(); window.scrollTo(0, 0); break;
     case 'seg-go': view.seg[el.dataset.k] = v; go(el.dataset.tab); break;
@@ -1164,7 +1172,7 @@ document.addEventListener('click', async (ev) => {
     case 'save-rem': saveReminder(id); break;
     case 'clash-save': saveReminder(id, true); break;
     case 'clash-change': if (pendingSave) { const ps = pendingSave; reminderSheet(ps.id ? remById(ps.id) : null, ps.data); } break;
-    case 'del-rem': if (confirm('Delete this reminder?')) { S.reminders = S.reminders.filter((r) => r.id !== id); save(); closeSheet(); render(); } break;
+    case 'del-rem': toPast('reminders', id); closeSheet(); render(); break;
     case 'snooze': { const r = remById(id); r.snoozeUntil = Date.now() + Number(v) * L.MIN; save(); closeSheet(); render(); toast('Snoozed till ' + L.fmtTime(r.snoozeUntil)); break; }
     case 'tomorrow': { const r = remById(id); const t = new Date(alertStart(r)); r.snoozeUntil = 0; r.due = L.atTime(L.addDays(L.startOfDay(Date.now()), 1), t.getHours(), t.getMinutes()); if (r.repeat) r.start = r.due; save(); closeSheet(); render(); toast('Moved to ' + L.fmtWhen(r.due)); break; }
     case 'new-rem-client': reminderSheet(null, { cat: 'Follow-up', clientId: id }); break;
@@ -1239,13 +1247,13 @@ document.addEventListener('click', async (ev) => {
       else { const e = S.employees.find((x) => x.id === Number(pid)), mk = B.payroll().month; e.paid[mk].parts.splice(i, 1); if (!e.paid[mk].parts.length) delete e.paid[mk]; save(); salarySheet(e); }
       render(); break;
     }
-    case 'del-pay': if (confirm('Delete this payment?')) { S.payments = S.payments.filter((p) => p.id !== id); save(); closeSheet(); render(); } break;
+    case 'del-pay': toPast('payments', id); closeSheet(); render(); break;
     case 'edit-target': { const t = prompt('Monthly revenue target in rupees', String(S.settings.revenueTarget)); if (t && Number(t)) { S.settings.revenueTarget = Number(t); save(); render(); } break; }
     case 'open-loan': loanSheet(loanById(id)); break;
     case 'loan-type': loanSheet(null, v); break;
     case 'save-loan': saveLoan(id, el.dataset.t); break;
     case 'loan-paid': loanPaid(id); break;
-    case 'del-loan': if (confirm('Delete this loan?')) { S.loans = S.loans.filter((l) => l.id !== id); save(); closeSheet(); render(); } break;
+    case 'del-loan': toPast('loans', id); closeSheet(); render(); break;
     case 'edit-exp': expenseSheet(S.expenses.find((e) => e.id === id)); break;
     case 'save-exp': {
       const title = $('#e-title').value.trim(), amt = Number($('#e-amt').value);
@@ -1255,7 +1263,7 @@ document.addEventListener('click', async (ev) => {
       if (id) Object.assign(S.expenses.find((e) => e.id === id), data); else S.expenses.push(Object.assign({ id: nid() }, data));
       save(); closeSheet(); render(); break;
     }
-    case 'del-exp': S.expenses = S.expenses.filter((e) => e.id !== id); save(); closeSheet(); render(); break;
+    case 'del-exp': toPast('expenses', id); closeSheet(); render(); break;
     // ascend
     case 'aff-hear': { const af = affById(el.dataset.id); if (af) V.speak(af.text, { force: true }); break; }
     case 'aff-speak': { const af = affById(el.dataset.id); if (af) speakAffirmation(af); break; }
@@ -1279,7 +1287,7 @@ document.addEventListener('click', async (ev) => {
       save(); closeSheet(); render(); celebrate('small'); break;
     }
     case 'dream-achieved': { const d = dreamById(id); d.achieved = !d.achieved; save(); closeSheet(); render(); if (d.achieved) { celebrate('big', { title: 'Dream achieved', sub: d.title + '. You said you would. You did.' }); V.speak('Congratulations ' + nm() + '. You achieved ' + d.title + '.'); } break; }
-    case 'del-dream': if (confirm('Delete this dream?')) { S.dreams = S.dreams.filter((d) => d.id !== id); save(); closeSheet(); render(); } break;
+    case 'del-dream': toPast('dreams', id); closeSheet(); render(); break;
     case 'founder': {
       const f = C.FOUNDER[v];
       openSheet('<div class="eyebrow">Founder mode</div><h3 class="mt">' + f.title + '</h3><div class="serif" style="font-size:20px;line-height:1.4;margin:10px 0 16px">' + esc(f.msg) + '</div><h2>Do one now</h2>' +
@@ -1313,7 +1321,7 @@ document.addEventListener('click', async (ev) => {
     case 'open-client': go('more', 'clients', id); break;
     case 'edit-client': clientSheet(clientById(id)); break;
     case 'save-client': saveClient(id); break;
-    case 'del-client': if (confirm('Delete this client?')) { S.clients = S.clients.filter((c) => c.id !== id); save(); closeSheet(); view.id = null; render(); } break;
+    case 'del-client': { const c = S.clients.find((x) => x.id === id); if (c && confirm('Move ' + clientName(c) + ' to Past clients? All payments and history stay saved, and you can bring them back any time.')) { c.past = Date.now(); c.active = false; save(); closeSheet(); view.id = null; toast('Moved to Past clients'); render(); } break; }
     case 'open-lead': go('more', 'leads', id); break;
     case 'lead-filter': view.leadFilter = v; render(); break;
     case 'hunt': go('lucy'); ask(QUICK[2][2], 'hunter'); break;
@@ -1321,21 +1329,21 @@ document.addEventListener('click', async (ev) => {
     case 'calc-price': calcPrice(); break;
     case 'lead-outreach': { const l = leadById(id); go('lucy'); ask('Write a short, personal WhatsApp outreach message and a follow-up message for ' + l.name + ' (' + (l.industry || '') + ', ' + (l.city || '') + '). What we know: ' + (l.reason || l.notes || 'not much yet') + '. Recommended service: ' + (l.service || 'to decide') + '.', 'chat'); break; }
     case 'lead-to-client': { const l = leadById(id); l.status = 'Won'; l.wonAt = Date.now(); const nc = { id: nid(), company: l.name, phone: l.phone || '', personalPhone: l.phone || '', billing: 'monthly', amount: 0, retainer: 0, active: true, notes: l.notes || '', created: Date.now(), nextDate: L.startOfDay(Date.now()) }; S.clients.push(nc); save(); setTimeout(() => clientSheet(nc), 400); celebrate('big', { title: 'New client', sub: l.name + ' is now a DZYN LAB client.' }); go('more', 'clients'); break; }
-    case 'del-lead': if (confirm('Delete this lead?')) { S.leads = S.leads.filter((l) => l.id !== id); save(); view.id = null; render(); } break;
+    case 'del-lead': toPast('leads', id); view.id = null; render(); break;
     case 'add-idea': { const t = $('#idea-new').value.trim(); if (!t) break; const sel = $('#idea-client'); S.ideas.push({ id: nid(), text: t, scope: segOf('idea', 'company'), clientId: sel ? (Number(sel.value) || null) : null, created: Date.now() }); save(); render(); celebrate('small'); break; }
-    case 'edit-idea': { const n = S.ideas.find((x) => x.id === id); openSheet('<h3>Idea</h3><textarea id="n-text" style="min-height:160px">' + esc(n.text) + '</textarea><button class="btn block" data-a="save-idea" data-id="' + id + '">Save</button><button class="btn ghost block" data-a="idea-rem" data-id="' + id + '">Make it a reminder</button><button class="btn danger block" data-a="del-idea" data-id="' + id + '">Delete</button>'); break; }
+    case 'edit-idea': { const n = S.ideas.find((x) => x.id === id); openSheet('<h3>Idea</h3><textarea id="n-text" style="min-height:160px">' + esc(n.text) + '</textarea><button class="btn block" data-a="save-idea" data-id="' + id + '">Save</button><button class="btn ghost block" data-a="idea-rem" data-id="' + id + '">Make it a reminder</button><button class="btn danger block" data-a="del-idea" data-id="' + id + '">Move to Past</button>'); break; }
     case 'save-idea': S.ideas.find((x) => x.id === id).text = $('#n-text').value; save(); closeSheet(); render(); break;
     case 'idea-rem': { const n = S.ideas.find((x) => x.id === id); reminderSheet(null, { task: n.text.slice(0, 80), cat: 'Work' }); break; }
-    case 'del-idea': S.ideas = S.ideas.filter((x) => x.id !== id); save(); closeSheet(); render(); break;
+    case 'del-idea': toPast('ideas', id); closeSheet(); render(); break;
     case 'open-note': noteSheet(S.notes.find((x) => x.id === id)); break;
-    case 'del-note': if (confirm('Delete this note?')) { S.notes = S.notes.filter((x) => x.id !== id); save(); closeSheet(); render(); } break;
+    case 'del-note': toPast('notes', id); closeSheet(); render(); break;
     case 'add-shop': { const inp = $('#shop-new'); inp.value.split(',').map((x) => x.trim()).filter(Boolean).forEach((t) => S.shopping.push({ id: nid(), text: t, cat: segOf('shopcat', 'Personal'), done: false, created: Date.now() })); save(); render(); break; }
     case 'shop': { const s2 = S.shopping.find((x) => x.id === id); s2.done = !s2.done; s2.doneAt = s2.done ? Date.now() : 0; save(); if (s2.done) celebrate('small'); render(); break; }
-    case 'del-shop': S.shopping = S.shopping.filter((x) => x.id !== id); save(); render(); break;
+    case 'del-shop': toPast('shopping', id); render(); break;
     case 'clear-shop': S.shopping = S.shopping.filter((x) => !x.done); save(); render(); break;
     case 'add-learn': { const t = $('#learn-new').value.trim(); if (!t) break; S.learning.push({ id: nid(), text: t, cat: segOf('learncat', 'AI'), done: false, created: Date.now() }); save(); render(); break; }
     case 'learn': { const s2 = S.learning.find((x) => x.id === id); s2.done = !s2.done; s2.doneAt = s2.done ? Date.now() : 0; save(); if (s2.done) celebrate('small'); render(); break; }
-    case 'del-learn': S.learning = S.learning.filter((x) => x.id !== id); save(); render(); break;
+    case 'del-learn': toPast('learning', id); render(); break;
     // settings
     case 'toggle': S.settings[v] = !S.settings[v]; save(); render(); break;
     case 'rt': { const it = S.routine[Number(el.dataset.i)]; it[el.dataset.f] = !it[el.dataset.f]; save(); render(); break; }
@@ -1420,7 +1428,7 @@ function clientSheet(c) {
     '<div><label id="c-date-l">' + (monthly ? 'Next renewal date' : 'Payment due date') + '</label><input id="c-date" type="date" value="' + (c.nextDate ? L.dayKey(c.nextDate) : L.dayKey(Date.now())) + '"></div></div>' +
     '<div class="hint" id="c-hint">' + (monthly ? 'Every month on the renewal date, Lucy adds this amount to your receivables automatically.' : 'Lucy adds this amount to your receivables once.') + '</div>' +
     '<div class="row mt"><input type="checkbox" id="c-active" ' + (c.active === false ? '' : 'checked') + '><span>Active client</span></div>' +
-    '<button class="btn block" data-a="save-client" data-id="' + (c.id || '') + '">Save</button>' + (c.id ? '<button class="btn danger block" data-a="del-client" data-id="' + c.id + '">Delete</button>' : ''));
+    '<button class="btn block" data-a="save-client" data-id="' + (c.id || '') + '">Save</button>' + (c.id ? (c.past ? '' : '<button class="btn ghost block" data-a="del-client" data-id="' + c.id + '">Move to Past clients</button>') : ''));
   $('#sheet').dataset.bill = monthly ? 'monthly' : 'once';
 }
 function saveClient(id) {
@@ -1591,3 +1599,32 @@ async function newVersionReady() {
 })();
 
 window.__lucy = { get S() { return S; }, buildSchedule: buildSchedule, render: render, B: B, state: setAvatarState };
+
+// Past: nothing is ever deleted. Old clients, past team members and removed entries live here with their full history.
+function toPast(kind, id) {
+  const i = (S[kind] || []).findIndex((x) => x.id === id);
+  if (i < 0) return;
+  const item = S[kind].splice(i, 1)[0];
+  S.archive.push({ id: nid(), kind: kind, at: Date.now(), item: item });
+  save(); toast('Moved to Past. You can bring it back any time.');
+}
+const PAST_KIND = { payments: 'Payments', expenses: 'Expenses', loans: 'Loans and EMIs', reminders: 'Reminders', specialDays: 'Special days', leads: 'Leads', ideas: 'Ideas', notes: 'Notes', dreams: 'Dreams', shopping: 'Shopping', learning: 'Learning' };
+function pastTitle(e) { const x = e.item || {}; return x.party || x.title || x.name || x.task || x.text || x.company || x.lender || PAST_KIND[e.kind] || 'Entry'; }
+function renderPast() {
+  const pc = S.clients.filter((c) => c.past).sort((a, b2) => b2.past - a.past);
+  const pe = S.employees.filter((e) => e.past).sort((a, b2) => b2.past - a.past);
+  const received = (c) => S.payments.filter((p) => p.clientId === c.id && p.type === 'in').reduce((a, p) => a + B.paidOf(p), 0);
+  const salPaid = (e) => Object.keys(e.paid || {}).reduce((a, mk) => a + B.salaryPaidOf(e, mk), 0);
+  let h = topbar('Past', { back: 'More', eyebrow: 'Memory · nothing is deleted' });
+  h += '<div class="stats">' + stat('Past clients', pc.length, short(pc.reduce((a, c) => a + received(c), 0)) + ' received in total') + stat('Past team', pe.length, short(pe.reduce((a, e) => a + salPaid(e), 0)) + ' salary paid') + '</div>';
+  h += '<h2>Past clients</h2>' + listOf(pc.map((c) => '<div class="item" data-a="past-open-client" data-id="' + c.id + '"><div class="badge">' + icon('briefcase', 18) + '</div><div class="grow"><div class="t">' + esc(clientName(c)) + '</div><div class="m">' + esc([c.pkg, 'Left ' + L.fmtDate(c.past), money(received(c)) + ' received'].filter(Boolean).join(' · ')) + '</div></div>' + icon('right', 18) + '</div>'), 'No past clients.');
+  h += '<h2>Past team</h2>' + listOf(pe.map((e) => '<div class="item" data-a="edit-emp" data-id="' + e.id + '"><div class="badge">' + icon('users', 18) + '</div><div class="grow"><div class="t">' + esc(e.name) + '</div><div class="m">' + esc([e.role, 'Left ' + L.fmtDate(e.past), money(salPaid(e)) + ' salary paid'].filter(Boolean).join(' · ')) + '</div></div>' + icon('right', 18) + '</div>'), 'No past team members.');
+  const kinds = Object.keys(PAST_KIND).filter((k) => S.archive.some((x) => x.kind === k));
+  h += '<h2>Other entries moved to Past</h2>';
+  if (kinds.length) {
+    const cur = kinds.includes(view.pastKind) ? view.pastKind : kinds[0];
+    h += '<div class="chips">' + kinds.map((k) => '<button class="chip' + (k === cur ? ' on' : '') + '" data-a="past-kind" data-v="' + k + '">' + PAST_KIND[k] + ' ' + S.archive.filter((x) => x.kind === k).length + '</button>').join('') + '</div>';
+    h += listOf(S.archive.filter((x) => x.kind === cur).sort((a, b2) => b2.at - a.at).map((e) => '<div class="item"><div class="grow"><div class="t">' + esc(pastTitle(e)) + '</div><div class="m">' + esc([e.item.amount ? money(e.item.amount) : '', 'Moved ' + L.fmtDate(e.at)].filter(Boolean).join(' · ')) + '</div></div><button class="btn small ghost" data-a="past-back" data-id="' + e.id + '">Bring back</button></div>'));
+  } else h += '<div class="panel empty">Nothing here yet. When you remove a payment, expense, reminder or anything else, it comes here instead of being deleted.</div>';
+  return h;
+}

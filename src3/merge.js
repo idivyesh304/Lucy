@@ -26,6 +26,8 @@ function mergeItem(older, newer) {
   // never let an empty value from one copy wipe a real value from the other
   Object.keys(older).forEach((k) => { const v = newer[k]; if ((v === undefined || v === null || v === '' || v === 0) && older[k] !== undefined && older[k] !== null && older[k] !== '' && older[k] !== 0) m[k] = older[k]; });
   if (older.parts || newer.parts) m.parts = mergeParts(older.parts, newer.parts);
+  // activity history (lead calls, meetings, notes): keep every entry from both copies
+  if (Array.isArray(older.activity) || Array.isArray(newer.activity)) { const mm = new Map(); (older.activity || []).concat(newer.activity || []).forEach((x) => mm.set(String(x && x.id), x)); m.activity = [...mm.values()].sort((x, y) => (y.at || 0) - (x.at || 0)); }
   if ((older.paid && typeof older.paid === 'object') || (newer.paid && typeof newer.paid === 'object')) {
     if (typeof older.paid === 'object' && typeof newer.paid === 'object') m.paid = mergePaidMaps(older.paid, newer.paid);
   }

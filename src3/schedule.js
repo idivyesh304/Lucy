@@ -27,6 +27,15 @@ export function buildSchedule() {
     });
   });
 
+  // lead follow-ups (CRM): at the time set, and a nudge next morning if still not logged
+  (S.leads || []).forEach((l) => {
+    if (!l.followUp || ['Won', 'Lost'].includes(l.status)) return;
+    const who = l.name + (l.contactName ? ' · ' + l.contactName : '');
+    const what = l.nextAction || ('Call or WhatsApp ' + (l.contactName || 'them') + (l.phone ? ' on ' + l.phone : ''));
+    push(l.followUp, 'Follow up: ' + who, what, 'lead-' + l.id, '#more-leads');
+    push(L.atTime(L.addDays(l.followUp, 1), 10, 15), 'Still to follow up: ' + l.name, 'Open Lucy and log the call so this lead does not go cold.', 'lead-' + l.id, '#more-leads');
+  });
+
   // office bills: evening before and on the due day, until paid
   (S.office || []).filter((o) => o.active !== false && Number(o.amount) > 0).forEach((o) => {
     for (let mo = 0; mo < 2; mo++) {

@@ -172,3 +172,12 @@ export const DEFAULT_VISION = [
   'Become one of Bollywood\'s most successful film directors',
   'Become one of the richest, most respected people of my generation'
 ];
+
+// CRM lists for leads
+export const LEAD_STAGE_PROB = { New: 5, Researched: 10, Qualified: 20, Contacted: 25, 'Follow-up': 30, Meeting: 45, Proposal: 60, Negotiation: 80, Won: 100, Lost: 0 };
+export const LEAD_SOURCES = ['Referral', 'Instagram', 'Facebook', 'Meta ad', 'Google', 'Website', 'WhatsApp', 'LinkedIn', 'Cold call', 'Walk-in', 'Event or exhibition', 'Existing client', 'Lucy Hunter', 'Other'];
+export const LEAD_INDUSTRIES = ['Cafe or restaurant', 'Cloud kitchen', 'Doctor or clinic', 'Dental clinic', 'Dermatology or skin', 'IVF or fertility', 'Car detailing or modification', 'Astrology, vastu or healing', 'Ethnic wear or tailoring', 'Bridal wear', 'Jewellery', 'FMCG or food manufacturer', 'Ayurvedic or cosmetics', 'Real estate or builder', 'Interior or architecture', 'Watches or luxury accessories', 'Manufacturing or industrial', 'Education', 'Fitness or gym', 'Salon or spa', 'Retail store', 'Other'];
+export const LEAD_SERVICES = ['Social media management', 'Reels and video production', 'Photography', 'Videography', 'Podcast shoot and edit', 'Meta ads', 'Performance marketing', 'Lead generation', 'Branding and identity', 'Logo design', 'Packaging design', 'Website', 'Landing page', 'Google Business Profile', 'Marketplace listing', 'Content strategy', 'Print and POSM'];
+export const LEAD_TEMPS = ['Hot', 'Warm', 'Cold'];
+export const ACTIVITY_TYPES = ['Call', 'WhatsApp', 'Meeting', 'Office visit', 'Email', 'Proposal sent', 'Note'];
+export const LEAD_LOST_REASONS = ['Budget too low', 'Chose another agency', 'No response', 'Not ready now', 'Doing it in-house', 'Not a fit for us', 'Other'];

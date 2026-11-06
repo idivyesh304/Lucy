@@ -17,7 +17,7 @@ const remById = (id) => S.reminders.find((r) => r.id === Number(id));
 const payById = (id) => S.payments.find((p) => p.id === Number(id));
 const loanById = (id) => S.loans.find((p) => p.id === Number(id));
 const clientById = (id) => S.clients.find((c) => c.id === Number(id));
-const leadById = (id) => S.leads.find((c) => c.id === Number(id));
+const leadById = (id) => S.leads.find((c) => String(c.id) === String(id));
 const dreamById = (id) => S.dreams.find((c) => c.id === Number(id));
 const clientName = (c) => c ? (c.company || [c.firstName, c.lastName].filter(Boolean).join(' ') || 'Client') : '';
 const alertStart = B.alertStart;
@@ -631,31 +631,6 @@ function renderClient(c) {
     '<h2>Notes and meeting prep</h2><textarea id="client-notes" data-cid="' + c.id + '" placeholder="What they want, budget, last discussion">' + esc(c.notes || '') + '</textarea>' +
     '<h2>Follow-ups<button class="link" data-a="new-rem-client" data-id="' + c.id + '">Add</button></h2>' + listOf(rems.map((r) => remRow(r)), 'No pending follow-ups.') +
     '<h2>Payments<button class="link" data-a="new-pay-client" data-id="' + c.id + '">Add</button></h2>' + listOf(pays.map(payRow), 'No payments recorded.');
-}
-function renderLeads() {
-  if (view.id) return renderLead(leadById(view.id));
-  const f = view.leadFilter || 'Open';
-  const list = S.leads.filter((l) => f === 'All' || (f === 'Open' ? !['Won', 'Lost'].includes(l.status) : l.status === f)).sort((a, b2) => (b2.score || 0) - (a.score || 0));
-  const won = S.leads.filter((l) => l.status === 'Won').length, total = S.leads.length;
-  let h = topbar('Leads', { back: 'More', extra: '' });
-  h += '<div class="stats">' + stat('Open leads', S.leads.filter((l) => !['Won', 'Lost'].includes(l.status)).length, '') + stat('Won', won, total ? Math.round(100 * won / total) + '% conversion' : '') + '</div>';
-  h += '<button class="panel gold" style="width:100%;text-align:left" data-a="hunt"><div class="row"><div class="badge">' + icon('search', 20) + '</div><div class="grow"><b>Ask Lucy to hunt for clients</b><div class="sub">Researches real businesses on the web for your Hunter profile, scores them and shows sources. Uses your Claude key.</div></div>' + icon('right', 18) + '</div></button>';
-  h += '<div class="hscroll" style="margin-bottom:12px">' + ['Open', 'All'].concat(C.LEAD_STATUSES).map((s) => '<button class="chip ' + (s === f ? 'on' : '') + '" data-a="lead-filter" data-v="' + s + '">' + s + '</button>').join('') + '</div>';
-  h += listOf(list.map((l) => '<div class="item" data-a="open-lead" data-id="' + l.id + '"><div class="badge"><span class="num" style="font-size:12px">' + (l.score || '–') + '</span></div><div class="grow"><div class="t">' + esc(l.name) + '</div><div class="m">' + esc([l.industry, l.city, l.status].filter(Boolean).join(' · ')) + (l.followUp ? ' · follow up ' + L.fmtDate(l.followUp) : '') + '</div></div>' + icon('right', 18) + '</div>'), 'No leads here yet.');
-  return h;
-}
-function renderLead(l) {
-  if (!l) { view.id = null; return renderLeads(); }
-  const fields = [['industry', 'Industry'], ['city', 'City'], ['website', 'Website'], ['phone', 'Public phone'], ['email', 'Public email'], ['instagram', 'Instagram'], ['decisionMaker', 'Decision-maker'], ['service', 'Recommended service'], ['price', 'Recommended price']];
-  return topbar(esc(l.name), { back: 'Leads' }) +
-    '<div class="panel gold"><div class="row"><div class="grow"><div class="eyebrow">Lead score</div><div class="num" style="font-size:30px;font-weight:600">' + (l.score || '–') + '<span class="sub">/100</span></div></div><div class="right"><div class="eyebrow">Status</div><div style="font-weight:600;margin-top:6px">' + esc(l.status) + '</div></div></div>' + (l.reason ? '<div class="sub mt">' + esc(l.reason) + '</div>' : '') + (l.source ? '<div class="mt"><a class="link" href="' + esc(l.source) + '" target="_blank" rel="noopener">View source</a></div>' : '') + '</div>' +
-    '<label>Status</label><select data-lead="status" data-id="' + l.id + '">' + C.LEAD_STATUSES.map((s) => '<option ' + (s === l.status ? 'selected' : '') + '>' + s + '</option>').join('') + '</select>' +
-    '<label>Follow-up date</label><input type="date" data-lead="followUp" data-id="' + l.id + '" value="' + (l.followUp ? L.dayKey(l.followUp) : '') + '">' +
-    '<div class="grid2"><div><label>Score</label><input type="number" data-lead="score" data-id="' + l.id + '" value="' + (l.score || '') + '"></div><div><label>Name</label><input data-lead="name" data-id="' + l.id + '" value="' + esc(l.name) + '"></div></div>' +
-    fields.map(([k, lab]) => '<label>' + lab + '</label><input data-lead="' + k + '" data-id="' + l.id + '" value="' + esc(l[k] || '') + '">').join('') +
-    '<label>Notes and contact history</label><textarea data-lead="notes" data-id="' + l.id + '">' + esc(l.notes || '') + '</textarea>' +
-    '<div class="actions"><button class="btn" data-a="price-lead" data-id="' + l.id + '">' + icon('coins', 16) + 'Price this client</button><button class="btn ghost" data-a="lead-outreach" data-id="' + l.id + '">' + icon('spark', 16) + 'Write outreach</button>' +
-    '<button class="btn ghost" data-a="lead-to-client" data-id="' + l.id + '">Make client</button><button class="btn danger" data-a="del-lead" data-id="' + l.id + '">' + icon('trash', 15) + '</button></div>';
 }
 function renderIdeas() {
   const t = segOf('idea', 'company');
@@ -1324,11 +1299,19 @@ document.addEventListener('click', async (ev) => {
     case 'del-client': { const c = S.clients.find((x) => x.id === id); if (c && confirm('Move ' + clientName(c) + ' to Past clients? All payments and history stay saved, and you can bring them back any time.')) { c.past = Date.now(); c.active = false; save(); closeSheet(); view.id = null; toast('Moved to Past clients'); render(); } break; }
     case 'open-lead': go('more', 'leads', id); break;
     case 'lead-filter': view.leadFilter = v; render(); break;
+    case 'lead-edit': leadSheet(leadById(id)); break;
+    case 'save-lead': saveLead(el.dataset.id); break;
+    case 'lead-log': activitySheet(leadById(id), v); break;
+    case 'save-activity': saveActivity(leadById(id)); break;
+    case 'lead-stage': { const l = leadById(id); setLeadStage(l, v); break; }
+    case 'act-type': $$('#act-types .chip').forEach((x) => x.classList.toggle('on', x === el)); break;
+    case 'chip-toggle': el.classList.toggle('on'); break;
+    case 'lead-quick-fu': { const fu = $('#act-fu'); if (fu) fu.value = L.dayKey(L.addDays(L.startOfDay(Date.now()), Number(v))); break; }
     case 'hunt': go('lucy'); ask(QUICK[2][2], 'hunter'); break;
     case 'price-lead': pricingSheet(leadById(id)); break;
     case 'calc-price': calcPrice(); break;
     case 'lead-outreach': { const l = leadById(id); go('lucy'); ask('Write a short, personal WhatsApp outreach message and a follow-up message for ' + l.name + ' (' + (l.industry || '') + ', ' + (l.city || '') + '). What we know: ' + (l.reason || l.notes || 'not much yet') + '. Recommended service: ' + (l.service || 'to decide') + '.', 'chat'); break; }
-    case 'lead-to-client': { const l = leadById(id); l.status = 'Won'; l.wonAt = Date.now(); const nc = { id: nid(), company: l.name, phone: l.phone || '', personalPhone: l.phone || '', billing: 'monthly', amount: 0, retainer: 0, active: true, notes: l.notes || '', created: Date.now(), nextDate: L.startOfDay(Date.now()) }; S.clients.push(nc); save(); setTimeout(() => clientSheet(nc), 400); celebrate('big', { title: 'New client', sub: l.name + ' is now a DZYN LAB client.' }); go('more', 'clients'); break; }
+    case 'lead-to-client': leadToClient(leadById(id)); break;
     case 'del-lead': toPast('leads', id); view.id = null; render(); break;
     case 'add-idea': { const t = $('#idea-new').value.trim(); if (!t) break; const sel = $('#idea-client'); S.ideas.push({ id: nid(), text: t, scope: segOf('idea', 'company'), clientId: sel ? (Number(sel.value) || null) : null, created: Date.now() }); save(); render(); celebrate('small'); break; }
     case 'edit-idea': { const n = S.ideas.find((x) => x.id === id); openSheet('<h3>Idea</h3><textarea id="n-text" style="min-height:160px">' + esc(n.text) + '</textarea><button class="btn block" data-a="save-idea" data-id="' + id + '">Save</button><button class="btn ghost block" data-a="idea-rem" data-id="' + id + '">Make it a reminder</button><button class="btn danger block" data-a="del-idea" data-id="' + id + '">Move to Past</button>'); break; }
@@ -1412,7 +1395,7 @@ function fab() {
   }
   if (view.sub === 'team') return empSheet();
   if (view.sub === 'clients') return clientSheet();
-  if (view.sub === 'leads') return leadNewSheet();
+  if (view.sub === 'leads') return leadSheet();
   if (view.sub === 'notes') { const n = { id: nid(), title: '', body: '', created: Date.now(), updated: Date.now() }; S.notes.push(n); save({ local: true }); return noteSheet(n); }
   const t = $('#idea-new') || $('#shop-new') || $('#learn-new'); if (t) t.focus();
 }
@@ -1443,16 +1426,6 @@ function saveClient(id) {
   if (billing === 'once' && amount && !c.onceBilled) { S.payments.push({ id: nid(), type: 'in', party: name, amount: amount, due: nextDate, note: c.pkg || 'One-time project', clientId: c.id, status: 'pending', created: Date.now(), auto: true }); c.onceBilled = true; }
   B.billClients(); save(); closeSheet(); render();
 }
-function leadNewSheet() {
-  openSheet('<h3>New lead</h3><label>Business name</label><input id="l-name"><div class="grid2"><div><label>Industry</label><input id="l-ind"></div><div><label>City</label><input id="l-city" value="' + esc(S.settings.hunter.city) + '"></div></div><label>Website or Instagram</label><input id="l-web"><button class="btn block" data-a="save-new-lead">Add lead</button>');
-}
-document.addEventListener('click', (ev) => {
-  const el = ev.target.closest('[data-a="save-new-lead"]'); if (!el) return;
-  const name = $('#l-name').value.trim(); if (!name) return toast('Add a name');
-  const web = $('#l-web').value.trim();
-  S.leads.push({ id: nid(), name: name, industry: $('#l-ind').value.trim(), city: $('#l-city').value.trim(), website: /instagram/i.test(web) ? '' : web, instagram: /instagram|^@/i.test(web) ? web : '', status: 'New', score: 0, created: Date.now(), followUp: L.addDays(L.startOfDay(Date.now()), 1) });
-  save(); closeSheet(); render();
-});
 function noteSheet(n) {
   openSheet('<div class="row" style="justify-content:space-between"><button class="link" data-a="close">Done</button><button class="btn small danger" data-a="del-note" data-id="' + n.id + '">' + icon('trash', 15) + '</button></div><input id="note-title" class="note-title" data-nid="' + n.id + '" value="' + esc(n.title) + '" placeholder="Title"><textarea id="note-body" class="note-body" data-nid="' + n.id + '" placeholder="Start writing">' + esc(n.body) + '</textarea>', true);
 }
@@ -1551,6 +1524,7 @@ function openHash() {
   } else if (h === '#plan' || h === '#money' || h === '#ascend' || h === '#home') { view.tab = h.slice(1); }
   else if (h === '#money-loans') { view.tab = 'money'; view.seg.money = 'loans'; }
   else if (h === '#more-team') { view.tab = 'more'; view.sub = 'team'; }
+  else if (h === '#more-leads') { view.tab = 'more'; view.sub = 'leads'; view.id = null; }
   else if (h === '#money-expenses') { view.tab = 'money'; view.seg.money = 'office'; }
   else if (h === '#ascend-manifest') { view.tab = 'ascend'; view.seg.ascend = 'manifest'; }
   else if (h === '#plan-special') { view.tab = 'plan'; view.seg.plan = 'special'; }
@@ -1628,3 +1602,169 @@ function renderPast() {
   } else h += '<div class="panel empty">Nothing here yet. When you remove a payment, expense, reminder or anything else, it comes here instead of being deleted.</div>';
   return h;
 }
+
+/* ---------------- Leads CRM ---------------- */
+const $$ = (q) => [...document.querySelectorAll(q)];
+const leadOpen = (l) => !['Won', 'Lost'].includes(l.status);
+const leadValue = (l) => Number(l.dealMonthly || 0) * 12 + Number(l.dealOnce || 0);
+const leadProb = (l) => (l.prob != null && l.prob !== '' ? Number(l.prob) : (C.LEAD_STAGE_PROB[l.status] || 0));
+const leadContactName = (l) => [l.contactName, l.designation].filter(Boolean).join(', ');
+const telOf = (p) => String(p || '').replace(/[^\d+]/g, '');
+const waOf = (p) => { const t = telOf(p); return t.startsWith('+') ? t.slice(1) : (t.length === 10 ? '91' + t : t); };
+const tempColor = { Hot: 'var(--bad)', Warm: 'var(--gold)', Cold: 'var(--text3)' };
+function renderLeads() {
+  if (view.id) return renderLead(leadById(view.id));
+  const f = view.leadFilter || 'Open', q = (view.leadQ || '').toLowerCase();
+  const today = L.startOfDay(Date.now()), tomorrow = L.addDays(today, 1);
+  const open = S.leads.filter(leadOpen);
+  const due = open.filter((l) => l.followUp && l.followUp < tomorrow);
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+  const wonMonth = S.leads.filter((l) => l.status === 'Won' && (l.wonAt || 0) >= monthStart);
+  const closed = S.leads.filter((l) => !leadOpen(l)).length, won = S.leads.filter((l) => l.status === 'Won').length;
+  const pipeMonthly = open.reduce((a, l) => a + Number(l.dealMonthly || 0), 0);
+  const weighted = open.reduce((a, l) => a + Number(l.dealMonthly || 0) * leadProb(l) / 100, 0);
+  let list = S.leads.filter((l) => f === 'All' ? true : f === 'Open' ? leadOpen(l) : f === 'Due' ? due.includes(l) : f === 'Hot' ? leadOpen(l) && l.temp === 'Hot' : l.status === f);
+  if (q) list = list.filter((l) => [l.name, l.contactName, l.phone, l.city, l.area, l.industry, l.email].join(' ').toLowerCase().includes(q));
+  list.sort((a, b2) => (a.followUp || 9e15) - (b2.followUp || 9e15) || leadValue(b2) - leadValue(a));
+  let h = topbar('Leads', { back: 'More', eyebrow: 'CRM · pipeline' });
+  h += '<div class="stats">' + stat('Open leads', open.length, due.length ? '<span class="warn">' + due.length + ' follow-up' + (due.length > 1 ? 's' : '') + ' due</span>' : 'all followed up') +
+    stat('Pipeline', short(pipeMonthly) + '/mo', 'likely ' + short(weighted) + '/mo') +
+    stat('Won this month', wonMonth.length, short(wonMonth.reduce((a, l) => a + Number(l.dealMonthly || 0), 0)) + '/mo added') +
+    stat('Win rate', closed ? Math.round(100 * won / closed) + '%' : '–', won + ' won of ' + closed + ' closed') + '</div>';
+  // pipeline bar
+  const stages = C.LEAD_STATUSES.filter((s2) => s2 !== 'Lost');
+  h += '<div class="hscroll" style="margin-bottom:10px">' + stages.map((st) => { const n = S.leads.filter((l) => l.status === st).length; return '<button class="chip' + (f === st ? ' on' : '') + '" data-a="lead-filter" data-v="' + st + '">' + st + ' <b>' + n + '</b></button>'; }).join('') + '</div>';
+  h += '<div class="hscroll" style="margin-bottom:10px">' + [['Open', 'Open'], ['Due', 'Follow-up due'], ['Hot', 'Hot'], ['All', 'All'], ['Lost', 'Lost']].map((x) => '<button class="chip' + (f === x[0] ? ' on' : '') + '" data-a="lead-filter" data-v="' + x[0] + '">' + x[1] + '</button>').join('') + '</div>';
+  h += '<input id="lead-q" placeholder="Search name, person, phone, area" value="' + esc(view.leadQ || '') + '" style="margin-bottom:12px">';
+  h += '<button class="panel gold" style="width:100%;text-align:left" data-a="hunt"><div class="row"><div class="badge">' + icon('search', 20) + '</div><div class="grow"><b>Ask Lucy to hunt for clients</b><div class="sub">Finds real businesses for your Hunter profile, scores them and shows sources.</div></div>' + icon('right', 18) + '</div></button>';
+  h += listOf(list.map(leadRow), f === 'Open' ? 'No open leads yet. Tap + to add a potential client.' : 'Nothing here.');
+  return h;
+}
+function leadRow(l) {
+  const today = L.startOfDay(Date.now()), late = l.followUp && l.followUp < today, now = l.followUp && l.followUp >= today && l.followUp < L.addDays(today, 1);
+  const fu = !leadOpen(l) ? '' : l.followUp ? '<span class="' + (late ? 'bad' : now ? 'warn' : '') + '">' + (late ? 'Overdue · ' : now ? 'Today · ' : '') + L.fmtDate(l.followUp) + '</span>' : '<span class="warn">No follow-up set</span>';
+  return '<div class="item" data-a="open-lead" data-id="' + l.id + '"><div class="badge" style="--c:' + (tempColor[l.temp] || 'var(--gold)') + '">' + icon('building', 18) + '</div>' +
+    '<div class="grow"><div class="t">' + esc(l.name) + '</div><div class="m">' + esc([leadContactName(l), l.industry, l.area || l.city].filter(Boolean).join(' · ')) + '</div>' +
+    '<div class="m" style="font-size:12px;margin-top:2px">' + esc(l.status) + (l.temp ? ' · ' + esc(l.temp) : '') + (fu ? ' · ' + fu : '') + '</div></div>' +
+    '<div class="right">' + (Number(l.dealMonthly) ? '<div class="amount in">' + short(l.dealMonthly) + '</div><div class="m" style="font-size:11px">per month</div>' : Number(l.dealOnce) ? '<div class="amount in">' + short(l.dealOnce) + '</div><div class="m" style="font-size:11px">one time</div>' : '') + '</div></div>';
+}
+function renderLead(l) {
+  if (!l) { view.id = null; return renderLeads(); }
+  const ph = l.phone || l.contactPhone, wa = l.whatsapp || ph;
+  const btn = (href, ic, lab) => href ? '<a class="btn small ghost" href="' + esc(href) + '" target="_blank" rel="noopener">' + icon(ic, 15) + lab + '</a>' : '';
+  const web = (v) => !v ? '' : /^https?:/i.test(v) ? v : 'https://' + v;
+  const ig = l.instagram ? (/^https?:/i.test(l.instagram) ? l.instagram : 'https://instagram.com/' + l.instagram.replace(/^@/, '')) : '';
+  let h = topbar(esc(l.name), { back: 'Leads', extra: '<button class="iconbtn" data-a="lead-edit" data-id="' + l.id + '" aria-label="Edit">' + icon('edit', 18) + '</button>' });
+  h += '<div class="actions" style="margin-top:0">' + btn(ph && 'tel:' + telOf(ph), 'phone', 'Call') + btn(wa && 'https://wa.me/' + waOf(wa), 'chat', 'WhatsApp') + btn(l.email && 'mailto:' + l.email, 'mail', 'Email') + btn(web(l.website), 'globe', 'Website') + btn(ig, 'camera', 'Instagram') + btn(l.mapLink, 'pin', 'Map') + '</div>';
+  // stage
+  h += '<div class="panel gold mt"><div class="row"><div class="grow"><div class="eyebrow">Stage</div><div style="font-weight:600;font-size:18px;margin-top:4px">' + esc(l.status) + (l.temp ? ' <span class="sub" style="color:' + tempColor[l.temp] + '">· ' + esc(l.temp) + '</span>' : '') + '</div><div class="sub">' + leadProb(l) + '% likely' + (l.closeBy ? ' · expected close ' + L.fmtDate(l.closeBy) : '') + '</div></div>' +
+    '<div class="right"><div class="eyebrow">Deal value</div><div class="num" style="font-size:20px;font-weight:600;margin-top:4px">' + (Number(l.dealMonthly) ? money(l.dealMonthly) + '<span class="sub">/mo</span>' : Number(l.dealOnce) ? money(l.dealOnce) : '–') + '</div>' + (Number(l.dealMonthly) && Number(l.dealOnce) ? '<div class="sub">+ ' + money(l.dealOnce) + ' one time</div>' : '') + '</div></div>' +
+    '<div class="hscroll mt">' + C.LEAD_STATUSES.map((st) => '<button class="chip' + (st === l.status ? ' on' : '') + '" data-a="lead-stage" data-id="' + l.id + '" data-v="' + st + '">' + st + '</button>').join('') + '</div>' +
+    (l.status === 'Lost' && l.lostReason ? '<div class="sub mt">Lost: ' + esc(l.lostReason) + '</div>' : '') + '</div>';
+  // next step
+  if (leadOpen(l)) h += '<div class="panel' + (l.followUp && l.followUp < Date.now() ? ' alert' : '') + '"><div class="row"><div class="badge">' + icon('bell', 18) + '</div><div class="grow"><b>' + (l.nextAction ? esc(l.nextAction) : 'Next follow-up') + '</b><div class="sub">' + (l.followUp ? L.fmtWhen(l.followUp) : 'Not set. Log a call or meeting to set one.') + '</div></div></div></div>';
+  h += '<div class="actions"><button class="btn" data-a="lead-log" data-id="' + l.id + '">' + icon('plus', 15) + 'Log call or meeting</button>' + (l.status !== 'Won' ? '<button class="btn ghost" data-a="lead-to-client" data-id="' + l.id + '">' + icon('trophy', 15) + 'Won · make client</button>' : (l.clientId ? '<button class="btn ghost" data-a="open-client" data-id="' + l.clientId + '">Open client</button>' : '')) + '</div>';
+  // details
+  const sec = (title, rows) => { rows = rows.filter((r) => r[1]); return rows.length ? '<h2>' + title + '</h2><div class="list">' + rows.map((r) => '<div class="item"><div class="grow"><div class="m">' + r[0] + '</div><div class="t" style="white-space:pre-wrap">' + esc(r[1]) + '</div></div></div>').join('') + '</div>' : ''; };
+  h += sec('Contact person', [['Name', l.contactName], ['Designation', l.designation], ['Phone', ph], ['WhatsApp', l.whatsapp && l.whatsapp !== ph ? l.whatsapp : ''], ['Email', l.email], ['Decision-maker', l.decisionMaker], ['Best time to call', l.bestTime], ['Second contact', [l.contact2, l.contact2Phone].filter(Boolean).join(' · ')]]);
+  h += sec('Company', [['Industry', l.industry], ['About the business', l.about], ['Area and city', [l.area, l.city].filter(Boolean).join(', ')], ['Address', l.address], ['GST number', l.gst], ['Website', l.website], ['Instagram', l.instagram], ['Facebook', l.facebook], ['Google Business', l.gbp], ['Team size', l.teamSize], ['Branches or outlets', l.branches], ['In business since', l.since]]);
+  h += sec('Opportunity', [['Services they need', (l.services || []).join(', ')], ['Recommended service', l.service], ['Their current marketing budget', l.budget ? money(l.budget) + ' / month' : ''], ['Current agency or competitor', l.competitor], ['Pain points', l.pain], ['Source', [l.leadSource, l.referredBy ? 'by ' + l.referredBy : ''].filter(Boolean).join(' ')], ['Lead score', l.score ? l.score + ' / 100' : ''], ['Why they need us', l.reason], ['Notes', l.notes]]);
+  // timeline
+  const acts = (l.activity || []).slice().sort((a, b2) => b2.at - a.at);
+  h += '<h2>History<button class="link" data-a="lead-log" data-id="' + l.id + '">Add</button></h2>' + listOf(acts.map((x) => '<div class="item"><div class="badge">' + icon({ Call: 'phone', WhatsApp: 'chat', Meeting: 'users', 'Office visit': 'building', Email: 'mail', 'Proposal sent': 'doc', Note: 'note' }[x.type] || 'note', 16) + '</div><div class="grow"><div class="t">' + esc(x.type) + (x.outcome ? ' · ' + esc(x.outcome) : '') + '</div>' + (x.text ? '<div class="m" style="white-space:pre-wrap">' + esc(x.text) + '</div>' : '') + '<div class="m" style="font-size:12px">' + L.fmtWhen(x.at) + '</div></div></div>'), 'No calls or meetings logged yet. Every contact you log is kept here forever.') +
+    '<div class="sub mt">Added ' + L.fmtDate(l.created || Date.now()) + (l.lastContact ? ' · last contact ' + L.fmtWhen(l.lastContact) : '') + '</div>';
+  h += '<div class="actions"><button class="btn ghost" data-a="price-lead" data-id="' + l.id + '">' + icon('coins', 15) + 'Price this client</button><button class="btn ghost" data-a="lead-outreach" data-id="' + l.id + '">' + icon('spark', 15) + 'Write outreach</button><button class="btn ghost" data-a="del-lead" data-id="' + l.id + '">Move to Past</button></div>';
+  return h;
+}
+function leadSheet(l) {
+  l = l || { status: 'New', temp: 'Warm', city: S.settings.hunter.city || 'Ahmedabad', services: [] };
+  const inp = (id, lab, val, type, ph) => '<div><label>' + lab + '</label><input id="ld-' + id + '"' + (type ? ' type="' + type + '"' : '') + (type === 'number' ? ' inputmode="numeric"' : '') + ' value="' + esc(val == null ? '' : val) + '"' + (ph ? ' placeholder="' + esc(ph) + '"' : '') + '></div>';
+  const sel = (id, lab, opts, val, blank) => '<div><label>' + lab + '</label><select id="ld-' + id + '">' + (blank ? '<option value="">' + blank + '</option>' : '') + opts.concat(val && !opts.includes(val) ? [val] : []).map((o) => '<option ' + (o === val ? 'selected' : '') + '>' + esc(o) + '</option>').join('') + '</select></div>';
+  const area = (id, lab, val, ph) => '<label>' + lab + '</label><textarea id="ld-' + id + '" placeholder="' + esc(ph || '') + '">' + esc(val || '') + '</textarea>';
+  openSheet('<h3>' + (l.id ? 'Edit lead' : 'New lead') + '</h3><div class="sub">Fill what you know now. You can add the rest any time.</div>' +
+    '<h2>Company</h2>' + inp('name', 'Business name', l.name, '', 'e.g. Kliya Cafe') +
+    '<div class="grid2">' + sel('industry', 'Industry', C.LEAD_INDUSTRIES, l.industry, 'Choose') + inp('area', 'Area', l.area, '', 'e.g. Sindhu Bhavan') + inp('city', 'City', l.city) + inp('since', 'In business since', l.since, '', 'Year') + inp('teamSize', 'Team size', l.teamSize, '', 'People') + inp('branches', 'Branches or outlets', l.branches) + '</div>' +
+    area('about', 'About the business', l.about, 'What they sell, who their customers are') + inp('address', 'Address', l.address) + inp('mapLink', 'Google Maps link', l.mapLink) + inp('gst', 'GST number', l.gst) +
+    '<div class="grid2">' + inp('website', 'Website', l.website) + inp('instagram', 'Instagram', l.instagram, '', '@handle') + inp('facebook', 'Facebook', l.facebook) + inp('gbp', 'Google Business', l.gbp) + '</div>' +
+    '<h2>Contact person</h2><div class="grid2">' + inp('contactName', 'Name', l.contactName) + inp('designation', 'Designation', l.designation, '', 'Owner, manager') + inp('phone', 'Phone', l.phone, 'tel', '98xxxxxxxx') + inp('whatsapp', 'WhatsApp (if different)', l.whatsapp, 'tel') + inp('email', 'Email', l.email, 'email') + inp('bestTime', 'Best time to call', l.bestTime, '', 'e.g. after 4 pm') + inp('contact2', 'Second contact', l.contact2) + inp('contact2Phone', 'Second contact phone', l.contact2Phone, 'tel') + '</div>' +
+    inp('decisionMaker', 'Who decides', l.decisionMaker, '', 'e.g. Owner and his son') +
+    '<h2>Opportunity</h2>' +
+    '<div class="grid2">' + sel('status', 'Stage', C.LEAD_STATUSES, l.status) + sel('temp', 'Temperature', C.LEAD_TEMPS, l.temp) + sel('leadSource', 'Source', C.LEAD_SOURCES, l.leadSource, 'Choose') + inp('referredBy', 'Referred by', l.referredBy) +
+    inp('dealMonthly', 'Deal value per month (₹)', l.dealMonthly, 'number') + inp('dealOnce', 'One-time value (₹)', l.dealOnce, 'number') + inp('budget', 'Their current budget / month (₹)', l.budget, 'number') + inp('closeBy', 'Expected close', l.closeBy ? L.dayKey(l.closeBy) : '', 'date') + '</div>' +
+    '<label>Services they need</label><div class="chips" id="ld-services">' + C.LEAD_SERVICES.map((sv) => '<button class="chip' + ((l.services || []).includes(sv) ? ' on' : '') + '" data-a="chip-toggle" data-v="' + esc(sv) + '">' + esc(sv) + '</button>').join('') + '</div>' +
+    inp('competitor', 'Current agency or competitor', l.competitor) + area('pain', 'Pain points', l.pain, 'What is not working for them today') +
+    '<h2>Next step</h2><div class="grid2">' + inp('fuDate', 'Follow-up date', l.followUp ? L.dayKey(l.followUp) : L.dayKey(L.addDays(L.startOfDay(Date.now()), 1)), 'date') + inp('fuTime', 'Time', l.followUp ? new Date(l.followUp).toTimeString().slice(0, 5) : '11:00', 'time') + '</div>' +
+    inp('nextAction', 'What to do', l.nextAction, '', 'e.g. Send proposal on WhatsApp') +
+    (l.id && l.status === 'Lost' ? sel('lostReason', 'Why we lost it', C.LEAD_LOST_REASONS, l.lostReason, 'Choose') : '') +
+    area('notes', 'Notes', l.notes) +
+    '<button class="btn block" data-a="save-lead" data-id="' + (l.id || '') + '">Save lead</button>');
+}
+function saveLead(idv) {
+  const g = (k) => { const e = $('#ld-' + k); return e ? e.value.trim() : ''; };
+  const name = g('name'); if (!name) return toast('Add the business name');
+  const fuDate = g('fuDate');
+  const d = { name: name, industry: g('industry'), area: g('area'), city: g('city'), since: g('since'), teamSize: g('teamSize'), branches: g('branches'), about: g('about'), address: g('address'), mapLink: g('mapLink'), gst: g('gst'),
+    website: g('website'), instagram: g('instagram'), facebook: g('facebook'), gbp: g('gbp'), contactName: g('contactName'), designation: g('designation'), phone: g('phone'), whatsapp: g('whatsapp'), email: g('email'), bestTime: g('bestTime'),
+    contact2: g('contact2'), contact2Phone: g('contact2Phone'), decisionMaker: g('decisionMaker'), temp: g('temp'), leadSource: g('leadSource'), referredBy: g('referredBy'),
+    dealMonthly: Number(g('dealMonthly')) || 0, dealOnce: Number(g('dealOnce')) || 0, budget: Number(g('budget')) || 0, closeBy: g('closeBy') ? fromInputs(g('closeBy'), '10:00') : 0,
+    services: $$('#ld-services .chip.on').map((x) => x.dataset.v), competitor: g('competitor'), pain: g('pain'), nextAction: g('nextAction'), notes: g('notes'),
+    followUp: fuDate ? fromInputs(fuDate, g('fuTime') || '11:00') : 0 };
+  if ($('#ld-lostReason')) d.lostReason = g('lostReason');
+  let l = idv ? leadById(idv) : null;
+  const st = g('status');
+  if (l) Object.assign(l, d);
+  else { l = Object.assign({ id: nid(), status: 'New', score: 0, created: Date.now(), activity: [] }, d); S.leads.push(l); view.id = l.id; view.sub = 'leads'; celebrate('small'); }
+  save(); closeSheet();
+  if (st && st !== l.status) setLeadStage(l, st); else render();
+}
+function setLeadStage(l, st) {
+  if (!l || l.status === st) return;
+  const from = l.status; l.status = st;
+  (l.activity = l.activity || []).push({ id: nid(), at: Date.now(), type: 'Note', outcome: 'Stage: ' + from + ' to ' + st, text: '' });
+  if (st === 'Won') { l.wonAt = Date.now(); save(); render(); celebrate('big', { title: 'Deal won', sub: l.name + '. Well done, ' + nm() + '.' }); if (!l.clientId) setTimeout(() => { if (confirm('Add ' + l.name + ' to your clients now? Their contact and deal value come across.')) leadToClient(l); }, 900); return; }
+  if (st === 'Lost') { l.lostAt = Date.now(); save(); render(); openSheet('<h3>Why did we lose ' + esc(l.name) + '?</h3><div class="sub">This helps you see patterns later.</div><div class="chips mt">' + C.LEAD_LOST_REASONS.map((r) => '<button class="chip" data-a="lead-lost" data-id="' + l.id + '" data-v="' + esc(r) + '">' + esc(r) + '</button>').join('') + '</div>'); return; }
+  save(); render();
+}
+document.addEventListener('click', (ev) => {
+  const el = ev.target.closest('[data-a="lead-lost"]'); if (!el) return;
+  const l = leadById(el.dataset.id); if (!l) return; l.lostReason = el.dataset.v; save(); closeSheet(); render(); toast('Saved. The lead stays in your history.');
+});
+function activitySheet(l, type) {
+  if (!l) return;
+  type = type || 'Call';
+  openSheet('<h3>Log contact · ' + esc(l.name) + '</h3>' +
+    '<label>What happened</label><div class="chips" id="act-types">' + C.ACTIVITY_TYPES.map((t) => '<button class="chip' + (t === type ? ' on' : '') + '" data-a="act-type" data-v="' + t + '">' + t + '</button>').join('') + '</div>' +
+    '<label>Result</label><select id="act-outcome"><option value="">Choose</option>' + ['Spoke, interested', 'Spoke, needs time', 'Asked for proposal', 'Meeting fixed', 'Negotiating price', 'No answer', 'Not interested', 'Other'].map((o) => '<option>' + o + '</option>').join('') + '</select>' +
+    '<label>Notes</label><textarea id="act-text" placeholder="What they said, budget, next step"></textarea>' +
+    '<label>Move to stage</label><select id="act-stage">' + C.LEAD_STATUSES.map((st) => '<option ' + (st === l.status ? 'selected' : '') + '>' + st + '</option>').join('') + '</select>' +
+    '<label>Next follow-up</label><div class="hscroll" style="margin-bottom:8px">' + [['1', 'Tomorrow'], ['2', 'In 2 days'], ['3', 'In 3 days'], ['7', 'Next week'], ['14', 'In 2 weeks']].map((x) => '<button class="chip" data-a="lead-quick-fu" data-v="' + x[0] + '">' + x[1] + '</button>').join('') + '</div>' +
+    '<div class="grid2"><div><input id="act-fu" type="date" value="' + L.dayKey(L.addDays(L.startOfDay(Date.now()), 2)) + '"></div><div><input id="act-fu-t" type="time" value="11:00"></div></div>' +
+    '<label>Next step</label><input id="act-next" value="' + esc(l.nextAction || '') + '" placeholder="e.g. Share proposal and price">' +
+    '<button class="btn block" data-a="save-activity" data-id="' + l.id + '">Save</button>');
+}
+function saveActivity(l) {
+  if (!l) return;
+  const t = ($('#act-types .chip.on') || {}).dataset || {};
+  const now = Date.now();
+  (l.activity = l.activity || []).push({ id: nid(), at: now, type: t.v || 'Call', outcome: $('#act-outcome').value, text: $('#act-text').value.trim() });
+  if ((t.v || 'Call') !== 'Note') l.lastContact = now;
+  const fu = $('#act-fu').value; l.followUp = fu ? fromInputs(fu, $('#act-fu-t').value || '11:00') : 0;
+  l.nextAction = $('#act-next').value.trim();
+  const st = $('#act-stage').value;
+  if (l.status === 'New' && st === 'New' && l.lastContact) l.status = 'Contacted';
+  save(); closeSheet();
+  if (st !== l.status) setLeadStage(l, st); else render();
+  toast('Logged');
+}
+function leadToClient(l) {
+  if (!l) return;
+  if (l.clientId && clientById(l.clientId)) { go('more', 'clients', l.clientId); return; }
+  if (l.status !== 'Won') { l.status = 'Won'; l.wonAt = Date.now(); (l.activity = l.activity || []).push({ id: nid(), at: Date.now(), type: 'Note', outcome: 'Won, became a client', text: '' }); }
+  const monthly = Number(l.dealMonthly) > 0, amount = monthly ? Number(l.dealMonthly) : Number(l.dealOnce) || 0;
+  const nc = { id: nid(), company: l.name, firstName: '', lastName: '', phone: l.phone || l.whatsapp || '', personalPhone: l.phone || '', pkg: (l.services || []).join(', ') || l.service || '', billing: monthly || !amount ? 'monthly' : 'once', amount: amount, retainer: monthly ? amount : 0,
+    active: true, notes: [l.contactName ? 'Contact: ' + leadContactName(l) : '', l.notes || ''].filter(Boolean).join('\n'), created: Date.now(), nextDate: L.startOfDay(Date.now()), leadId: l.id };
+  S.clients.push(nc); l.clientId = nc.id; save();
+  celebrate('big', { title: 'New client', sub: l.name + ' is now a DZYN LAB client.' });
+  go('more', 'clients', nc.id); setTimeout(() => clientSheet(nc), 400);
+}
+document.addEventListener('input', (ev) => { if (ev.target.id === 'lead-q') { view.leadQ = ev.target.value; clearTimeout(window.__lq); window.__lq = setTimeout(() => { render(); const e = $('#lead-q'); if (e) { e.focus(); e.setSelectionRange(e.value.length, e.value.length); } }, 250); } });

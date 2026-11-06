@@ -221,7 +221,7 @@ export function aiSystem(mode) {
   const st = S.settings, now = Date.now(), rev = revenue(), ls = loanStats(), b = briefing();
   const top = topFive().map((x) => '- ' + itemTitle(x) + (x.tomorrow ? ' (tomorrow)' : '')).join('\n') || '- nothing urgent';
   const mission = ensureMission().map((m) => '- [' + (m.done ? 'x' : ' ') + '] ' + m.text).join('\n');
-  const leads = S.leads.filter((l) => !['Won', 'Lost'].includes(l.status)).slice(0, 15).map((l) => '- ' + l.name + ' (' + (l.industry || '?') + ', ' + l.status + (l.score ? ', score ' + l.score : '') + ')').join('\n') || '- none yet';
+  const leads = S.leads.filter((l) => !['Won', 'Lost'].includes(l.status)).slice(0, 25).map((l) => '- ' + l.name + ' (' + [l.industry || '?', l.area || l.city, l.status, l.temp, l.contactName ? 'contact ' + l.contactName + (l.designation ? ', ' + l.designation : '') : '', Number(l.dealMonthly) ? 'deal Rs ' + l.dealMonthly + '/month' : '', Number(l.dealOnce) ? 'one-time Rs ' + l.dealOnce : '', (l.services || []).length ? 'needs ' + l.services.join('/') : '', l.followUp ? 'follow-up ' + new Date(l.followUp).toDateString() : '', l.nextAction ? 'next: ' + l.nextAction : '', l.pain ? 'pain: ' + l.pain : ''].filter(Boolean).join(', ') + ')').join('\n') || '- none';
   const clients = S.clients.slice(0, 25).map((c) => '- ' + (c.company || c.firstName) + (c.businessType ? ' (' + c.businessType + ')' : '') + (Number(c.retainer) ? ', retainer ' + L.money(c.retainer) : '') + (c.active === false ? ', inactive' : '')).join('\n') || '- none added';
   const dreams = S.dreams.map((d) => '- ' + d.title + (d.target ? ' (' + L.money(d.target) + ')' : '') + (d.targetDate ? ' by ' + L.fmtDate(d.targetDate) : '')).join('\n') || '- none added';
   const bz = st.business;

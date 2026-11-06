@@ -26,6 +26,18 @@ export function buildSchedule() {
     });
   });
 
+  // salary day
+  if (S.employees.some((e) => e.active !== false)) {
+    const sd = Number(st.salaryDay) || 1;
+    for (let mo = 0; mo < 2; mo++) {
+      const base = new Date(now); const y = base.getFullYear(), m = base.getMonth() + mo;
+      const day = new Date(y, m, Math.min(sd, new Date(y, m + 1, 0).getDate())).getTime();
+      const total = S.employees.filter((e) => e.active !== false).reduce((a, e) => a + (Number(e.salary) || 0), 0);
+      push(L.atTime(L.addDays(day, -1), 19, 0), 'Salary day tomorrow', 'Keep ' + L.money(total) + ' ready for ' + S.employees.filter((e) => e.active !== false).length + ' team members.', 'salary', '#more-team');
+      push(L.atTime(day, 10, 0), 'Salary day, ' + nm, 'Pay your team today: ' + L.money(total) + '. Open Lucy, Team, to pay each one by UPI.', 'salary', '#more-team');
+    }
+  }
+
   // birthdays and anniversaries
   specialSchedule(push, nm);
 

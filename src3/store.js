@@ -13,7 +13,7 @@ export function defaults() {
       briefTime: '08:30', journalTime: '22:00', reviewDay: 0, reviewTime: '19:00',
       inspireOn: true, inspireStart: 10, inspireEnd: 20,
       speak: true, voiceURI: '', voiceRate: 0.95, voicePitch: 1.0, autoSpeakReplies: true,
-      provider: 'claude', nagCount: 2, nagMin: 15, avatarImg: '',
+      provider: 'claude', salaryDay: 1, nagCount: 2, nagMin: 15, avatarImg: '',
       business: { minRetainer: 25000, minMargin: 35, maxDiscount: 10, minMonths: 3, paymentTerms: '50% advance, balance before delivery. Retainers billed monthly in advance.',
         costs: { reel: 0, post: 0, shoot: 0, ads: 0, website: 0 } },
       hunter: { industries: 'Jewellery brands, jewellers, cosmetic and dental clinics, doctors, fashion and lifestyle brands', city: 'Ahmedabad', minBudget: 30000,
@@ -23,7 +23,7 @@ export function defaults() {
     routineLog: {}, reminders: [], clients: [], payments: [], loans: [], expenses: [], dreams: [],
     affirm: { done: {}, custom: [], spoken: {} }, mission: {}, leads: [], ideas: [], notes: [], shopping: [], learning: [],
     journal: {}, chat: [], log: [], celebrated: {},
-    specialDays: [],
+    specialDays: [], employees: [],
     growth: {
       tiers: [{ name: 'Premium', price: 50000, count: 15 }, { name: 'Growth', price: 30000, count: 15 }, { name: 'Starter', price: 25000, count: 15 }],
       team: [{ role: 'Video editor', need: 4, have: 0, salary: 0 }, { role: 'Graphic designer', need: 3, have: 0, salary: 0 }, { role: 'Marketing / sales', need: 2, have: 0, salary: 0 },
@@ -76,7 +76,7 @@ export function migrate(d) {
     out.settings.vision = (out.settings.vision || []).map((v) => String(v).replace(/₹\s?25 lakh monthly revenue/, '₹15 lakh monthly revenue'));
     out.targetSet15 = true;
   }
-  ['reminders', 'clients', 'payments', 'loans', 'expenses', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'chat', 'log', 'specialDays']
+  ['reminders', 'clients', 'payments', 'loans', 'expenses', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'chat', 'log', 'specialDays', 'employees']
     .forEach((k) => { if (!Array.isArray(out[k])) out[k] = []; });
   out.affirm = Object.assign({ done: {}, custom: [], spoken: {} }, d.affirm || {});
   return out;

@@ -42,7 +42,7 @@ function render() {
   $('#app').innerHTML = (screens[view.tab] || renderHome)();
   renderTabs();
   const fabTabs = { plan: 1, money: 1 };
-  const fabSubs = { clients: 1, leads: 1, ideas: 1, notes: 1, shopping: 1, learning: 1 };
+  const fabSubs = { team: 1, clients: 1, leads: 1, ideas: 1, notes: 1, shopping: 1, learning: 1 };
   const showFab = (fabTabs[view.tab] && !view.sub) || (view.tab === 'ascend' && ['dreams', 'affirm'].includes(segOf('ascend', 'affirm'))) || (view.tab === 'more' && fabSubs[view.sub] && !view.id);
   const f = $('.fab');
   if (showFab && !f) document.body.insertAdjacentHTML('beforeend', '<button class="fab" data-a="fab" aria-label="Add">' + icon('plus', 26) + '</button>');
@@ -222,6 +222,46 @@ function specialSheet(sd, type) {
     '<button class="btn block" data-a="save-sp" data-id="' + (sd.id || '') + '">Save</button>' + (sd.id ? '<button class="btn danger block" data-a="del-sp" data-id="' + sd.id + '">Delete</button>' : ''));
   $('#sheet').dataset.sptype = sd.type;
 }
+const upiLink = (e, amt, note) => 'upi://pay?pa=' + String(e.upi).trim() + '&pn=' + encodeURIComponent(e.name) + '&am=' + Number(amt).toFixed(2) + '&cu=INR&tn=' + encodeURIComponent(note);
+function renderTeam() {
+  const pr = B.payroll(), mon = L.MON[new Date().getMonth()];
+  let h = topbar('Team', { back: 'More' });
+  h += '<div class="stats">' + stat('Team', pr.list.length + ' people', S.growth.team.reduce((a, m) => a + Number(m.need || 0), 0) + ' planned') + stat('Monthly payroll', short(pr.total), 'salary day ' + (S.settings.salaryDay || 1)) +
+    stat('Paid in ' + mon, pr.paidCount + ' / ' + pr.list.length, short(pr.paidAmount)) + stat('Still to pay', short(pr.total - pr.paidAmount), pr.due.length + ' people') + '</div>';
+  const roles = S.growth.team.map((m) => m.role).concat([...new Set(S.employees.map((e) => e.role))].filter((r) => !S.growth.team.some((m) => m.role.toLowerCase() === String(r).toLowerCase())));
+  roles.forEach((r) => {
+    const list = S.employees.filter((e) => String(e.role).toLowerCase() === String(r).toLowerCase());
+    if (!list.length) return;
+    h += '<h2>' + esc(r) + '</h2>' + listOf(list.map(empRow));
+  });
+  if (!S.employees.length) h += '<div class="panel empty">No team members yet. Tap + to add each person with phone, UPI ID and salary.</div>';
+  h += '<label>Salary day (every month)</label><select data-set="salaryDay">' + Array.from({ length: 28 }, (_, i) => '<option value="' + (i + 1) + '" ' + (Number(S.settings.salaryDay || 1) === i + 1 ? 'selected' : '') + '>' + (i + 1) + '</option>').join('') + '</select><div class="hint">Lucy reminds you the evening before and on salary day.</div>';
+  return h;
+}
+function empRow(e) {
+  const mk = B.payroll().month, paid = e.paid && e.paid[mk];
+  return '<div class="item' + (e.active === false ? ' off' : '') + '" data-a="edit-emp" data-id="' + e.id + '"><div class="pf-mini" style="width:40px;height:40px">' + (e.photo ? '<img src="' + e.photo + '" alt="">' : '<span class="num" style="font-size:15px">' + esc((e.name || '?').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()) + '</span>') + '</div>' +
+    '<div class="grow"><div class="t">' + esc(e.name) + '</div><div class="m">' + esc([e.phone, e.upi].filter(Boolean).join(' · ')) + '</div></div>' +
+    '<div class="right"><div class="amount out">' + money(e.salary || 0) + '</div><div class="m" style="font-size:12px;margin-top:2px">' + (e.active === false ? 'Inactive' : paid ? '<span class="good">Paid</span>' : '<span class="warn">Due</span>') + '</div></div></div>';
+}
+function empSheet(e, role) {
+  e = e || { name: '', role: role || (S.growth.team[0] || {}).role || '', phone: '', upi: '', salary: '', joined: '', active: true, note: '' };
+  const mk = B.payroll().month, paid = e.paid && e.paid[mk];
+  const tel = String(e.phone || '').replace(/[^\d+]/g, ''), wa = tel.startsWith('+') ? tel.slice(1) : (tel.length === 10 ? '91' + tel : tel);
+  const roles = S.growth.team.map((m) => m.role);
+  openSheet('<h3>' + (e.id ? esc(e.name) : 'New team member') + '</h3>' +
+    (e.id ? '<div class="actions" style="margin-top:4px">' + (tel ? '<a class="btn small ghost" href="tel:' + esc(tel) + '">' + icon('phone', 15) + 'Call</a><a class="btn small ghost" href="https://wa.me/' + esc(wa) + '" target="_blank" rel="noopener">' + icon('chat', 15) + 'WhatsApp</a>' : '') +
+      (e.upi && Number(e.salary) ? '<a class="btn small" href="' + esc(upiLink(e, e.salary, 'Salary ' + L.MON[new Date().getMonth()] + ' ' + new Date().getFullYear())) + '" data-a="upi-open" data-id="' + e.id + '">' + icon('wallet', 15) + 'Pay ' + money(e.salary) + ' by UPI</a>' : '') +
+      '<button class="btn small ' + (paid ? 'ghost' : 'line') + '" data-a="emp-paid" data-id="' + e.id + '">' + (paid ? 'Paid · undo' : 'Mark salary paid') + '</button></div>' : '') +
+    '<label>Full name</label><input id="em-name" value="' + esc(e.name) + '">' +
+    '<label>Role</label><select id="em-role">' + roles.concat(roles.includes(e.role) || !e.role ? [] : [e.role]).map((r) => '<option ' + (r === e.role ? 'selected' : '') + '>' + esc(r) + '</option>').join('') + '</select>' +
+    '<div class="grid2"><div><label>Phone</label><input id="em-phone" type="tel" value="' + esc(e.phone || '') + '" placeholder="98xxxxxxxx"></div><div><label>Monthly salary (₹)</label><input id="em-salary" type="number" inputmode="numeric" value="' + esc(e.salary || '') + '"></div></div>' +
+    '<label>UPI ID</label><input id="em-upi" value="' + esc(e.upi || '') + '" placeholder="name@okhdfcbank" autocapitalize="off" autocorrect="off">' +
+    '<div class="grid2"><div><label>Joining date</label><input id="em-joined" type="date" value="' + esc(e.joined || '') + '"></div><div><label>Birthday</label><input id="em-dob" type="date" value="' + esc(e.dob || '') + '"></div></div>' +
+    '<label>Note</label><input id="em-note" value="' + esc(e.note || '') + '">' +
+    '<div class="row mt"><input type="checkbox" id="em-active" ' + (e.active === false ? '' : 'checked') + '><span>Currently working</span></div>' +
+    '<button class="btn block" data-a="save-emp" data-id="' + (e.id || '') + '">Save</button>' + (e.id ? '<button class="btn danger block" data-a="del-emp" data-id="' + e.id + '">Delete</button>' : ''));
+}
 function renderProfile() {
   const p = S.profile;
   const f = (k, l, type, ph) => '<label>' + l + '</label><input data-prof="' + k + '" type="' + (type || 'text') + '" value="' + esc(p[k] || '') + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '>';
@@ -273,7 +313,7 @@ function renderMoney() {
     h += '<div class="panel gold"><div class="row" style="justify-content:space-between"><div><div class="eyebrow">Plan revenue</div><div class="num" style="font-size:26px;font-weight:600;margin-top:4px">' + short(g.planRevenue) + '<span class="sub"> / month</span></div></div><div class="right"><div class="eyebrow">Clients</div><div class="num" style="font-size:26px;font-weight:600;margin-top:4px">' + g.planClients + '</div></div></div>' +
       '<div class="sub mt">' + (g.planRevenue >= r.target ? 'This plan covers your ' + short(r.target) + ' target with ' + short(g.planRevenue - r.target) + ' to spare.' : 'This plan is ' + short(r.target - g.planRevenue) + ' short of your ' + short(r.target) + ' target.') + '</div></div>';
     h += g.rows.map((t) => { const pct = t.count ? Math.min(1, t.have / t.count) : 0; return '<div class="tier"><div class="row"><div class="grow"><b>' + esc(t.name) + '</b> <span class="sub">· ' + money(t.price) + ' / month</span></div><div class="num">' + t.have + ' / ' + t.count + '</div></div><div class="bar mt" style="margin-top:8px"><i style="width:' + Math.round(pct * 100) + '%"></i></div><div class="sub" style="margin-top:6px;font-size:12.5px">' + short(t.revenue) + ' when full' + (t.have ? ' · now ' + short(t.haveMrr) : '') + '</div></div>'; }).join('');
-    h += '<h2>Team plan · ' + g.teamHave + ' / ' + g.teamNeed + ' hired</h2><div class="list">' + g.team.map((m, i) => '<div class="item"><div class="badge" style="width:34px;height:34px">' + icon(/ai artist/i.test(m.role) ? 'spark' : /editor/i.test(m.role) ? 'film' : /design/i.test(m.role) ? 'edit' : /sales|market/i.test(m.role) ? 'trend' : /photo|video/i.test(m.role) ? 'camera' : /social/i.test(m.role) ? 'chat' : 'briefcase', 16) + '</div><div class="grow"><div class="t">' + esc(m.role) + '</div><div class="m">' + (m.have >= m.need ? '<span class="gold">Team complete</span>' : (m.need - m.have) + ' to hire') + (m.salary ? ' · ' + money(m.salary) + ' each' : '') + '</div></div><div class="row" style="gap:6px"><button class="iconbtn" style="width:32px;height:32px" data-a="team-dec" data-i="' + i + '">−</button><span class="num" style="min-width:42px;text-align:center">' + m.have + '/' + m.need + '</span><button class="iconbtn" style="width:32px;height:32px" data-a="team-inc" data-i="' + i + '">+</button></div></div>').join('') + '</div>';
+    h += '<h2>Team plan · ' + g.teamHave + ' / ' + g.teamNeed + ' hired</h2><div class="list">' + g.team.map((m, i) => '<div class="item"><div class="badge" style="width:34px;height:34px">' + icon(/ai artist/i.test(m.role) ? 'spark' : /editor/i.test(m.role) ? 'film' : /design/i.test(m.role) ? 'edit' : /sales|market/i.test(m.role) ? 'trend' : /photo|video/i.test(m.role) ? 'camera' : /social/i.test(m.role) ? 'chat' : 'briefcase', 16) + '</div><div class="grow"><div class="t">' + esc(m.role) + '</div><div class="m">' + (m.have >= m.need ? '<span class="gold">Team complete</span>' : (m.need - m.have) + ' to hire') + (m.salary ? ' · ' + money(m.salary) + ' each' : '') + (m.people && m.people.length ? '<div class="m" style="color:var(--text2)">' + m.people.map((p) => esc(p.name)).join(', ') + '</div>' : '') + '</div></div><div class="row" style="gap:6px"><span class="num" style="min-width:42px;text-align:center">' + m.have + '/' + m.need + '</span><button class="iconbtn" style="width:32px;height:32px" data-a="new-emp" data-v="' + esc(m.role) + '" aria-label="Add">+</button></div></div>').join('') + '</div>';
     if (g.salaryKnown) h += '<div class="stats">' + stat('Team payroll (full team)', short(g.payrollPlan), 'per month') + stat('Plan revenue minus payroll', short(g.planRevenue - g.payrollPlan), 'before other costs') + '</div>';
     else h += '<div class="sub" style="margin:0 2px 12px">Add salaries in Edit to see payroll against revenue.</div>';
     if (g.clientsPerEditor) h += '<div class="sub" style="margin:0 2px 12px">Workload check: ' + g.planClients + ' clients across your editors is about <b class="gold">' + Math.round(g.clientsPerEditor) + ' clients per editor</b>.</div>';
@@ -303,6 +343,8 @@ function renderMoney() {
     const mk = L.dayKey(Date.now()).slice(0, 7);
     const list = S.expenses.slice().sort((a, b2) => b2.date - a.date);
     const month = list.filter((e) => e.recurring || L.dayKey(e.date).slice(0, 7) === mk);
+    const pr = B.payroll();
+    if (pr.list.length) h += '<button class="panel gold" style="width:100%;text-align:left" data-a="sub" data-v="team"><div class="row"><div class="badge">' + icon('users', 18) + '</div><div class="grow"><b>Team salaries · ' + short(pr.total) + ' / month</b><div class="sub">' + pr.paidCount + ' of ' + pr.list.length + ' paid this month · ' + short(pr.total - pr.paidAmount) + ' to pay. Paid salaries are added here automatically.</div></div>' + icon('right', 18) + '</div></button>';
     h += '<div class="stats">' + stat('This month', short(month.reduce((a, e) => a + Number(e.amount), 0)), month.length + ' entries') + stat('Recurring', short(list.filter((e) => e.recurring).reduce((a, e) => a + Number(e.amount), 0)), 'every month') + '</div>';
     h += listOf(list.slice(0, 60).map((e) => '<div class="item" data-a="edit-exp" data-id="' + e.id + '"><div class="badge">' + icon('card', 18) + '</div><div class="grow"><div class="t">' + esc(e.title) + '</div><div class="m">' + esc(e.cat || 'Other') + ' · ' + (e.recurring ? 'Every month' : L.fmtDate(e.date)) + '</div></div><div class="amount out">' + money(e.amount) + '</div></div>'), 'No expenses yet. Tap + to log salaries, rent, software and more.');
   }
@@ -455,13 +497,14 @@ function approveAction(i, j) {
 
 /* =============================== MORE =============================== */
 function renderMore() {
-  const subs = { profile: renderProfile, clients: renderClients, leads: renderLeads, ideas: renderIdeas, notes: renderNotes, shopping: renderShopping, learning: renderLearning, review: renderReview, settings: renderSettings, connections: renderConnections, backup: renderBackup };
+  const subs = { team: renderTeam, profile: renderProfile, clients: renderClients, leads: renderLeads, ideas: renderIdeas, notes: renderNotes, shopping: renderShopping, learning: renderLearning, review: renderReview, settings: renderSettings, connections: renderConnections, backup: renderBackup };
   if (view.sub && subs[view.sub]) return subs[view.sub]();
   const row = (sub, ic, t, s) => '<button class="mrow" data-a="sub" data-v="' + sub + '"><div class="badge">' + icon(ic, 20) + '</div><span class="grow"><b>' + t + '</b><small>' + s + '</small></span>' + icon('right', 18, 'chev') + '</button>';
   const openLeads = S.leads.filter((l) => !['Won', 'Lost'].includes(l.status)).length;
   return topbar('More', { eyebrow: 'Everything else' }) +
     '<button class="mrow profile-row" data-a="sub" data-v="profile"><div class="pf-mini">' + (S.profile.photo ? '<img src="' + S.profile.photo + '" alt="">' : icon('user', 22)) + '</div><span class="grow"><b>' + esc(S.profile.fullName || nm()) + '</b><small>My profile · birthday, contacts, company</small></span>' + icon('right', 18, 'chev') + '</button>' +
     row('clients', 'briefcase', 'Clients', S.clients.length + ' clients · retainers, notes, payments') +
+    row('team', 'users', 'Team', S.employees.filter((e) => e.active !== false).length + ' people · phone, UPI, salary') +
     row('leads', 'target', 'Leads · Hunter', openLeads + ' open leads · research and pricing') +
     row('ideas', 'bulb', 'Ideas', S.ideas.length + ' ideas · company and brands') +
     row('notes', 'note', 'Notes', S.notes.length + ' notes') +
@@ -838,6 +881,27 @@ document.addEventListener('click', async (ev) => {
       else go('home');
       break;
     case 'sub-profile': go('more', 'profile'); break;
+    case 'new-emp': empSheet(null, v); break;
+    case 'edit-emp': empSheet(S.employees.find((x) => x.id === id)); break;
+    case 'save-emp': {
+      const name = $('#em-name').value.trim(); if (!name) { toast('Add a name'); break; }
+      const upi = $('#em-upi').value.trim();
+      if (upi && !/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(upi)) { toast('That UPI ID looks wrong (example: name@okhdfcbank)'); break; }
+      const data = { name: name, role: $('#em-role').value, phone: $('#em-phone').value.trim(), upi: upi, salary: Number($('#em-salary').value) || 0, joined: $('#em-joined').value, dob: $('#em-dob').value, note: $('#em-note').value.trim(), active: $('#em-active').checked };
+      if (id) Object.assign(S.employees.find((x) => x.id === id), data); else S.employees.push(Object.assign({ id: nid(), created: Date.now(), paid: {} }, data));
+      // birthday goes into Special days automatically
+      if (data.dob) { const sd = S.specialDays.find((x) => x.empName === name); const rec = { name: name, type: 'Birthday', date: data.dob.slice(5), year: Number(data.dob.slice(0, 4)) || 0, relation: 'Team · ' + data.role, phone: data.phone, empName: name, remind7: false };
+        if (sd) Object.assign(sd, rec); else S.specialDays.push(Object.assign({ id: nid(), created: Date.now() }, rec)); }
+      save(); closeSheet(); render(); if (!id) celebrate('small'); toast('Saved'); break;
+    }
+    case 'del-emp': if (confirm('Delete this team member?')) { S.employees = S.employees.filter((x) => x.id !== id); save(); closeSheet(); render(); } break;
+    case 'emp-paid': {
+      const e = S.employees.find((x) => x.id === id), mk = B.payroll().month; e.paid = e.paid || {};
+      if (e.paid[mk]) { delete e.paid[mk]; S.expenses = S.expenses.filter((x) => x.empPay !== e.id + ':' + mk); toast('Marked as not paid'); }
+      else { e.paid[mk] = Date.now(); S.expenses.push({ id: nid(), title: 'Salary · ' + e.name, amount: Number(e.salary) || 0, date: Date.now(), cat: 'Salaries', recurring: false, empPay: e.id + ':' + mk }); celebrate('small'); toast('Salary marked paid'); }
+      save(); closeSheet(); render(); break;
+    }
+    case 'upi-open': setTimeout(() => toast('After paying in your UPI app, tap Mark salary paid'), 600); return;
     case 'team-inc': case 'team-dec': { const m = S.growth.team[Number(el.dataset.i)]; m.have = Math.max(0, Number(m.have || 0) + (a === 'team-inc' ? 1 : -1)); save(); render(); if (a === 'team-inc') { celebrate(m.have >= m.need ? 'big' : 'small', m.have >= m.need ? { title: 'Team complete', sub: m.role + ': all ' + m.need + ' hired.' } : undefined); } break; }
     case 'edit-growth': {
       const g = S.growth;
@@ -1076,6 +1140,7 @@ function fab() {
     if (segOf('ascend', 'affirm') === 'dreams') { dreamImg = null; return dreamSheet(); }
     return openSheet('<h3>Your own affirmation</h3><label>Affirmation</label><textarea id="af-text" placeholder="I am…"></textarea><label>Area</label><select id="af-cat">' + C.AFFIRM_CATS.map((c) => '<option>' + c + '</option>').join('') + '</select><label>Linked action (optional)</label><input id="af-action" placeholder="What will you do today because of it?"><div class="row mt"><input type="checkbox" id="af-pin" checked><span>Show every day</span></div><button class="btn block" data-a="save-aff">Save</button>');
   }
+  if (view.sub === 'team') return empSheet();
   if (view.sub === 'clients') return clientSheet();
   if (view.sub === 'leads') return leadNewSheet();
   if (view.sub === 'notes') { const n = { id: nid(), title: '', body: '', created: Date.now(), updated: Date.now() }; S.notes.push(n); save({ local: true }); return noteSheet(n); }
@@ -1151,7 +1216,7 @@ document.addEventListener('change', async (ev) => {
   const t = ev.target;
   if (t.dataset.set && t.dataset.set !== 'name') {
     const k = t.dataset.set; let v = t.value;
-    if (['revenueTarget', 'inspireStart', 'inspireEnd', 'nagCount', 'nagMin', 'reviewDay', 'voiceRate', 'voicePitch'].includes(k)) v = Number(v);
+    if (['salaryDay', 'revenueTarget', 'inspireStart', 'inspireEnd', 'nagCount', 'nagMin', 'reviewDay', 'voiceRate', 'voicePitch'].includes(k)) v = Number(v);
     S.settings[k] = v; save(); toast('Saved');
   } else if (t.dataset.biz) { S.settings.business[t.dataset.biz] = t.type === 'number' ? Number(t.value) : t.value; save(); }
   else if (t.dataset.cost) { S.settings.business.costs[t.dataset.cost] = Number(t.value) || 0; save(); }
@@ -1192,6 +1257,7 @@ function openHash() {
     view.tab = 'more'; view.sub = 'connections';
   } else if (h === '#plan' || h === '#money' || h === '#ascend' || h === '#home') { view.tab = h.slice(1); }
   else if (h === '#money-loans') { view.tab = 'money'; view.seg.money = 'loans'; }
+  else if (h === '#more-team') { view.tab = 'more'; view.sub = 'team'; }
   else if (h === '#plan-special') { view.tab = 'plan'; view.seg.plan = 'special'; }
   else if (h === '#more-review') { view.tab = 'more'; view.sub = 'review'; }
   history.replaceState(null, '', location.pathname);

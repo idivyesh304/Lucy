@@ -263,10 +263,20 @@ export function growthPlan() {
     return { name: t.name, price: Number(t.price), count: Number(t.count), have: have.length, haveMrr: have.reduce((a, c) => a + Number(c.retainer), 0), revenue: Number(t.price) * Number(t.count) };
   });
   const planRevenue = rows.reduce((a, r) => a + r.revenue, 0), planClients = rows.reduce((a, r) => a + r.count, 0);
-  const team = g.team.map((m) => ({ role: m.role, need: Number(m.need) || 0, have: Number(m.have) || 0, salary: Number(m.salary) || 0 }));
+  const emps = S.employees.filter((e) => e.active !== false);
+  const team = g.team.map((m) => { const mine = emps.filter((e) => String(e.role).toLowerCase() === String(m.role).toLowerCase()); return { role: m.role, need: Number(m.need) || 0, have: emps.length ? mine.length : (Number(m.have) || 0), people: mine, salary: Number(m.salary) || 0 }; });
   const teamNeed = team.reduce((a, m) => a + m.need, 0), teamHave = team.reduce((a, m) => a + m.have, 0);
   const salaryKnown = team.every((m) => m.salary > 0);
   const payrollPlan = team.reduce((a, m) => a + m.need * m.salary, 0);
   return { rows: rows, planRevenue: planRevenue, planClients: planClients, team: team, teamNeed: teamNeed, teamHave: teamHave, salaryKnown: salaryKnown, payrollPlan: payrollPlan,
     clientsPerEditor: (team.find((m) => /editor/i.test(m.role)) || {}).need ? planClients / team.find((m) => /editor/i.test(m.role)).need : null };
+}
+
+// Employees and payroll
+export function payroll() {
+  const mk = new Date().toISOString().slice(0, 7);
+  const list = S.employees.filter((e) => e.active !== false);
+  const total = list.reduce((a, e) => a + (Number(e.salary) || 0), 0);
+  const paid = list.filter((e) => e.paid && e.paid[mk]);
+  return { list: list, total: total, paidCount: paid.length, paidAmount: paid.reduce((a, e) => a + (Number(e.salary) || 0), 0), due: list.filter((e) => !(e.paid && e.paid[mk])), month: mk };
 }

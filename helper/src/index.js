@@ -334,6 +334,7 @@ async function driveSave(text, env, cfg, force) {
     }
   }
   await upload(token, main && main.id, DRIVE_FILE, text);
+  await kvSnapshot(env, text, incoming);
   // one dated safety copy per day, keep the last 14
   const today = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
   const snapName = 'lucy-backup-' + today + '.json';
@@ -349,19 +350,21 @@ async function driveSave(text, env, cfg, force) {
 
 // Every earlier version Drive holds: file revisions, daily backups and safety copies.
 async function driveHistory(env, cfg) {
-  const token = await accessToken(env, cfg);
-  const files = await findFiles(token, 'lucy-');
   const out = [];
+  let token = null, files = [];
+  try { token = await accessToken(env, cfg); files = await findFiles(token, 'lucy-'); } catch (e) { out.push({ kind: 'note', at: new Date().toISOString(), label: 'Google Drive not reachable: ' + e.message }); }
   const main = files.find((f) => f.name === DRIVE_FILE);
-  if (main) {
+  if (main && token) {
     const r = await fetch('https://www.googleapis.com/drive/v3/files/' + main.id + '/revisions?fields=revisions(id,modifiedTime,size)&pageSize=200', { headers: { Authorization: 'Bearer ' + token } });
     if (r.ok) ((await r.json()).revisions || []).forEach((v) => out.push({ kind: 'rev', id: v.id, file: main.id, at: v.modifiedTime, size: Number(v.size || 0), label: 'Saved version' }));
   }
   files.filter((f) => f.name !== DRIVE_FILE).forEach((f) => out.push({ kind: 'file', id: f.id, at: f.modifiedTime, label: /safety/.test(f.name) ? 'Safety copy' : 'Daily backup ' + f.name.slice(12, 22), name: f.name }));
+  JSON.parse((await env.LUCY.get('snapIndex')) || '[]').forEach((x) => out.push({ kind: 'snap', id: x.key, at: new Date(x.at).toISOString(), label: 'Helper backup' + (x.daily ? ' (daily)' : ''), records: x.records }));
   out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
   return json({ versions: out });
 }
 async function driveVersion(body, env, cfg) {
+  if (body.kind === 'snap') { const t = await env.LUCY.get(String(body.id)); if (!t) throw new Error('That backup has expired'); let d = null; try { d = JSON.parse(t); } catch (e) {} return json({ data: t, records: records(d) }); }
   const token = await accessToken(env, cfg);
   const url = body.kind === 'rev' ? 'https://www.googleapis.com/drive/v3/files/' + body.file + '/revisions/' + body.id + '?alt=media' : 'https://www.googleapis.com/drive/v3/files/' + body.id + '?alt=media';
   const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
@@ -369,4 +372,22 @@ async function driveVersion(body, env, cfg) {
   const text = await r.text();
   let d = null; try { d = JSON.parse(text); } catch (e) {}
   return json({ data: text, records: records(d) });
+}
+
+// Second, independent backup inside the helper itself (Cloudflare), so data survives even a Drive problem.
+async function kvSnapshot(env, text, d) {
+  const idx = JSON.parse((await env.LUCY.get('snapIndex')) || '[]');
+  const now = Date.now(), last = idx[0];
+  const day = new Date(now + 330 * 60000).toISOString().slice(0, 10);
+  const recs = records(d);
+  const needDaily = !idx.some((x) => x.day === day && x.daily);
+  if (!needDaily && last && now - last.at < 20 * 60000 && recs >= (last.records || 0)) return;
+  const key = 'snap:' + now;
+  await env.LUCY.put(key, text);
+  idx.unshift({ key: key, at: now, day: day, records: recs, daily: needDaily });
+  const keep = [], drop = [];
+  let recent = 0;
+  idx.forEach((x) => { if (x.daily && now - x.at < 60 * 864e5) keep.push(x); else if (recent < 72) { keep.push(x); recent++; } else drop.push(x); });
+  for (const x of drop) await env.LUCY.delete(x.key);
+  await env.LUCY.put('snapIndex', JSON.stringify(keep));
 }

@@ -22,7 +22,12 @@ export function defaults() {
     routine: C.ROUTINE_DEFAULT.map((r) => ({ key: r.key, icon: r.icon, label: r.label, time: r.time, on: true, ring: !!r.ring, speak: true })),
     routineLog: {}, reminders: [], clients: [], payments: [], loans: [], expenses: [], dreams: [],
     affirm: { done: {}, custom: [], spoken: {} }, mission: {}, leads: [], ideas: [], notes: [], shopping: [], learning: [],
-    journal: {}, chat: [], log: [], celebrated: {}
+    journal: {}, chat: [], log: [], celebrated: {},
+    specialDays: [],
+    profile: { photo: '', fullName: 'Divyesh Umesh Panchal', nickname: 'Divyesh', dob: '', anniversary: '', spouse: '', phone: '+91 99789 92233', altPhone: '', email: 'dzynlabpvtltd@gmail.com',
+      city: 'Ahmedabad', address: '', company: 'DZYN LAB PRIVATE LIMITED', role: 'Director & CEO', website: 'www.dzynlabpvtltd.com',
+      officeAddress: '5th Floor, Titanium Business Park, A-513, Near Railway Under Bridge, Makarba, Ahmedabad, Gujarat 380051', instagram: '', linkedin: '', youtube: '',
+      bloodGroup: '', emergencyName: '', emergencyPhone: '', about: '' }
   };
 }
 
@@ -57,7 +62,8 @@ export function migrate(d) {
     out.journal = d.journal || {};
     out.v = 3;
   }
-  ['reminders', 'clients', 'payments', 'loans', 'expenses', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'chat', 'log']
+  out.profile = Object.assign(defaults().profile, d.profile || {});
+  ['reminders', 'clients', 'payments', 'loans', 'expenses', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'chat', 'log', 'specialDays']
     .forEach((k) => { if (!Array.isArray(out[k])) out[k] = []; });
   out.affirm = Object.assign({ done: {}, custom: [], spoken: {} }, d.affirm || {});
   return out;

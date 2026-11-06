@@ -15,6 +15,15 @@ jobs:
         with: { node-version: 22 }
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
+      - name: Wait for the website to publish the same icons
+        run: |
+          want=$(sha256sum web/icons/icon-512.png | cut -d' ' -f1)
+          for i in $(seq 1 40); do
+            got=$(curl -sfL "https://idivyesh304.github.io/Lucy/icons/icon-512.png?nc=$RANDOM" | sha256sum | cut -d' ' -f1)
+            [ "$got" = "$want" ] && echo "live icons match" && exit 0
+            sleep 15
+          done
+          echo "website not updated yet, building anyway"
       - name: Generate Android project
         env:
           VERSION_CODE: ${{ github.run_number }}

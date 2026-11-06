@@ -1,4 +1,5 @@
 // Lucy's local intelligence: priorities, briefing, revenue maths, loans, affirmations, AI context.
+import { upcoming as upcomingSpecial, specialTitle } from './special.js';
 import * as L from '../src/logic.js';
 import * as C from './content.js';
 import { S } from './store.js';
@@ -174,6 +175,7 @@ export function briefing() {
   const now = Date.now(), d0 = L.startOfDay(now), d1 = L.addDays(d0, 1);
   const nm = S.settings.name || 'Divyesh';
   const lines = [];
+  upcomingSpecial(1).forEach((x) => { lines.push((Math.round((x.at - d0) / L.DAY) === 0 ? 'Today: ' : 'Tomorrow: ') + specialTitle(x.sd, x.at) + '.'); });
   const meetings = S.reminders.filter((r) => r.status === 'pending' && r.cat === 'Meeting' && L.occurrencesBetween(r, d0, d1, 2).length);
   const todayRems = S.reminders.filter((r) => r.status === 'pending' && L.occurrencesBetween(r, d0, d1, 2).length);
   const overdue = S.reminders.filter((r) => r.status === 'pending' && !r.repeat && alertStart(r) < d0);
@@ -218,6 +220,8 @@ export function aiSystem(mode) {
     'Personality: warm, premium, intelligent, direct, encouraging but honest. Speak in clear Indian English; light Hinglish is fine when he uses it. Keep replies short and actionable unless he asks for detail. No emojis.\n' +
     'Rules: never invent numbers, clients, contacts or facts. Use only the data below or clearly label something as an estimate or assumption. If information is missing, say what is missing. Motivation must always lead to a concrete next action.\n\n' +
     'Now: ' + new Date(now).toString().slice(0, 21) + ' (Asia/Kolkata).\n' +
+    'Profile: ' + profileLine() + '\n' +
+    'Upcoming special days (next 30 days):\n' + (upcomingSpecial(30).map((x) => '- ' + specialTitle(x.sd, x.at) + ' on ' + L.fmtDate(x.at)).join('\n') || '- none') + '\n' +
     'Vision:\n' + (st.vision || []).map((v) => '- ' + v).join('\n') + '\n' +
     'Revenue mission this month: target ' + L.money(rev.target) + ', collected ' + L.money(rev.collected) + ', outstanding receivables ' + L.money(rev.outstanding) + ', monthly recurring (retainers) ' + L.money(rev.mrr) + ' from ' + rev.activeClients + ' clients, expenses logged ' + L.money(rev.expenses) + '.\n' +
     'Loans: ' + ls.open + ' open, monthly EMIs ' + L.money(ls.monthly) + ', outstanding ' + L.money(ls.outstanding) + '.\n' +
@@ -240,4 +244,9 @@ export function parseActions(text) {
   let actions = [];
   try { actions = JSON.parse(m[1].trim()); } catch (e) { actions = []; }
   return { text: text.replace(m[0], '').trim(), actions: Array.isArray(actions) ? actions.slice(0, 12) : [] };
+}
+
+function profileLine() {
+  const p = S.profile || {};
+  return [p.fullName, p.role && p.company ? p.role + ', ' + p.company : '', p.city, p.dob ? 'born ' + p.dob : '', p.anniversary ? 'married ' + p.anniversary + (p.spouse ? ' to ' + p.spouse : '') : '', p.about].filter(Boolean).join('; ');
 }

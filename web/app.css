@@ -439,3 +439,40 @@ h1 b { background: linear-gradient(100deg, #FFF1CF 0%, #D8B56A 35%, #F3D9A0 55%,
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 .lucy-stage.holo { cursor: pointer; }
+
+/* ===== Lucy orb: the hero button in the tab bar ===== */
+#tabs { overflow: visible; }
+#tabs button.lucy-tab { position: relative; background: none !important; overflow: visible; justify-content: flex-end; color: var(--gold2); }
+#tabs button.lucy-tab::after { display: none; }
+#tabs .orb { position: absolute; left: 50%; top: -34px; width: 70px; height: 70px; transform: translateX(-50%); border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 50% 40%, #1a1712, #07080c 70%); box-shadow: 0 0 0 1px rgba(216,181,106,.55), 0 0 28px rgba(216,181,106,.45), 0 10px 30px rgba(0,0,0,.6), inset 0 0 18px rgba(216,181,106,.18); animation: orb-breathe 3.2s ease-in-out infinite; }
+#tabs .orb-ring { position: absolute; inset: -6px; border-radius: 50%; border: 1.5px solid transparent; background: conic-gradient(from var(--spin), #D8B56A, #FFF1CF, #F08BC4, #9FE7FF, #D8B56A) border-box; -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) padding-box exclude, linear-gradient(#000 0 0); animation: spin-prop 4s linear infinite; }
+#tabs .orb-ring.r2 { inset: -13px; border: 1px dashed rgba(216,181,106,.35); background: none; -webkit-mask: none; mask: none; animation: rot 18s linear infinite; }
+#tabs .orb .tab-av { width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 0; margin: 0; position: relative; z-index: 1; }
+#tabs .orb .tab-av .avatar-wrap.lucy-photo .av-img img { transform: scale(2.1); transform-origin: 66% 33%; }
+#tabs .orb-label { font-family: var(--mono); font-size: 10.5px; letter-spacing: .24em; font-weight: 600; color: var(--gold); text-shadow: 0 0 10px rgba(216,181,106,.7); margin-top: 34px; }
+#tabs button.lucy-tab.on .orb { box-shadow: 0 0 0 1.5px var(--gold), 0 0 40px rgba(216,181,106,.75), 0 0 80px rgba(216,181,106,.25), 0 10px 30px rgba(0,0,0,.6); }
+#tabs button.lucy-tab:active .orb { transform: translateX(-50%) scale(.94); }
+@keyframes orb-breathe { 0%,100% { box-shadow: 0 0 0 1px rgba(216,181,106,.55), 0 0 24px rgba(216,181,106,.4), 0 10px 30px rgba(0,0,0,.6), inset 0 0 18px rgba(216,181,106,.18); } 50% { box-shadow: 0 0 0 1px rgba(216,181,106,.8), 0 0 42px rgba(216,181,106,.65), 0 10px 30px rgba(0,0,0,.6), inset 0 0 22px rgba(216,181,106,.3); } }
+.speaking-now #tabs .orb { animation-duration: .8s; }
+
+/* profile */
+.pf-btn { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; border: 1px solid var(--gline2); background: var(--glass); color: var(--gold); box-shadow: 0 0 14px rgba(216,181,106,.2); }
+.pf-btn img, .pf-mini img, .pf-photo img { width: 100%; height: 100%; object-fit: cover; }
+.profile-head { display: flex; align-items: center; gap: 16px; }
+.pf-photo { position: relative; width: 84px; height: 84px; border-radius: 50%; flex: none; display: grid; place-items: center; overflow: visible; margin: 0; cursor: pointer; color: var(--gold); background: var(--bg2); box-shadow: 0 0 0 2px rgba(216,181,106,.6), 0 0 26px rgba(216,181,106,.3); }
+.pf-photo img { border-radius: 50%; }
+.pf-photo > span { position: absolute; right: -2px; bottom: -2px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--gold-grad); color: #1A1408; }
+.pf-name { font-family: var(--display); font-size: 20px; font-weight: 600; }
+.pf-mini { width: 44px; height: 44px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; flex: none; border: 1px solid var(--gline2); color: var(--gold); background: var(--glass2); }
+.mrow.profile-row { border-color: var(--gline); background: linear-gradient(160deg, rgba(216,181,106,.1), rgba(255,255,255,.02)); }
+/* special days */
+.sp-item { cursor: pointer; }
+.sp-when { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.sp-item.soon .sp-when { color: var(--gold); text-shadow: 0 0 10px rgba(216,181,106,.6); }
+#tabs .orb { top: -38px; }
+#tabs .orb .tab-av .avatar-wrap.lucy-photo .av-img img { object-fit: cover; object-position: 72% 34%; transform: scale(1.9); transform-origin: 72% 36%; filter: brightness(1.35) contrast(1.1) saturate(1.2); }
+#tabs .orb-label { margin-top: 0; position: absolute; bottom: 2px; left: 0; right: 0; text-align: center; }
+#tabs button.lucy-tab { min-height: 52px; }
+#tabs button.lucy-tab .orb .tab-av { width: 62px; height: 62px; border: 0; margin: 0; box-shadow: none; }
+#tabs button.lucy-tab .orb .tab-av .avatar-wrap.lucy-photo .av-img img { object-position: 70% 30%; transform: scale(1.35); transform-origin: 70% 38%; }

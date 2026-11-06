@@ -7,6 +7,7 @@ import * as V from './voice.js';
 import { avatar, setAvatarState } from './avatar.js';
 import { mountLucy } from './lucy3d.js';
 import { startNeural, startTilt, countUp } from './fx.js';
+import * as SP from './special.js';
 import { celebrate, setTapPoint } from './celebrate.js';
 import { $, esc, hm, toTime, fromInputs, fmtHM, money, short, toast, openSheet, closeSheet, sheetOpen, listOf, seg, sw, catIcon, catStyle, ring, chart, imageToDataUrl, icon, L, C } from './ui.js';
 
@@ -29,7 +30,7 @@ function stateLabel(s) { return s === 'speaking' ? 'Speaking' : s === 'listening
 const TABS = [['home', 'Home', 'home'], ['plan', 'Plan', 'plan'], ['lucy', 'Lucy', ''], ['money', 'Money', 'wallet'], ['ascend', 'Ascend', 'ascend']];
 function renderTabs() {
   $('#tabs').innerHTML = TABS.map(([k, l, ic]) => k === 'lucy'
-    ? '<button class="lucy-tab ' + (view.tab === k ? 'on' : '') + '" data-a="tab" data-v="lucy"><div class="tab-av">' + avatar('mini') + '</div>' + l + '</button>'
+    ? '<button class="lucy-tab ' + (view.tab === k ? 'on' : '') + '" data-a="tab" data-v="lucy" aria-label="Lucy"><span class="orb"><span class="orb-ring"></span><span class="orb-ring r2"></span><span class="tab-av">' + avatar('mini') + '</span></span><span class="orb-label">' + l + '</span></button>'
     : '<button class="' + (view.tab === k ? 'on' : '') + '" data-a="tab" data-v="' + k + '">' + icon(ic, 22) + l + '</button>').join('');
 }
 function go(tab, sub, id) {
@@ -81,7 +82,7 @@ function renderHome() {
   const evening = new Date(now).getHours() >= 19;
   const [g1] = b.greeting.split(',');
 
-  let h = topbar('', { eyebrow: L.DAYNAME[new Date(now).getDay()] + ' · ' + new Date(now).getDate() + ' ' + L.MON[new Date(now).getMonth()] });
+  let h = topbar('', { eyebrow: L.DAYNAME[new Date(now).getDay()] + ' · ' + new Date(now).getDate() + ' ' + L.MON[new Date(now).getMonth()], extra: '<button class="pf-btn" data-a="sub-profile" aria-label="My profile">' + (S.profile.photo ? '<img src="' + S.profile.photo + '" alt="">' : icon('user', 18)) + '</button>' });
   h += '<h1>' + esc(g1) + ',<br><b>' + esc(nm()) + '</b></h1>';
   h += banners();
 
@@ -108,6 +109,8 @@ function renderHome() {
     '<div class="sub">Target ' + short(rev.target) + ' · gap ' + short(rev.gap) + '</div>' +
     (rev.outstanding ? '<div class="sub mt" style="margin-top:6px"><span class="gold">' + short(rev.outstanding) + '</span> waiting to be collected</div>' : '') + '</div></div></div>';
 
+  const spSoon = SP.upcoming(14);
+  if (spSoon.length) h += '<h2>Special days<button class="link" data-a="seg-go" data-tab="plan" data-k="plan" data-v="special">All</button></h2>' + listOf(spSoon.slice(0, 3).map(spRow));
   if (loansSoon.length || paysSoon.length) {
     h += '<h2>Money due soon</h2><div class="list">' +
       loansSoon.slice(0, 3).map((x) => '<div class="item" data-a="open-loan" data-id="' + x.l.id + '"><div class="badge">' + icon('bank', 18) + '</div><div class="grow"><div class="t">' + esc(loanTitle(x.l)) + '</div><div class="m">' + L.fmtDate(x.due) + (x.l.debitBank ? ' · from ' + esc(x.l.debitBank) : '') + '</div></div><div class="amount out">' + money(x.l.emi || x.l.amount) + '</div></div>').join('') +
@@ -148,7 +151,7 @@ function topRow(x, i) {
 /* =============================== PLAN =============================== */
 function renderPlan() {
   const s = segOf('plan', 'today');
-  let h = topbar('Plan', { eyebrow: 'Your day, organised' }) + seg('plan', [['today', 'Today'], ['reminders', 'Reminders'], ['routine', 'Routine']], s);
+  let h = topbar('Plan', { eyebrow: 'Your day, organised' }) + seg('plan', [['today', 'Today'], ['reminders', 'Reminders'], ['special', 'Special days'], ['routine', 'Routine']], s);
   if (s === 'today') {
     const now = Date.now(), d0 = L.startOfDay(now), d1 = L.addDays(d0, 1);
     const rows = [];
@@ -176,6 +179,8 @@ function renderPlan() {
     h += body || '<div class="empty">Nothing here. Tap + to add a reminder.</div>';
     const done = S.reminders.filter((r) => r.status === 'done' && match(r)).sort((a, b2) => (b2.doneAt || 0) - (a.doneAt || 0)).slice(0, 10);
     if (done.length) h += '<h2>Recently done</h2>' + listOf(done.map((r) => remRow(r)));
+  } else if (s === 'special') {
+    h += renderSpecial();
   } else {
     const done = S.routineLog[B.today()] || [];
     h += '<div class="sub" style="margin:-4px 2px 12px">Change timings, ringing and voice in Settings.</div>';
@@ -183,6 +188,55 @@ function renderPlan() {
     h += '<button class="btn ghost block" data-a="settings-routine">' + icon('gear', 16) + 'Edit routine</button>';
   }
   return h;
+}
+function spRow(x) {
+  const sd = x.sd, d = SP.daysUntil(x.at);
+  const when = d === 0 ? '<span class="gold">Today</span>' : d === 1 ? 'Tomorrow' : 'In ' + d + ' days';
+  const ic = sd.type === 'Birthday' ? 'cake' : sd.type === 'Anniversary' ? 'heart' : 'star';
+  return '<div class="item sp-item ' + (d <= 1 ? 'soon' : '') + '"' + (sd.self ? ' data-a="sub-profile"' : ' data-a="edit-sp" data-id="' + sd.id + '"') + '><div class="badge" style="--c:' + (sd.type === 'Anniversary' ? '#F08BC4' : sd.type === 'Birthday' ? 'var(--gold)' : 'var(--cyan)') + '">' + icon(ic, 18) + '</div>' +
+    '<div class="grow"><div class="t">' + esc(SP.specialTitle(sd, x.at)) + '</div><div class="m">' + L.fmtDate(x.at) + (sd.relation ? ' · ' + esc(sd.relation) : '') + '</div></div><div class="right sp-when">' + when + '</div></div>';
+}
+function renderSpecial() {
+  const all = SP.upcoming();
+  let h = '<div class="panel gold"><div class="row"><div class="badge">' + icon('gift', 20) + '</div><div class="grow"><b>Never miss a special day</b><div class="sub">Lucy reminds you 7 days before, the evening before, and on the day.</div></div></div>' +
+    '<div class="actions"><button class="btn small" data-a="new-sp" data-v="Birthday">' + icon('cake', 15) + 'Add birthday</button><button class="btn small line" data-a="new-sp" data-v="Anniversary">' + icon('heart', 15) + 'Add anniversary</button></div></div>';
+  if (!S.profile.dob) h += '<button class="panel" style="width:100%;text-align:left" data-a="sub-profile"><div class="row"><div class="badge">' + icon('user', 18) + '</div><div class="grow"><b>Add your own birthday and anniversary</b><div class="sub">In your profile. Lucy will celebrate with you.</div></div>' + icon('right', 18) + '</div></button>';
+  const soon = all.filter((x) => SP.daysUntil(x.at) <= 30), later = all.filter((x) => SP.daysUntil(x.at) > 30);
+  if (soon.length) h += '<h2>Next 30 days</h2>' + listOf(soon.map(spRow));
+  if (later.length) h += '<h2>Later this year</h2>' + listOf(later.map(spRow));
+  if (!all.length) h += '<div class="empty">No special days yet. Add birthdays and anniversaries of family, friends and clients.</div>';
+  return h;
+}
+function specialSheet(sd, type) {
+  sd = sd || { type: type || 'Birthday', name: '', date: '', year: 0, relation: '', phone: '', note: '', remind7: true };
+  const [mm, dd] = String(sd.date || '').split('-').map(Number);
+  openSheet('<h3>' + (sd.id ? 'Edit special day' : 'New ' + sd.type.toLowerCase()) + '</h3>' +
+    '<div class="seg" id="sp-type">' + SP.SPECIAL_TYPES.map(([t]) => '<button class="' + (t === sd.type ? 'on' : '') + '" data-a="sp-type" data-v="' + t + '">' + t + '</button>').join('') + '</div>' +
+    '<label>Whose</label><input id="sp-name" value="' + esc(sd.name) + '" placeholder="e.g. Mummy, Devanshi, Mr. Ravi">' +
+    '<div class="grid2"><div><label>Day</label><select id="sp-d">' + Array.from({ length: 31 }, (_, i) => '<option ' + (dd === i + 1 ? 'selected' : '') + '>' + (i + 1) + '</option>').join('') + '</select></div>' +
+    '<div><label>Month</label><select id="sp-m">' + L.MON.map((m, i) => '<option value="' + (i + 1) + '" ' + (mm === i + 1 ? 'selected' : '') + '>' + m + '</option>').join('') + '</select></div></div>' +
+    '<label>Year (optional, to show age or years)</label><input id="sp-y" type="number" inputmode="numeric" value="' + (sd.year || '') + '" placeholder="e.g. 1994">' +
+    '<div class="grid2"><div><label>Relation</label><input id="sp-rel" value="' + esc(sd.relation || '') + '" placeholder="Family, friend, client"></div><div><label>Phone (optional)</label><input id="sp-phone" type="tel" value="' + esc(sd.phone || '') + '"></div></div>' +
+    '<label>Gift or wish idea</label><input id="sp-note" value="' + esc(sd.note || '') + '">' +
+    '<div class="row mt"><input type="checkbox" id="sp-7" ' + (sd.remind7 === false ? '' : 'checked') + '><span>Also remind me 7 days before</span></div>' +
+    '<button class="btn block" data-a="save-sp" data-id="' + (sd.id || '') + '">Save</button>' + (sd.id ? '<button class="btn danger block" data-a="del-sp" data-id="' + sd.id + '">Delete</button>' : ''));
+  $('#sheet').dataset.sptype = sd.type;
+}
+function renderProfile() {
+  const p = S.profile;
+  const f = (k, l, type, ph) => '<label>' + l + '</label><input data-prof="' + k + '" type="' + (type || 'text') + '" value="' + esc(p[k] || '') + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '>';
+  return topbar('My profile', { back: 'More' }) +
+    '<div class="profile-head panel gold"><label class="pf-photo">' + (p.photo ? '<img src="' + p.photo + '" alt="">' : icon('user', 40)) + '<input type="file" accept="image/*" id="pf-photo" hidden><span>' + icon('camera', 14) + '</span></label>' +
+    '<div class="grow"><div class="pf-name">' + esc(p.fullName || nm()) + '</div><div class="sub">' + esc([p.role, p.company].filter(Boolean).join(' · ')) + '</div>' +
+    (p.dob ? '<div class="sub gold mt" style="margin-top:6px">' + icon('cake', 13) + ' ' + L.fmtDate(SP.nextOccurrence({ date: p.dob.slice(5) })) + '</div>' : '') + '</div></div>' +
+    '<h2>Personal</h2>' + f('fullName', 'Full name') + f('nickname', 'What Lucy calls you') +
+    '<div class="grid2"><div>' + f('dob', 'Birthday', 'date') + '</div><div>' + f('anniversary', 'Wedding anniversary', 'date') + '</div></div>' +
+    f('spouse', 'Spouse') + '<div class="grid2"><div>' + f('phone', 'Phone', 'tel') + '</div><div>' + f('altPhone', 'Other phone', 'tel') + '</div></div>' + f('email', 'Email', 'email') +
+    f('city', 'City') + f('address', 'Home address') + '<div class="grid2"><div>' + f('bloodGroup', 'Blood group') + '</div><div>' + f('emergencyPhone', 'Emergency phone', 'tel') + '</div></div>' + f('emergencyName', 'Emergency contact name') +
+    '<h2>Work</h2>' + f('company', 'Company') + f('role', 'Role') + f('website', 'Website') + f('officeAddress', 'Office address') +
+    '<h2>Social</h2>' + f('instagram', 'Instagram', 'text', '@handle') + f('linkedin', 'LinkedIn') + f('youtube', 'YouTube') +
+    '<h2>About me</h2><textarea data-prof="about" placeholder="Anything Lucy should know about you: goals, habits, what motivates you">' + esc(p.about || '') + '</textarea>' +
+    '<div class="hint">Saved automatically and synced to all your devices. Lucy uses your profile to personalise her help.</div>';
 }
 function remRow(r, timeOnly) {
   const now = Date.now(), t = alertStart(r);
@@ -392,11 +446,12 @@ function approveAction(i, j) {
 
 /* =============================== MORE =============================== */
 function renderMore() {
-  const subs = { clients: renderClients, leads: renderLeads, ideas: renderIdeas, notes: renderNotes, shopping: renderShopping, learning: renderLearning, review: renderReview, settings: renderSettings, connections: renderConnections, backup: renderBackup };
+  const subs = { profile: renderProfile, clients: renderClients, leads: renderLeads, ideas: renderIdeas, notes: renderNotes, shopping: renderShopping, learning: renderLearning, review: renderReview, settings: renderSettings, connections: renderConnections, backup: renderBackup };
   if (view.sub && subs[view.sub]) return subs[view.sub]();
   const row = (sub, ic, t, s) => '<button class="mrow" data-a="sub" data-v="' + sub + '"><div class="badge">' + icon(ic, 20) + '</div><span class="grow"><b>' + t + '</b><small>' + s + '</small></span>' + icon('right', 18, 'chev') + '</button>';
   const openLeads = S.leads.filter((l) => !['Won', 'Lost'].includes(l.status)).length;
   return topbar('More', { eyebrow: 'Everything else' }) +
+    '<button class="mrow profile-row" data-a="sub" data-v="profile"><div class="pf-mini">' + (S.profile.photo ? '<img src="' + S.profile.photo + '" alt="">' : icon('user', 22)) + '</div><span class="grow"><b>' + esc(S.profile.fullName || nm()) + '</b><small>My profile · birthday, contacts, company</small></span>' + icon('right', 18, 'chev') + '</button>' +
     row('clients', 'briefcase', 'Clients', S.clients.length + ' clients · retainers, notes, payments') +
     row('leads', 'target', 'Leads · Hunter', openLeads + ' open leads · research and pricing') +
     row('ideas', 'bulb', 'Ideas', S.ideas.length + ' ideas · company and brands') +
@@ -773,6 +828,18 @@ document.addEventListener('click', async (ev) => {
       else if (view.tab === 'more' && view.sub) { view.sub = null; render(); }
       else go('home');
       break;
+    case 'sub-profile': go('more', 'profile'); break;
+    case 'new-sp': specialSheet(null, v); break;
+    case 'edit-sp': specialSheet(S.specialDays.find((x) => x.id === id)); break;
+    case 'sp-type': document.querySelectorAll('#sp-type button').forEach((b) => b.classList.toggle('on', b === el)); $('#sheet').dataset.sptype = v; break;
+    case 'save-sp': {
+      const name = $('#sp-name').value.trim(); if (!name) { toast('Whose special day is it?'); break; }
+      const data = { name: name, type: $('#sheet').dataset.sptype || 'Birthday', date: String($('#sp-m').value).padStart(2, '0') + '-' + String($('#sp-d').value).padStart(2, '0'), year: Number($('#sp-y').value) || 0,
+        relation: $('#sp-rel').value.trim(), phone: $('#sp-phone').value.trim(), note: $('#sp-note').value.trim(), remind7: $('#sp-7').checked };
+      if (id) Object.assign(S.specialDays.find((x) => x.id === id), data); else S.specialDays.push(Object.assign({ id: nid(), created: Date.now() }, data));
+      save(); closeSheet(); view.seg.plan = 'special'; render(); celebrate('small'); toast('Lucy will remind you'); break;
+    }
+    case 'del-sp': if (confirm('Delete this special day?')) { S.specialDays = S.specialDays.filter((x) => x.id !== id); save(); closeSheet(); render(); } break;
     case 'sub': go('more', v); if (v === 'connections') refreshStatus(true); break;
     case 'seg': view.seg[el.dataset.k] = v; if (el.dataset.k === 'cashdir' && sheetOpen()) break; render(); window.scrollTo(0, 0); break;
     case 'seg-go': view.seg[el.dataset.k] = v; go(el.dataset.tab); break;
@@ -985,7 +1052,7 @@ function addToMission(text, ref) {
   save(); toast('Added to today\'s mission');
 }
 function fab() {
-  if (view.tab === 'plan') return reminderSheet();
+  if (view.tab === 'plan') return segOf('plan', 'today') === 'special' ? specialSheet(null, 'Birthday') : reminderSheet();
   if (view.tab === 'money') { const s = segOf('money', 'mission'); if (s === 'loans') return loanSheet(null, 'bank'); if (s === 'expenses') return expenseSheet(); return paySheet(); }
   if (view.tab === 'ascend') {
     if (segOf('ascend', 'affirm') === 'dreams') { dreamImg = null; return dreamSheet(); }
@@ -1057,6 +1124,7 @@ document.addEventListener('input', (ev) => {
   else if (t.id === 'note-title' || t.id === 'note-body') { const n = S.notes.find((x) => x.id === Number(t.dataset.nid)); if (n) { n[t.id === 'note-title' ? 'title' : 'body'] = t.value; n.updated = Date.now(); save(); } }
   else if (t.dataset.j) { const k = B.today(); S.journal[k] = Object.assign(S.journal[k] || {}, { [t.dataset.j]: t.value }); save(); }
   else if (t.dataset.set === 'name') { S.settings.name = t.value; save(); }
+  else if (t.dataset.prof) { S.profile[t.dataset.prof] = t.value; if (t.dataset.prof === 'nickname' && t.value.trim()) S.settings.name = t.value.trim(); save(); }
   else if (t.id === 'ask') { t.style.height = 'auto'; t.style.height = Math.min(140, t.scrollHeight) + 'px'; }
 });
 document.addEventListener('change', async (ev) => {
@@ -1075,6 +1143,7 @@ document.addEventListener('change', async (ev) => {
     if (k === 'status' && t.value === 'Won') { l.wonAt = Date.now(); celebrate('big', { title: 'Deal won', sub: l.name + '. Well done, ' + nm() + '.' }); }
     save(); if (k === 'status' || k === 'score') render();
   } else if (t.id === 'd-img' && t.files[0]) { dreamImg = await imageToDataUrl(t.files[0], 900, 0.72); toast('Photo ready'); }
+  else if (t.id === 'pf-photo' && t.files[0]) { S.profile.photo = await imageToDataUrl(t.files[0], 480, 0.8); save(); render(); toast('Photo updated'); }
   else if (t.id === 'avatar-file' && t.files[0]) { S.settings.avatarImg = await imageToDataUrl(t.files[0], 900, 0.8); save(); render(); toast('Lucy\'s look updated'); }
   else if (t.id === 'f-task') smartFill();
 });
@@ -1103,6 +1172,7 @@ function openHash() {
     view.tab = 'more'; view.sub = 'connections';
   } else if (h === '#plan' || h === '#money' || h === '#ascend' || h === '#home') { view.tab = h.slice(1); }
   else if (h === '#money-loans') { view.tab = 'money'; view.seg.money = 'loans'; }
+  else if (h === '#plan-special') { view.tab = 'plan'; view.seg.plan = 'special'; }
   else if (h === '#more-review') { view.tab = 'more'; view.sub = 'review'; }
   history.replaceState(null, '', location.pathname);
 }

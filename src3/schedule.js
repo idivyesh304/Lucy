@@ -1,4 +1,5 @@
 // Builds the list of iPhone notifications for the next 7 days. The helper sends them on time.
+import { specialSchedule } from './special.js';
 import * as L from '../src/logic.js';
 import * as C from './content.js';
 import { S } from './store.js';
@@ -24,6 +25,9 @@ export function buildSchedule() {
       if (i === 0) for (let k = 1; k <= st.nagCount; k++) push(t + k * st.nagMin * L.MIN, 'Still pending: ' + r.task, k === st.nagCount ? 'Last nudge, ' + nm + '. Two minutes and it is done.' : 'Tap to open Lucy and finish it.', 'rem-' + r.id, '#plan');
     });
   });
+
+  // birthdays and anniversaries
+  specialSchedule(push, nm);
 
   // routine, briefing, journal, review, hourly inspiration
   for (let d = 0; d < 7; d++) {

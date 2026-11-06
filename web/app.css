@@ -329,3 +329,11 @@ h3 { font-family: var(--display); font-size: 17px; font-weight: 600; margin: 0 0
 .aff-orb { width: 96px; height: 96px; background: #000; }
 #sheet .avatar-wrap.lucy-photo { border-radius: 24px; overflow: hidden; }
 .lucy-state { position: relative; z-index: 2; margin-top: 6px; }
+/* head motion: slow idle sway from the neck, quick nods while talking */
+@keyframes lucy-sway { 0%,100% { transform: rotate(-0.9deg) translate(0,0) scale(1); } 25% { transform: rotate(0.2deg) translate(-0.4%,-0.5%) scale(1.012); } 50% { transform: rotate(1deg) translate(0.3%,-0.8%) scale(1.024); } 75% { transform: rotate(0.1deg) translate(0.5%,-0.3%) scale(1.01); } }
+.lucy-stage .avatar-wrap.img .av-img { transform-origin: 48% 88%; transition: transform .18s cubic-bezier(.3,.7,.4,1); }
+.lucy-stage .avatar-wrap.img .av-img img { transform-origin: 48% 88%; animation: lucy-sway 11s ease-in-out infinite; }
+.lucy-stage .avatar-wrap.img.speaking .av-img img { animation: lucy-sway 4.5s ease-in-out infinite, lucy-talk .9s ease-in-out infinite; }
+.lucy-stage .avatar-wrap.img.listening .av-img img { animation: lucy-sway 7s ease-in-out infinite, lucy-listen 1.6s ease-in-out infinite; }
+.lucy-stage .avatar-wrap.img.thinking .av-img img { animation: lucy-sway 6s ease-in-out infinite, lucy-think 4s linear infinite; }
+.lucy-stage .avatar-wrap.img .av-img.word img { filter: brightness(1.28) saturate(1.4) drop-shadow(0 0 22px rgba(255,190,120,.4)); }

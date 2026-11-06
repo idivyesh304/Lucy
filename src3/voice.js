@@ -4,6 +4,8 @@ import { S } from './store.js';
 let speaking = false;
 const subs = [];
 export function onVoiceState(fn) { subs.push(fn); }
+const wordSubs = [];
+export function onWord(fn) { wordSubs.push(fn); }
 function emit(state) { subs.forEach((fn) => { try { fn(state); } catch (e) {} }); }
 
 export function voices() {
@@ -36,6 +38,7 @@ export function speak(text, opts) {
     u.rate = Number(S.settings.voiceRate) || 0.95;
     u.pitch = Number(S.settings.voicePitch) || 1;
     u.onstart = () => { speaking = true; emit('speaking'); };
+    u.onboundary = (e) => { if (!e.name || e.name === 'word') wordSubs.forEach((fn) => { try { fn(e); } catch (x) {} }); };
     u.onend = u.onerror = () => { speaking = false; emit('idle'); resolve(); };
     speechSynthesis.speak(u);
   });

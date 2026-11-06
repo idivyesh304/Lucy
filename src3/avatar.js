@@ -1,6 +1,7 @@
 // Lucy's on-screen presence: an original female android, gold line art on bronze.
 // States: idle (breathing, blinking), speaking (mouth and core pulse), listening (halo pulse).
 import { S } from './store.js';
+import { onWord } from './voice.js';
 
 export function avatar(cls) {
   const custom = !!S.settings.avatarImg;
@@ -62,7 +63,28 @@ const SVG = `<svg class="lucy-svg" viewBox="0 0 300 420" role="img" aria-label="
 </g>
 </svg>`;
 
+// Head motion while she talks: a small nod on every word (from the voice engine),
+// plus a natural speech rhythm in case the voice does not report words.
+let talkTimer = null, lastWord = 0, side = 1;
+function nod(strength) {
+  side = -side;
+  document.querySelectorAll('.lucy-stage .avatar-wrap.img .av-img').forEach((el) => {
+    const r = (0.6 + Math.random() * 0.9) * strength * side, y = -(0.4 + Math.random() * 0.8) * strength;
+    el.style.transform = 'rotate(' + r.toFixed(2) + 'deg) translateY(' + y.toFixed(2) + '%)';
+    el.classList.add('word');
+    clearTimeout(el._t); el._t = setTimeout(() => { el.style.transform = ''; el.classList.remove('word'); }, 170 + Math.random() * 90);
+  });
+}
+onWord(() => { lastWord = Date.now(); nod(1); });
+function startTalk() {
+  stopTalk();
+  const tick = () => { if (Date.now() - lastWord > 500) nod(0.8); talkTimer = setTimeout(tick, 240 + Math.random() * 220); };
+  tick();
+}
+function stopTalk() { clearTimeout(talkTimer); talkTimer = null; }
+
 export function setAvatarState(state) {
+  if (state === 'speaking') startTalk(); else stopTalk();
   document.querySelectorAll('.avatar-wrap').forEach((el) => {
     el.classList.toggle('speaking', state === 'speaking');
     el.classList.toggle('listening', state === 'listening');

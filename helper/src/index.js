@@ -64,8 +64,16 @@ async function route(req, env, ctx) {
   if (p === '/subscribe' && req.method === 'POST') {
     const body = await req.json();
     if (!body.subscription || !body.subscription.endpoint) return json({ error: 'No subscription' }, 400);
-    await env.LUCY.put('sub', JSON.stringify(body.subscription));
-    return json({ ok: true });
+    const subs = (await getSubs(env)).filter((x) => x.sub.endpoint !== body.subscription.endpoint);
+    subs.push({ sub: body.subscription, name: String(body.name || 'Phone').slice(0, 40), at: Date.now() });
+    await env.LUCY.put('subs', JSON.stringify(subs.slice(-6)));
+    return json({ ok: true, devices: subs.length });
+  }
+  if (p === '/unsubscribe' && req.method === 'POST') {
+    const body = await req.json();
+    const subs = (await getSubs(env)).filter((x) => x.sub.endpoint !== body.endpoint);
+    await env.LUCY.put('subs', JSON.stringify(subs));
+    return json({ ok: true, devices: subs.length });
   }
   if (p === '/schedule' && req.method === 'POST') {
     const body = await req.json();
@@ -122,20 +130,39 @@ async function status(env, cfg) {
     claudeModel: cfg.claudeModel || 'claude-sonnet-5-5', openaiModel: cfg.openaiModel || 'gpt-6.1-sol',
     googleReady: !!(cfg.googleClientId && cfg.googleClientSecret),
     drive: !!(await env.LUCY.get('gtoken')),
-    push: !!(await env.LUCY.get('sub')),
+    push: (await getSubs(env)).length > 0,
+    pushDevices: (await getSubs(env)).map((x) => x.name),
     queued: queue.length, nextAt: queue[0] ? queue[0].at : null,
     lastPush: JSON.parse((await env.LUCY.get('lastPush')) || 'null')
   };
 }
 
 /* ---------------- notifications ---------------- */
+async function getSubs(env) {
+  let subs = JSON.parse((await env.LUCY.get('subs')) || 'null');
+  if (!subs) {
+    const old = JSON.parse((await env.LUCY.get('sub')) || 'null');
+    subs = old ? [{ sub: old, name: 'iPhone', at: Date.now() }] : [];
+    if (old) { await env.LUCY.put('subs', JSON.stringify(subs)); await env.LUCY.delete('sub'); }
+  }
+  return subs;
+}
+// Sends to every device that turned notifications on (iPhone, Android, laptop).
 async function pushNow(env, item) {
-  const sub = JSON.parse((await env.LUCY.get('sub')) || 'null');
-  if (!sub) return { ok: false, error: 'iPhone not subscribed yet' };
-  const r = await sendPush(sub, { title: item.title, body: item.body, tag: item.tag, url: item.url }, await getVapid(env), PUSH_SUBJECT, 3600);
-  await env.LUCY.put('lastPush', JSON.stringify({ at: Date.now(), status: r.status, title: item.title }));
-  if (r.status === 404 || r.status === 410) await env.LUCY.delete('sub');
-  return r;
+  const subs = await getSubs(env);
+  if (!subs.length) return { ok: false, error: 'No device has notifications turned on yet' };
+  const vapid = await getVapid(env);
+  const results = [], dead = [];
+  for (const d of subs) {
+    try {
+      const r = await sendPush(d.sub, { title: item.title, body: item.body, tag: item.tag, url: item.url }, vapid, PUSH_SUBJECT, 3600);
+      results.push({ device: d.name, status: r.status });
+      if (r.status === 404 || r.status === 410) dead.push(d.sub.endpoint);
+    } catch (e) { results.push({ device: d.name, error: String(e.message || e) }); }
+  }
+  if (dead.length) await env.LUCY.put('subs', JSON.stringify(subs.filter((d) => !dead.includes(d.sub.endpoint))));
+  await env.LUCY.put('lastPush', JSON.stringify({ at: Date.now(), title: item.title, results: results }));
+  return { ok: results.some((r) => r.status >= 200 && r.status < 300), status: results[0] && results[0].status, devices: results };
 }
 async function sendDue(env) {
   const raw = await env.LUCY.get('queue');

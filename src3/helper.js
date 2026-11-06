@@ -1,6 +1,14 @@
 // Talks to Lucy's private helper (Cloudflare Worker): Drive sync, notifications, AI.
 import { S, device, replaceState, save } from './store.js';
 
+export function deviceName() {
+  const ua = navigator.userAgent;
+  if (/iPhone/.test(ua)) return 'iPhone';
+  if (/iPad/.test(ua)) return 'iPad';
+  if (/Android/.test(ua)) return /OnePlus|CPH|LE2|MT2/.test(ua) ? 'OnePlus' : 'Android phone';
+  if (/Macintosh/.test(ua)) return 'MacBook';
+  return 'Computer';
+}
 export function helperUrl() {
   const fromDevice = device.get('helperUrl', '');
   const fromBuild = (window.LUCY_CONFIG && window.LUCY_CONFIG.helperUrl) || '';
@@ -30,7 +38,8 @@ export const api = {
   status: () => call('/status'),
   config: (obj) => call('/config', { body: obj }),
   vapid: () => call('/vapid', { auth: false }),
-  subscribe: (sub) => call('/subscribe', { body: { subscription: sub } }),
+  subscribe: (sub) => call('/subscribe', { body: { subscription: sub, name: deviceName() } }),
+  unsubscribe: (endpoint) => call('/unsubscribe', { body: { endpoint: endpoint } }),
   schedule: (items) => call('/schedule', { body: { items: items } }),
   testPush: () => call('/test-push', { body: {} }),
   ai: (payload) => call('/ai', { body: payload }),
@@ -53,8 +62,12 @@ export async function pullFromDrive(onReplaced) {
     const r = await api.driveLoad();
     if (r.data) {
       const remote = JSON.parse(r.data);
-      if ((remote.updatedAt || 0) > (S.updatedAt || 0)) {
+      // A device that has never synced always takes the Drive copy first, so a new
+      // phone or laptop can never overwrite real data with its empty starter data.
+      const firstSync = !Number(device.get('lastSync', 0));
+      if (firstSync || (remote.updatedAt || 0) > (S.updatedAt || 0)) {
         replaceState(remote);
+        markSynced();
         if (onReplaced) onReplaced();
       } else if ((S.updatedAt || 0) > (remote.updatedAt || 0)) {
         await pushToDrive();

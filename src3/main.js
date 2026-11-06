@@ -526,9 +526,12 @@ function renderConnections() {
     } else {
       const s = connStatus;
       h += '<div class="panel"><div class="row"><span class="status-dot ' + (s ? 'ok' : '') + '"></span><b class="grow">Passkey</b><button class="link" data-a="pk-forget">Forget on this phone</button></div><button class="btn small ghost mt" data-a="conn-refresh">' + icon('refresh', 15) + 'Check status</button></div>';
-      h += '<h2>Notifications</h2><div class="panel"><div class="row"><span class="status-dot ' + (H.pushOn() ? 'ok' : '') + '"></span><b class="grow">This iPhone</b><span class="sub">' + (H.pushOn() ? 'On' : 'Off') + '</span></div>' +
-        (H.isStandalone() ? '' : '<div class="hint">Open Lucy from your Home Screen icon first. iPhone only allows notifications for installed web apps.</div>') +
-        '<div class="actions"><button class="btn small" data-a="push-on">' + icon('bell', 15) + (H.pushOn() ? 'Re-connect' : 'Turn on') + '</button><button class="btn small ghost" data-a="push-test">Send test</button></div>' + (s ? '<div class="hint">' + s.queued + ' notifications scheduled' + (s.nextAt ? ', next ' + L.fmtWhen(s.nextAt) : '') + '</div>' : '') + '</div>';
+      const devs = (s && s.pushDevices) || [];
+      h += '<h2>Notifications</h2><div class="panel"><div class="row"><span class="status-dot ' + (H.pushOn() ? 'ok' : '') + '"></span><b class="grow">This device (' + esc(H.deviceName()) + ')</b><span class="sub">' + (H.pushOn() ? 'On' : 'Off') + '</span></div>' +
+        (H.isStandalone() || !/iPhone|iPad/.test(navigator.userAgent) ? '' : '<div class="hint">Open Lucy from your Home Screen icon first. iPhone only allows notifications for installed web apps.</div>') +
+        '<div class="actions"><button class="btn small" data-a="push-on">' + icon('bell', 15) + (H.pushOn() ? 'Re-connect' : 'Turn on') + '</button><button class="btn small ghost" data-a="push-test">Send test</button>' + (H.pushOn() ? '<button class="btn small ghost" data-a="push-off">Turn off here</button>' : '') + '</div>' +
+        (devs.length ? '<div class="hint">Notifications go to: <b>' + devs.map(esc).join(', ') + '</b></div>' : '') +
+        (s ? '<div class="hint">' + s.queued + ' notifications scheduled' + (s.nextAt ? ', next ' + L.fmtWhen(s.nextAt) : '') + '</div>' : '') + '</div>';
       h += '<h2>AI brain</h2><div class="panel"><div class="row"><span class="status-dot ' + (s && s.claude ? 'ok' : '') + '"></span><b class="grow">Claude</b><span class="sub">' + (s ? (s.claude ? s.claudeModel : 'No key') : '') + '</span></div><input id="key-claude" type="password" class="mt" placeholder="Paste Anthropic API key (sk-ant-…)"><select id="model-claude" class="mt">' + [['claude-sonnet-5-5', 'Claude Sonnet 5.5 (recommended)'], ['claude-opus-5-5', 'Claude Opus 5.5 (smartest)'], ['claude-haiku-5-5', 'Claude Haiku 5.5 (fastest)']].map((o) => '<option value="' + o[0] + '" ' + (s && s.claudeModel === o[0] ? 'selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' +
         '<div class="row mt"><span class="status-dot ' + (s && s.chatgpt ? 'ok' : '') + '"></span><b class="grow">ChatGPT</b><span class="sub">' + (s ? (s.chatgpt ? s.openaiModel : 'No key') : '') + '</span></div><input id="key-openai" type="password" class="mt" placeholder="Paste OpenAI API key (sk-…)"><select id="model-openai" class="mt">' + [['gpt-6.1-sol', 'GPT-6.1 Sol (recommended)'], ['gpt-6-astra', 'GPT-6 Astra (most capable)'], ['gpt-6-luna', 'GPT-6 Luna (faster)']].map((o) => '<option value="' + o[0] + '" ' + (s && s.openaiModel === o[0] ? 'selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' +
         '<button class="btn block" data-a="save-ai">Save AI settings</button><div class="hint">Keys are stored only in your private helper, never on this phone or in Google Drive. API use is billed by Anthropic and OpenAI per use.</div></div>';
@@ -921,13 +924,16 @@ document.addEventListener('click', async (ev) => {
         device.set('passkey', pk);
         await refreshStatus(true);
         if (!connStatus && a === 'pk-enter') { device.set('passkey', ''); toast('That passkey did not match'); render(); break; }
-        toast('Connected to your helper'); render();
+        toast('Connected to your helper');
+        if (connStatus.drive) { device.set('drive', 'on'); await H.pullFromDrive(() => render()); }
+        render(); H.queueSchedule(buildSchedule);
       } catch (e) { toast(e.message); }
       break;
     }
     case 'pk-forget': device.set('passkey', ''); connStatus = null; render(); break;
     case 'conn-refresh': await refreshStatus(); toast(connStatus ? 'Helper is online' : 'Could not reach helper'); break;
     case 'push-on': try { await H.enablePush(); await H.api.schedule(buildSchedule()); await refreshStatus(); toast('Notifications are on'); } catch (e) { toast(e.message); } break;
+    case 'push-off': try { const reg = await navigator.serviceWorker.getRegistration(); const sub = reg && await reg.pushManager.getSubscription(); if (sub) { await H.api.unsubscribe(sub.endpoint); await sub.unsubscribe(); } device.set('push', ''); await refreshStatus(); toast('Notifications off on this device'); } catch (e) { toast(e.message); } break;
     case 'push-test': try { await H.api.testPush(); toast('Sent. Check your notifications.'); } catch (e) { toast(e.message); } break;
     case 'save-ai': {
       const body = { claudeModel: $('#model-claude').value, openaiModel: $('#model-openai').value };
@@ -1105,6 +1111,8 @@ function openHash() {
     }
   });
   if (H.ready()) { await refreshStatus(true); await H.pullFromDrive(() => render()); render(); H.queueSchedule(buildSchedule); }
+  // keep laptop, iPhone and Android in step: check Drive for newer data every minute while Lucy is open
+  setInterval(() => { if (document.visibilityState === 'visible' && H.driveEnabled() && !sheetOpen() && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) H.pullFromDrive(() => render()); }, 60000);
 })();
 
 window.__lucy = { get S() { return S; }, buildSchedule: buildSchedule, render: render, B: B };

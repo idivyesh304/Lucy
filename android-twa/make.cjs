@@ -8,7 +8,6 @@ const { TwaManifest, TwaGenerator, ConsoleLog } = require('@bubblewrap/core');
   m.name = 'Lucy'; m.launcherName = 'Lucy';
   m.host = 'idivyesh304.github.io';
   m.startUrl = '/Lucy/';
-  m.themeColor = m.navigationColor = m.navigationColorDark = m.backgroundColor = '#0B0D14';
   m.display = 'standalone';
   m.orientation = 'portrait';
   m.enableNotifications = true;

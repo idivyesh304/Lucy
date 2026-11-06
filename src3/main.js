@@ -239,20 +239,19 @@ function renderTeam() {
   return h;
 }
 function empRow(e) {
-  const mk = B.payroll().month, paid = e.paid && e.paid[mk];
+  const mk = B.payroll().month, paidAmt = B.salaryPaidOf(e, mk), sal = Number(e.salary) || 0;
   return '<div class="item' + (e.active === false ? ' off' : '') + '" data-a="edit-emp" data-id="' + e.id + '"><div class="pf-mini" style="width:40px;height:40px">' + (e.photo ? '<img src="' + e.photo + '" alt="">' : '<span class="num" style="font-size:15px">' + esc((e.name || '?').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()) + '</span>') + '</div>' +
     '<div class="grow"><div class="t">' + esc(e.name) + '</div><div class="m">' + esc([e.phone, e.upi].filter(Boolean).join(' · ')) + '</div></div>' +
-    '<div class="right"><div class="amount out">' + money(e.salary || 0) + '</div><div class="m" style="font-size:12px;margin-top:2px">' + (e.active === false ? 'Inactive' : paid ? '<span class="good">Paid</span>' : '<span class="warn">Due</span>') + '</div></div></div>';
+    '<div class="right"><div class="amount out">' + money(e.salary || 0) + '</div><div class="m" style="font-size:12px;margin-top:2px">' + (e.active === false ? 'Inactive' : paidAmt >= sal && paidAmt > 0 ? '<span class="good">Paid</span>' : paidAmt > 0 ? '<span class="gold">Part ' + money(paidAmt) + '</span>' : '<span class="warn">Due</span>') + '</div></div></div>';
 }
 function empSheet(e, role) {
   e = e || { name: '', role: role || (S.growth.team[0] || {}).role || '', phone: '', upi: '', salary: '', joined: '', active: true, note: '' };
-  const mk = B.payroll().month, paid = e.paid && e.paid[mk];
+  const mk = B.payroll().month, paid = e.id ? B.salaryPaidOf(e, mk) : 0;
   const tel = String(e.phone || '').replace(/[^\d+]/g, ''), wa = tel.startsWith('+') ? tel.slice(1) : (tel.length === 10 ? '91' + tel : tel);
   const roles = S.growth.team.map((m) => m.role);
   openSheet('<h3>' + (e.id ? esc(e.name) : 'New team member') + '</h3>' +
     (e.id ? '<div class="actions" style="margin-top:4px">' + (tel ? '<a class="btn small ghost" href="tel:' + esc(tel) + '">' + icon('phone', 15) + 'Call</a><a class="btn small ghost" href="https://wa.me/' + esc(wa) + '" target="_blank" rel="noopener">' + icon('chat', 15) + 'WhatsApp</a>' : '') +
-      (e.upi && Number(e.salary) ? '<a class="btn small" href="' + esc(upiLink(e, e.salary, 'Salary ' + L.MON[new Date().getMonth()] + ' ' + new Date().getFullYear())) + '" data-a="upi-open" data-id="' + e.id + '">' + icon('wallet', 15) + 'Pay ' + money(e.salary) + ' by UPI</a>' : '') +
-      '<button class="btn small ' + (paid ? 'ghost' : 'line') + '" data-a="emp-paid" data-id="' + e.id + '">' + (paid ? 'Paid · undo' : 'Mark salary paid') + '</button></div>' : '') +
+      '<button class="btn small" data-a="emp-paid" data-id="' + e.id + '">' + icon('wallet', 15) + (paid >= (Number(e.salary) || 0) && paid > 0 ? 'Salary paid · view' : paid ? 'Pay rest of salary' : 'Pay salary') + '</button></div>' : '') +
     '<label>Full name</label><input id="em-name" value="' + esc(e.name) + '">' +
     '<label>Role</label><select id="em-role">' + roles.concat(roles.includes(e.role) || !e.role ? [] : [e.role]).map((r) => '<option ' + (r === e.role ? 'selected' : '') + '>' + esc(r) + '</option>').join('') + '</select>' +
     '<div class="grid2"><div><label>Phone</label><input id="em-phone" type="tel" value="' + esc(e.phone || '') + '" placeholder="98xxxxxxxx"></div><div><label>Monthly salary (₹)</label><input id="em-salary" type="number" inputmode="numeric" value="' + esc(e.salary || '') + '"></div></div>' +
@@ -292,8 +291,10 @@ function remRow(r, timeOnly) {
 function loanTitle(l) { return l.type === 'friend' ? 'Pay ' + (l.lender || 'friend') : (l.title || l.lender || 'Loan') + ' EMI'; }
 function payRow(p) {
   const late = p.status === 'pending' && L.atTime(p.due, 23, 59) < Date.now();
-  return '<div class="item"><div class="badge" style="--c:' + (p.type === 'in' ? 'var(--good)' : 'var(--warn)') + '">' + icon(p.type === 'in' ? 'trend' : 'card', 18) + '</div><div class="grow" data-a="edit-pay" data-id="' + p.id + '"><div class="t">' + esc(p.party) + '</div><div class="m ' + (late ? 'late' : '') + '">' + (p.status === 'settled' ? 'Settled ' + L.fmtDate(p.settledAt) : (late ? 'Overdue · ' : 'Due ') + L.fmtDate(p.due)) + (p.note ? ' · ' + esc(p.note) : '') + '</div></div>' +
-    '<div class="right"><div class="amount ' + p.type + '">' + money(p.amount) + '</div>' + (p.status === 'pending' ? '<button class="link" data-a="settle" data-id="' + p.id + '">' + (p.type === 'in' ? 'Received' : 'Paid') + '</button>' : '') + '</div></div>';
+  const paidSoFar = B.paidOf(p), left = B.leftOf(p), part = p.status === 'pending' && paidSoFar > 0;
+  return '<div class="item"><div class="badge" style="--c:' + (p.type === 'in' ? 'var(--good)' : 'var(--warn)') + '">' + icon(p.type === 'in' ? 'trend' : 'card', 18) + '</div><div class="grow" data-a="edit-pay" data-id="' + p.id + '"><div class="t">' + esc(p.party) + '</div><div class="m ' + (late ? 'late' : '') + '">' + (p.status === 'settled' ? 'Settled ' + L.fmtDate(p.settledAt) : (late ? 'Overdue · ' : 'Due ') + L.fmtDate(p.due)) + (p.note ? ' · ' + esc(p.note) : '') + '</div>' +
+    (part ? '<div class="m"><span class="gold">Part ' + (p.type === 'in' ? 'received' : 'paid') + ' ' + money(paidSoFar) + ' of ' + money(p.amount) + '</span></div><div class="bar" style="margin-top:6px"><i style="width:' + Math.round(100 * paidSoFar / Number(p.amount || 1)) + '%"></i></div>' : '') + '</div>' +
+    '<div class="right"><div class="amount ' + p.type + '">' + money(p.status === 'pending' ? left : p.amount) + '</div>' + (p.status === 'pending' ? '<button class="link" data-a="settle" data-id="' + p.id + '">' + (p.type === 'in' ? 'Receive' : 'Pay') + '</button>' : '') + '</div></div>';
 }
 function renderMoney() {
   const s = segOf('money', 'mission');
@@ -322,7 +323,7 @@ function renderMoney() {
   } else if (s === 'cash') {
     const t = segOf('cashdir', 'in');
     const pend = S.payments.filter((p) => p.status === 'pending' && p.type === t).sort((a, b2) => a.due - b2.due);
-    const sum = (arr) => arr.reduce((a, p) => a + Number(p.amount), 0);
+    const sum = (arr) => arr.reduce((a, p) => a + B.leftOf(p), 0);
     h += '<div class="stats">' + stat('To receive', short(sum(S.payments.filter((p) => p.status === 'pending' && p.type === 'in'))), '') + stat('To pay', short(sum(S.payments.filter((p) => p.status === 'pending' && p.type === 'out'))), '') + '</div>';
     h += seg('cashdir', [['in', 'To receive'], ['out', 'To pay']], t);
     h += listOf(pend.map(payRow), t === 'in' ? 'Nobody owes you anything right now.' : 'No bills pending.');
@@ -747,6 +748,64 @@ function paySheet(p, preset) {
     (p && p.status === 'pending' ? '<button class="btn ghost block" data-a="settle" data-id="' + p.id + '">' + (p.type === 'in' ? 'Mark received' : 'Mark paid') + '</button>' : '') + (p ? '<button class="btn danger block" data-a="del-pay" data-id="' + p.id + '">Delete</button>' : ''));
   $('#sheet').dataset.ptype = base.type;
 }
+// Full, half or custom amount, chosen before anything is confirmed.
+function amtChooser(left, opts) {
+  opts = opts || {};
+  return '<div class="amt-box"><div class="seg" id="amt-opt"><button class="on" data-a="amt-opt" data-v="full">Full</button><button data-a="amt-opt" data-v="half">Half</button><button data-a="amt-opt" data-v="custom">Custom</button></div>' +
+    '<div class="amt-show"><span class="num" id="amt-val">' + money(left) + '</span><input id="amt-custom" type="number" inputmode="numeric" placeholder="Enter amount" hidden></div>' +
+    '<div class="grid2"><div><label>Date</label><input id="amt-date" type="date" value="' + L.dayKey(Date.now()) + '"></div><div><label>Mode</label><select id="amt-mode">' + ['UPI', 'Bank transfer', 'Cash', 'Cheque', 'Card'].map((m) => '<option>' + m + '</option>').join('') + '</select></div></div>' +
+    (opts.balanceDate ? '<div id="amt-bal-wrap" hidden><label>' + opts.balanceLabel + '</label><input id="amt-bal" type="date" value="' + L.dayKey(opts.balanceDate) + '"></div>' : '') +
+    '<label>Note (optional)</label><input id="amt-note" placeholder="Reference, UTR or remark"></div>';
+}
+function chosenAmt(left) {
+  const box = $('#amt-opt'), v = (box && box.dataset.v) || 'full';
+  if (v === 'full') return left;
+  if (v === 'half') return Math.round(left / 2);
+  return Math.min(left, Number(($('#amt-custom') || {}).value) || 0);
+}
+function updateAmtView(left) {
+  const amt = chosenAmt(left), v = ($('#amt-opt') || {}).dataset ? $('#amt-opt').dataset.v || 'full' : 'full';
+  const val = $('#amt-val'); if (val) val.textContent = v === 'custom' ? '' : money(amt);
+  const bw = $('#amt-bal-wrap'); if (bw) bw.hidden = !(amt > 0 && amt < left);
+  const btn = $('#amt-go'); if (btn) btn.textContent = btn.dataset.verb + ' ' + (amt ? money(amt) : '');
+}
+function partsList(parts, kind) {
+  if (!parts.length) return '';
+  return '<h2>History</h2><div class="list">' + parts.map((x, i) => '<div class="item"><div class="grow"><div class="t">' + money(x.amt) + '</div><div class="m">' + L.fmtDate(x.at) + (x.mode ? ' · ' + esc(x.mode) : '') + (x.note ? ' · ' + esc(x.note) : '') + '</div></div><button class="link" data-a="part-undo" data-k="' + kind + '" data-i="' + i + '">Undo</button></div>').join('') + '</div>';
+}
+function settleSheet(p) {
+  const left = B.leftOf(p), paidSoFar = B.paidOf(p), inn = p.type === 'in';
+  openSheet('<div class="eyebrow">' + (inn ? 'Money in' : 'Money out') + '</div><h3 class="mt">' + (inn ? 'Receive from ' : 'Pay ') + esc(p.party) + '</h3>' +
+    '<div class="stats">' + stat('Total', money(p.amount), '') + stat(inn ? 'Received so far' : 'Paid so far', money(paidSoFar), '') + stat('Remaining', '<span class="gold">' + money(left) + '</span>', '') + '</div>' +
+    amtChooser(left, { balanceDate: Math.max(L.addDays(L.startOfDay(Date.now()), 7), p.due), balanceLabel: inn ? 'When will the rest come?' : 'When will you pay the rest?' }) +
+    '<button class="btn block" id="amt-go" data-verb="' + (inn ? 'Confirm received' : 'Confirm paid') + '" data-a="settle-go" data-id="' + p.id + '">' + (inn ? 'Confirm received ' : 'Confirm paid ') + money(left) + '</button>' +
+    partsList(B.partsOf(p).filter(() => p.parts && p.parts.length), 'pay:' + p.id));
+  $('#sheet').dataset.left = left;
+}
+function settleGo(id) {
+  const p = payById(id); if (!p) return;
+  const left = B.leftOf(p), amt = chosenAmt(left);
+  if (!amt || amt <= 0) { toast('Enter the amount'); return; }
+  p.parts = p.parts && p.parts.length ? p.parts : (p.status === 'settled' ? [] : []);
+  p.parts.push({ amt: amt, at: fromInputs($('#amt-date').value, '12:00'), mode: $('#amt-mode').value, note: $('#amt-note').value.trim() });
+  logEvent('paid', { task: p.party, cat: 'Money', amount: amt, dir: p.type, clientId: p.clientId });
+  const rest = B.leftOf(p);
+  if (rest <= 0) { p.status = 'settled'; p.settledAt = Date.now(); syncMission('pay:' + p.id); }
+  else if ($('#amt-bal')) { p.due = L.startOfDay(fromInputs($('#amt-bal').value, '09:00')); }
+  save(); closeSheet(); render();
+  if (p.type === 'in') { celebrate('coins'); toast(rest ? 'Received ' + money(amt) + ' · ' + money(rest) + ' still to come' : 'Fully received: ' + money(p.amount)); V.speak('Well done ' + nm() + '. ' + money(amt) + ' received.'); }
+  else { celebrate('small'); toast(rest ? 'Paid ' + money(amt) + ' · ' + money(rest) + ' left' : 'Fully paid'); }
+}
+function salarySheet(e) {
+  const mk = B.payroll().month, sal = Number(e.salary) || 0, done = B.salaryPaidOf(e, mk), left = Math.max(0, sal - done);
+  const rec = e.paid && e.paid[mk] && typeof e.paid[mk] === 'object' ? e.paid[mk].parts || [] : [];
+  openSheet('<div class="eyebrow">Salary · ' + L.MON[new Date().getMonth()] + '</div><h3 class="mt">Pay ' + esc(e.name) + '</h3>' +
+    '<div class="stats">' + stat('Salary', money(sal), '') + stat('Paid this month', money(done), '') + stat('Remaining', '<span class="gold">' + money(left) + '</span>', '') + '</div>' +
+    (left > 0 ? amtChooser(left) + (e.upi ? '<a class="btn ghost block" id="upi-btn" href="#" data-a="upi-salary" data-id="' + e.id + '">' + icon('wallet', 15) + 'Open UPI app with this amount</a>' : '') +
+      '<button class="btn block" id="amt-go" data-verb="Confirm salary paid" data-a="salary-go" data-id="' + e.id + '">Confirm salary paid ' + money(left) + '</button>' : '<div class="panel gold">Full salary paid for this month.</div>') +
+    partsList(rec, 'sal:' + e.id));
+  $('#sheet').dataset.left = left;
+}
 function settle(id) {
   const p = payById(id); if (!p || p.status !== 'pending') return;
   p.status = 'settled'; p.settledAt = Date.now();
@@ -789,8 +848,13 @@ function loanPaid(id) {
   const l = loanById(id); if (!l) return;
   if (l.type === 'friend') {
     const left = B.loanOutstanding(l);
-    const amt = Number(prompt('How much did you pay ' + (l.lender || 'your friend') + '? (₹)', String(Math.min(left, l.emi || left))) || 0);
-    if (!amt) return;
+    if (!$('#amt-opt')) {
+      openSheet('<div class="eyebrow">Friendly loan</div><h3 class="mt">Pay ' + esc(l.lender || 'friend') + '</h3><div class="stats">' + stat('Total', money(l.amount), '') + stat('Remaining', '<span class="gold">' + money(left) + '</span>', '') + '</div>' + amtChooser(left) +
+        '<button class="btn block" id="amt-go" data-verb="Confirm paid" data-a="loan-paid" data-id="' + l.id + '">Confirm paid ' + money(left) + '</button>');
+      $('#sheet').dataset.left = left; return;
+    }
+    const amt = chosenAmt(left);
+    if (!amt) { toast('Enter the amount'); return; }
     l.paid = Number(l.paid || 0) + amt; l.lastPaid = Date.now();
     logEvent('emi', { task: 'Paid ' + l.lender, amount: amt });
     if (l.paid >= Number(l.amount || 0)) l.closed = true;
@@ -916,12 +980,7 @@ document.addEventListener('click', async (ev) => {
       save(); closeSheet(); render(); if (!id) celebrate('small'); toast('Saved'); break;
     }
     case 'del-emp': if (confirm('Delete this team member?')) { S.employees = S.employees.filter((x) => x.id !== id); save(); closeSheet(); render(); } break;
-    case 'emp-paid': {
-      const e = S.employees.find((x) => x.id === id), mk = B.payroll().month; e.paid = e.paid || {};
-      if (e.paid[mk]) { delete e.paid[mk]; S.expenses = S.expenses.filter((x) => x.empPay !== e.id + ':' + mk); toast('Marked as not paid'); }
-      else { e.paid[mk] = Date.now(); celebrate('small'); toast('Salary marked paid'); }
-      save(); closeSheet(); render(); break;
-    }
+    case 'emp-paid': salarySheet(S.employees.find((x) => x.id === id)); break;
     case 'upi-open': setTimeout(() => toast('After paying in your UPI app, tap Mark salary paid'), 600); return;
     case 'team-inc': case 'team-dec': { const m = S.growth.team[Number(el.dataset.i)]; m.have = Math.max(0, Number(m.have || 0) + (a === 'team-inc' ? 1 : -1)); save(); render(); if (a === 'team-inc') { celebrate(m.have >= m.need ? 'big' : 'small', m.have >= m.need ? { title: 'Team complete', sub: m.role + ': all ' + m.need + ' hired.' } : undefined); } break; }
     case 'edit-growth': {
@@ -999,7 +1058,34 @@ document.addEventListener('click', async (ev) => {
       if (id) Object.assign(payById(id), data); else S.payments.push(Object.assign({ id: nid(), status: 'pending', created: Date.now() }, data));
       save(); closeSheet(); render(); toast('Saved'); break;
     }
-    case 'settle': closeSheet(); settle(id); render(); break;
+    case 'settle': { const p = payById(id); if (p) settleSheet(p); break; }
+    case 'settle-go': settleGo(id); break;
+    case 'amt-opt': { document.querySelectorAll('#amt-opt button').forEach((b) => b.classList.toggle('on', b === el)); $('#amt-opt').dataset.v = v; const c = $('#amt-custom'); c.hidden = v !== 'custom'; if (v === 'custom') c.focus(); updateAmtView(Number($('#sheet').dataset.left)); break; }
+    case 'salary-go': {
+      const e = S.employees.find((x) => x.id === id), mk = B.payroll().month, left = Number($('#sheet').dataset.left), amt = chosenAmt(left);
+      if (!amt || amt <= 0) { toast('Enter the amount'); break; }
+      e.paid = e.paid || {};
+      if (!e.paid[mk] || typeof e.paid[mk] !== 'object') e.paid[mk] = { parts: [] };
+      e.paid[mk].parts.push({ amt: amt, at: fromInputs($('#amt-date').value, '12:00'), mode: $('#amt-mode').value, note: $('#amt-note').value.trim() });
+      logEvent('salary', { task: e.name, amount: amt });
+      save(); closeSheet(); render(); celebrate('small');
+      const rest = Math.max(0, (Number(e.salary) || 0) - B.salaryPaidOf(e, mk));
+      toast(rest ? 'Paid ' + money(amt) + ' · ' + money(rest) + ' left for ' + e.name : 'Full salary paid to ' + e.name); break;
+    }
+    case 'upi-salary': {
+      ev.preventDefault();
+      const e = S.employees.find((x) => x.id === id), amt = chosenAmt(Number($('#sheet').dataset.left));
+      if (!amt) { toast('Choose the amount first'); break; }
+      location.href = upiLink(e, amt, 'Salary ' + L.MON[new Date().getMonth()] + ' ' + new Date().getFullYear());
+      setTimeout(() => toast('After paying, tap Confirm salary paid'), 800); break;
+    }
+    case 'part-undo': {
+      const [kind, pid] = el.dataset.k.split(':'), i = Number(el.dataset.i);
+      if (!confirm('Remove this entry?')) break;
+      if (kind === 'pay') { const p = payById(Number(pid)); p.parts.splice(i, 1); if (B.leftOf(p) > 0) { p.status = 'pending'; p.settledAt = 0; } save(); settleSheet(p); }
+      else { const e = S.employees.find((x) => x.id === Number(pid)), mk = B.payroll().month; e.paid[mk].parts.splice(i, 1); if (!e.paid[mk].parts.length) delete e.paid[mk]; save(); salarySheet(e); }
+      render(); break;
+    }
     case 'del-pay': if (confirm('Delete this payment?')) { S.payments = S.payments.filter((p) => p.id !== id); save(); closeSheet(); render(); } break;
     case 'edit-target': { const t = prompt('Monthly revenue target in rupees', String(S.settings.revenueTarget)); if (t && Number(t)) { S.settings.revenueTarget = Number(t); save(); render(); } break; }
     case 'open-loan': loanSheet(loanById(id)); break;
@@ -1245,6 +1331,7 @@ document.addEventListener('input', (ev) => {
   else if (t.dataset.gt) { const x = S.growth.tiers[Number(t.dataset.i)]; x[t.dataset.gt] = t.dataset.gt === 'name' ? t.value : Number(t.value) || 0; save(); }
   else if (t.dataset.gm) { const x = S.growth.team[Number(t.dataset.i)]; x[t.dataset.gm] = t.dataset.gm === 'role' ? t.value : Number(t.value) || 0; save(); }
   else if (t.dataset.prof) { S.profile[t.dataset.prof] = t.value; if (t.dataset.prof === 'nickname' && t.value.trim()) S.settings.name = t.value.trim(); save(); }
+  else if (t.id === 'amt-custom') { updateAmtView(Number($('#sheet').dataset.left)); }
   else if (t.id === 'ask') { t.style.height = 'auto'; t.style.height = Math.min(140, t.scrollHeight) + 'px'; }
 });
 document.addEventListener('change', async (ev) => {

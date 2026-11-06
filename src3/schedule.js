@@ -70,7 +70,8 @@ export function buildSchedule() {
   // receivables and payables
   S.payments.forEach((p) => {
     if (p.status !== 'pending') return;
-    const verb = p.type === 'in' ? 'Collect ' + L.money(p.amount) + ' from ' + p.party : 'Pay ' + L.money(p.amount) + ' to ' + p.party;
+    const left = Math.max(0, Number(p.amount || 0) - (p.parts || []).reduce((a, x) => a + Number(x.amt || 0), 0));
+    const verb = p.type === 'in' ? 'Collect ' + L.money(left) + ' from ' + p.party : 'Pay ' + L.money(left) + ' to ' + p.party;
     const from = p.snoozeUntil || 0;
     const before = L.atTime(L.addDays(p.due, -1), 19, 0);
     if (before >= from) push(before, 'Tomorrow: ' + verb, p.note || 'Heads-up from Lucy', 'pay-' + p.id, '#money');

@@ -59,7 +59,7 @@ export function ensureMission() {
 }
 export function itemTitle(x) {
   if (x.kind === 'rem') { const r = S.reminders.find((y) => y.id === x.id); return r && r.task; }
-  if (x.kind === 'pay') { const p = S.payments.find((y) => y.id === x.id); return p && ((p.type === 'in' ? 'Collect ' : 'Pay ') + L.money(p.amount) + (p.type === 'in' ? ' from ' : ' to ') + p.party); }
+  if (x.kind === 'pay') { const p = S.payments.find((y) => y.id === x.id); return p && ((p.type === 'in' ? 'Collect ' : 'Pay ') + L.money(leftOf(p)) + (p.type === 'in' ? ' from ' : ' to ') + p.party); }
   if (x.kind === 'lead') { const l = S.leads.find((y) => y.id === x.id); return l && ('Follow up with ' + l.name); }
   return '';
 }
@@ -82,13 +82,20 @@ export function nextBestMove() {
   return { text: 'Contact the three highest-scoring leads.', why: 'Your list is clear. Outreach is now the highest-value use of your time.', go: 'more-leads' };
 }
 
+/* ---------------- Part payments ---------------- */
+// Every payment keeps a list of parts: [{ amt, at, mode, note }]. Older records without parts count as fully paid when settled.
+export function partsOf(p) { return p.parts && p.parts.length ? p.parts : (p.status === 'settled' ? [{ amt: Number(p.amount || 0), at: p.settledAt || p.due }] : []); }
+export function paidOf(p) { return partsOf(p).reduce((a, x) => a + Number(x.amt || 0), 0); }
+export function leftOf(p) { return Math.max(0, Number(p.amount || 0) - paidOf(p)); }
+export function salaryPaidOf(e, mk) { const x = e.paid && e.paid[mk]; if (!x) return 0; if (typeof x === 'number') return Number(e.salary) || 0; return (x.parts || []).reduce((a, y) => a + Number(y.amt || 0), 0); }
+
 /* ---------------- Revenue mission ---------------- */
 export function revenue() {
   const now = Date.now(), mk = monthKey(now);
   const inThisMonth = (ms) => ms && monthKey(ms) === mk;
-  const collected = S.payments.filter((p) => p.type === 'in' && p.status === 'settled' && inThisMonth(p.settledAt)).reduce((a, p) => a + Number(p.amount || 0), 0);
-  const outstanding = S.payments.filter((p) => p.type === 'in' && p.status === 'pending').reduce((a, p) => a + Number(p.amount || 0), 0);
-  const expected = S.payments.filter((p) => p.type === 'in' && p.status === 'pending' && monthKey(p.due) === mk).reduce((a, p) => a + Number(p.amount || 0), 0);
+  const collected = S.payments.filter((p) => p.type === 'in').reduce((a, p) => a + partsOf(p).filter((x) => inThisMonth(x.at)).reduce((b, x) => b + Number(x.amt || 0), 0), 0);
+  const outstanding = S.payments.filter((p) => p.type === 'in' && p.status === 'pending').reduce((a, p) => a + leftOf(p), 0);
+  const expected = S.payments.filter((p) => p.type === 'in' && p.status === 'pending' && monthKey(p.due) === mk).reduce((a, p) => a + leftOf(p), 0);
   const active = S.clients.filter((c) => c.active !== false && Number(c.retainer) > 0);
   const mrr = active.reduce((a, c) => a + Number(c.retainer || 0), 0);
   const avg = active.length ? mrr / active.length : 0;
@@ -100,7 +107,7 @@ export function revenue() {
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now); d.setDate(1); d.setMonth(d.getMonth() - i);
     const k = monthKey(d.getTime());
-    history.push({ label: L.MON[d.getMonth()], value: S.payments.filter((p) => p.type === 'in' && p.status === 'settled' && p.settledAt && monthKey(p.settledAt) === k).reduce((a, p) => a + Number(p.amount || 0), 0) });
+    history.push({ label: L.MON[d.getMonth()], value: S.payments.filter((p) => p.type === 'in').reduce((a, p) => a + partsOf(p).filter((x) => x.at && monthKey(x.at) === k).reduce((b, x) => b + Number(x.amt || 0), 0), 0) });
   }
   return { target, collected, outstanding, expected, mrr, activeClients: active.length, avg, expenses, net: collected - expenses, gap, clientsNeeded, pct: target ? Math.min(1, collected / target) : 0, history };
 }
@@ -187,7 +194,7 @@ export function briefing() {
   if (meetings.length) lines.push(meetings.length + (meetings.length > 1 ? ' meetings' : ' meeting') + ' today: ' + meetings.slice(0, 2).map((r) => r.task + ' at ' + L.fmtTime(L.occurrencesBetween(r, d0, d1, 1)[0])).join(', ') + '.');
   else lines.push(todayRems.length ? todayRems.length + ' reminders on today\'s list.' : 'No fixed commitments today. A good day for deep work and outreach.');
   if (overdue.length) lines.push(overdue.length + ' item' + (overdue.length > 1 ? 's are' : ' is') + ' overdue. Clear ' + (overdue.length > 1 ? 'them' : 'it') + ' first.');
-  if (collectToday.length) lines.push('Collect ' + L.money(collectToday.reduce((a, p) => a + Number(p.amount), 0)) + ' from ' + collectToday.map((p) => p.party).slice(0, 2).join(' and ') + '.');
+  if (collectToday.length) lines.push('Collect ' + L.money(collectToday.reduce((a, p) => a + leftOf(p), 0)) + ' from ' + collectToday.map((p) => p.party).slice(0, 2).join(' and ') + '.');
   if (followups.length) lines.push(followups.length + ' lead follow-up' + (followups.length > 1 ? 's' : '') + ' due.');
   if (loansDue.length) lines.push('EMI coming up: ' + loansDue.map((x) => (x.l.title || x.l.lender) + ' ' + L.money(x.l.emi || x.l.amount) + ' on ' + L.fmtDate(x.due)).slice(0, 2).join(', ') + '.');
   if (rev.target) lines.push('Revenue this month: ' + L.money(rev.collected) + ' of ' + L.money(rev.target) + ' (' + Math.round(rev.pct * 100) + '%).');
@@ -274,11 +281,12 @@ export function growthPlan() {
 
 // Employees and payroll
 export function payroll() {
-  const mk = new Date().toISOString().slice(0, 7);
+  const mk = monthKey(Date.now());
   const list = S.employees.filter((e) => e.active !== false);
   const total = list.reduce((a, e) => a + (Number(e.salary) || 0), 0);
-  const paid = list.filter((e) => e.paid && e.paid[mk]);
-  return { list: list, total: total, paidCount: paid.length, paidAmount: paid.reduce((a, e) => a + (Number(e.salary) || 0), 0), due: list.filter((e) => !(e.paid && e.paid[mk])), month: mk };
+  const paidAmount = list.reduce((a, e) => a + Math.min(Number(e.salary) || 0, salaryPaidOf(e, mk)), 0);
+  const full = list.filter((e) => salaryPaidOf(e, mk) >= (Number(e.salary) || 0) && salaryPaidOf(e, mk) > 0);
+  return { list: list, total: total, paidCount: full.length, paidAmount: paidAmount, due: list.filter((e) => salaryPaidOf(e, mk) < (Number(e.salary) || 0)), month: mk };
 }
 
 // Monthly clients: on each renewal date, add that month's amount to receivables (once per cycle).

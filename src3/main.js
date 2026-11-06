@@ -425,8 +425,9 @@ function loanRow(l, ic) {
 
 /* =============================== ASCEND =============================== */
 function renderAscend() {
-  const s = segOf('ascend', 'manifest');
-  let h = topbar('Ascend', { eyebrow: 'Mindset · dreams · discipline' }) + seg('ascend', [['manifest', 'Manifest'], ['affirm', 'Affirm'], ['dreams', 'Dreams'], ['founder', 'Founder'], ['journal', 'Journal']], s);
+  let s = segOf('ascend', 'manifest');
+  if (s === 'founder') s = view.seg.ascend = 'manifest';
+  let h = topbar('Ascend', { eyebrow: 'Mindset · dreams · discipline' }) + seg('ascend', [['manifest', 'Manifest'], ['affirm', 'Affirm'], ['dreams', 'Dreams'], ['journal', 'Journal']], s);
   if (s === 'manifest') {
     h += renderManifest();
   } else if (s === 'affirm') {

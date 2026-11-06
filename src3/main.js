@@ -758,6 +758,11 @@ function showOpening(force) {
 /* =============================== events =============================== */
 document.addEventListener('pointerdown', (e) => setTapPoint(e.clientX, e.clientY), true);
 document.addEventListener('click', async (ev) => {
+  if (ev.target.closest('.lucy-stage') && !ev.target.closest('[data-a]')) {
+    if (V.isSpeaking()) { V.stopSpeaking(); return; }
+    const lines = ['Hi ' + nm() + '. I am Lucy. Ask me anything, and I will help you get there faster.', 'You have more potential than you are using today, ' + nm() + '. Let us use it.', 'I am right here with you. What is the one thing that matters most right now?'];
+    V.speak(lines[Math.floor(Math.random() * lines.length)], { force: true }); return;
+  }
   const el = ev.target.closest('[data-a]');
   if (!el) return;
   const a = el.dataset.a, id = el.dataset.id ? Number(el.dataset.id) : null, v = el.dataset.v;

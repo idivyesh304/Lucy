@@ -438,3 +438,4 @@ h1 b { background: linear-gradient(100deg, #FFF1CF 0%, #D8B56A 35%, #F3D9A0 55%,
 #overlay { background: radial-gradient(ellipse at 50% 30%, rgba(40,32,18,.7), rgba(6,7,11,.94) 70%); }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+.lucy-stage.holo { cursor: pointer; }

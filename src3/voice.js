@@ -12,18 +12,31 @@ export function voices() {
   if (!('speechSynthesis' in window)) return [];
   return speechSynthesis.getVoices().filter((v) => /^(en|hi)/i.test(v.lang));
 }
-export function indianVoices() {
-  const all = voices();
-  const inn = all.filter((v) => /IN/i.test(v.lang));
-  return inn.length ? inn : all;
+// Lucy is female: only female voices are used, best Indian English first.
+const MALE = /\b(rishi|prabhat|ravi|hemant|daniel|alex|fred|aaron|arthur|gordon|oliver|thomas|tom|rocko|grandpa|reed|eddy|ralph|albert|bruce|junior|david|mark|george|guy|ryan|james|male)\b|en-in-x-(end|ene)|en-us-x-(iol|iom|tpd)|en-gb-x-(gbb|gbd|rjs)/i;
+const FEMALE_RANK = [
+  /\b(isha|veena|neerja|heera|kalpana|priya|sangeeta)\b/i,
+  /en-in-x-(ahp|cxx|ena)/i,
+  /google.*(india|हिन्दी)/i,
+  /\blekha\b/i,
+  /\b(samantha|karen|moira|tessa|serena|kate|fiona|victoria|allison|ava|susan|zira|aria|jenny|libby|sonia|martha|nicky|zoe|siri)\b/i,
+  /female|google uk english female|google us english/i
+];
+function isMale(v) { return MALE.test(v.name) || MALE.test(v.voiceURI || ''); }
+function rank(v) {
+  if (isMale(v)) return 99;
+  for (let i = 0; i < FEMALE_RANK.length; i++) if (FEMALE_RANK[i].test(v.name) || FEMALE_RANK[i].test(v.voiceURI || '')) return i * 2 + (/en[-_]IN/i.test(v.lang) ? 0 : 1);
+  return /en[-_]IN/i.test(v.lang) ? 40 : 60; // unknown gender
 }
+export function femaleVoices() {
+  return voices().filter((v) => !isMale(v)).sort((a, b) => rank(a) - rank(b) || (/enhanced|premium|natural/i.test(b.name) - /enhanced|premium|natural/i.test(a.name)));
+}
+export function indianVoices() { return femaleVoices(); }
 function chooseVoice() {
-  const all = voices();
+  const list = femaleVoices();
   const want = S.settings.voiceURI;
-  if (want) { const v = all.find((x) => x.voiceURI === want); if (v) return v; }
-  const inn = all.filter((v) => /en[-_]IN/i.test(v.lang));
-  const female = inn.find((v) => /isha|veena|lekha|neerja|heera|female|kalpana|priya/i.test(v.name));
-  return female || inn[0] || all.find((v) => /en[-_]GB/i.test(v.lang)) || all[0] || null;
+  if (want) { const v = list.find((x) => x.voiceURI === want); if (v) return v; }
+  return list[0] || null;
 }
 export function speak(text, opts) {
   opts = opts || {};

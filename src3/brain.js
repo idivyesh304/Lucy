@@ -3,7 +3,7 @@ import * as MG from './magnet.js';
 import { upcoming as upcomingSpecial, specialTitle } from './special.js';
 import * as L from '../src/logic.js';
 import * as C from './content.js';
-import { S } from './store.js';
+import { S, nid } from './store.js';
 
 export const alertStart = (r) => Math.max(r.due, r.snoozeUntil || 0);
 export const today = () => L.dayKey(Date.now());
@@ -301,7 +301,7 @@ export function billClients() {
     while (c.nextDate <= soon && guard++ < 24) {
       const key = c.id + ':' + L.dayKey(c.nextDate);
       if (!S.payments.some((p) => p.cycle === key)) {
-        S.payments.push({ id: S.seq++, type: 'in', party: c.company || c.firstName || 'Client', amount: Number(c.retainer || c.amount), due: c.nextDate, note: (c.pkg ? c.pkg + ' · ' : '') + 'Monthly renewal', clientId: c.id, status: 'pending', created: Date.now(), auto: true, cycle: key });
+        S.payments.push({ id: nid(), type: 'in', party: c.company || c.firstName || 'Client', amount: Number(c.retainer || c.amount), due: c.nextDate, note: (c.pkg ? c.pkg + ' · ' : '') + 'Monthly renewal', clientId: c.id, status: 'pending', created: Date.now(), auto: true, cycle: key });
       }
       const d = new Date(c.nextDate), day = c.renewDay || d.getDate();
       c.renewDay = day;

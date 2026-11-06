@@ -117,6 +117,10 @@ async function push(force) {
     const r2 = await api.driveSave(JSON.stringify(S), true);
     if (r2 && r2.conflict) throw new Error('Sync paused to protect your data');
     if (onReplacedCb) onReplacedCb();
+  } else if (res && res.merged && res.data) {
+    // the helper combined this save with entries from another device: take the combined copy
+    const m = JSON.parse(res.data);
+    if ((S.updatedAt || 0) <= (m.updatedAt || 0)) { replaceState(m); if (onReplacedCb) onReplacedCb(); }
   }
   device.set('syncBase', String(S.updatedAt || 0));
 }
@@ -124,7 +128,8 @@ export async function pullFromDrive(onReplaced) { return syncNow(onReplaced); }
 export function queueDriveSave() {
   if (!driveEnabled()) return;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => syncNow(), 3500);
+  sync.pending = true;
+  saveTimer = setTimeout(() => { sync.pending = false; syncNow(); }, 700);
 }
 export async function pushToDrive() { return syncNow(); }
 // Restore an earlier version on purpose (from the Recover screen).
@@ -176,3 +181,17 @@ export function queueSchedule(build) {
 }
 
 export function markSaved() { save(); }
+
+// If Lucy is closed or sent to the background right after a change, save it immediately.
+function flushNow() {
+  if (!driveEnabled() || !sync.pending) return;
+  clearTimeout(saveTimer); sync.pending = false;
+  try {
+    fetch(helperUrl() + '/drive/save', { method: 'POST', keepalive: true, headers: { 'content-type': 'application/json', 'x-lucy-key': passkey() }, body: JSON.stringify(S) })
+      .then((r) => { if (r.ok) device.set('syncBase', String(S.updatedAt || 0)); }).catch(() => {});
+  } catch (e) { /* ignore */ }
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flushNow);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushNow(); });
+}

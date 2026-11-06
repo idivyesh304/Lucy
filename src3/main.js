@@ -1586,8 +1586,8 @@ async function newVersionReady() {
     }
   });
   if (H.ready()) { await refreshStatus(true); await H.pullFromDrive(() => render()); render(); H.queueSchedule(buildSchedule); }
-  // keep laptop, iPhone and Android in step: check Drive for newer data every minute while Lucy is open
-  setInterval(() => { if (document.visibilityState === 'visible' && H.driveEnabled() && !sheetOpen() && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) H.pullFromDrive(() => render()); }, 60000);
+  // keep laptop, iPhone and Android in step: check Drive for newer data every 15 seconds while Lucy is open
+  setInterval(() => { if (document.visibilityState === 'visible' && H.driveEnabled() && !sheetOpen() && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) H.pullFromDrive(() => render()); }, 15000);
 })();
 
 window.__lucy = { get S() { return S; }, buildSchedule: buildSchedule, render: render, B: B, state: setAvatarState };

@@ -4,6 +4,7 @@
 // Everything except /health, /vapid and the Google sign-in callback needs the Lucy passkey.
 
 import { generateVapidKeys, sendPush } from './webpush.js';
+import { records, mergeStates } from '../../src3/merge.js';
 
 const DRIVE_FILE = 'lucy-data.json';
 const PUSH_SUBJECT = 'mailto:lucy-assistant@users.noreply.github.com';
@@ -303,16 +304,9 @@ async function upload(token, id, name, text) {
   if (!res.ok) throw new Error('Drive create failed (' + res.status + ')');
 }
 // how much real data a Lucy file holds
-function records(d) {
-  if (!d || typeof d !== 'object') return 0;
-  let n = 0;
-  ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning'].forEach((k) => { if (Array.isArray(d[k])) n += d[k].length; });
-  (d.office || []).forEach((o) => { if (Number(o.amount)) n++; Object.values(o.paid || {}).forEach((x) => { n += ((x && x.parts) || []).length; }); });
-  (d.payments || []).forEach((p) => { n += (p.parts || []).length; });
-  return n;
-}
 async function driveSave(text, env, cfg, force) {
-  const incoming = JSON.parse(text); // refuse to save broken data
+  let incoming = JSON.parse(text); // refuse to save broken data
+  let merged = false;
   const token = await accessToken(env, cfg);
   const files = await findFiles(token, 'lucy-');
   const main = files.find((f) => f.name === DRIVE_FILE);
@@ -322,6 +316,15 @@ async function driveSave(text, env, cfg, force) {
     if (cur.ok) {
       const curText = await cur.text();
       let curData = null; try { curData = JSON.parse(curText); } catch (e) {}
+      // Every save is merged with what is already in Drive, so no device can ever overwrite another device's entries.
+      if (!force && curData) {
+        const m = mergeStates(curData, incoming);
+        const mt = JSON.stringify(m);
+        if (mt !== text) {
+          m.updatedAt = Math.max(Number(curData.updatedAt) || 0, Number(incoming.updatedAt) || 0) + 1;
+          incoming = m; text = JSON.stringify(m); merged = true;
+        }
+      }
       const before = records(curData), after = records(incoming);
       if (after < before) {
         const stamp = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 19).replace(/[:T]/g, '-');
@@ -345,7 +348,7 @@ async function driveSave(text, env, cfg, force) {
       await fetch('https://www.googleapis.com/drive/v3/files/' + old.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
     }
   }
-  return json({ ok: true, savedAt: Date.now() });
+  return json(merged ? { ok: true, savedAt: Date.now(), merged: true, data: text, updatedAt: incoming.updatedAt } : { ok: true, savedAt: Date.now(), updatedAt: incoming.updatedAt });
 }
 
 // Every earlier version Drive holds: file revisions, daily backups and safety copies.
@@ -381,7 +384,7 @@ async function kvSnapshot(env, text, d) {
   const day = new Date(now + 330 * 60000).toISOString().slice(0, 10);
   const recs = records(d);
   const needDaily = !idx.some((x) => x.day === day && x.daily);
-  if (!needDaily && last && now - last.at < 20 * 60000 && recs >= (last.records || 0)) return;
+  if (!needDaily && last && now - last.at < 10 * 60000 && recs >= (last.records || 0)) return;
   const key = 'snap:' + now;
   await env.LUCY.put(key, text);
   idx.unshift({ key: key, at: now, day: day, records: recs, daily: needDaily });

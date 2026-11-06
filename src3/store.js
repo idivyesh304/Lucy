@@ -1,6 +1,7 @@
 // Lucy state: one object, saved on the phone and synced to Google Drive through the helper.
 import * as C from './content.js';
 
+export const OFFICE_PRESET = [['Rent', 'Office rent'], ['Light bill', 'Electricity bill', true], ['Internet', 'Internet'], ['AI subscriptions', 'AI subscriptions'], ['Adobe', 'Adobe Pro subscription'], ['Cleaner', 'Office cleaner'], ['Drinking water', 'Drinking water supplier', true], ['Other', 'Other office expense', true]];
 export const KEY = 'lucy.v3';
 const listeners = [];
 export function onSave(fn) { listeners.push(fn); }
@@ -23,7 +24,7 @@ export function defaults() {
     routineLog: {}, reminders: [], clients: [], payments: [], loans: [], expenses: [], dreams: [],
     affirm: { done: {}, custom: [], spoken: {} }, mission: {}, leads: [], ideas: [], notes: [], shopping: [], learning: [],
     journal: {}, chat: [], log: [], celebrated: {},
-    specialDays: [], employees: [],
+    specialDays: [], employees: [], office: [],
     growth: {
       tiers: [{ name: 'Premium', price: 50000, count: 15 }, { name: 'Growth', price: 30000, count: 15 }, { name: 'Starter', price: 25000, count: 15 }],
       team: [{ role: 'Video editor', need: 4, have: 0, salary: 0 }, { role: 'Graphic designer', need: 3, have: 0, salary: 0 }, { role: 'Marketing / sales', need: 2, have: 0, salary: 0 },
@@ -68,6 +69,12 @@ export function migrate(d) {
     out.v = 3;
   }
   out.profile = Object.assign(defaults().profile, d.profile || {});
+  // Office expenses: add the standard items once (never removes or changes existing ones)
+  if (!out.officeSeeded) {
+    out.office = Array.isArray(d.office) ? d.office : [];
+    OFFICE_PRESET.forEach(([cat, name, variable]) => { if (!out.office.some((o) => o.cat === cat)) out.office.push({ id: 'of-' + cat.toLowerCase().replace(/[^a-z]+/g, '-'), cat: cat, name: name, amount: 0, dueDay: 5, variable: !!variable, paid: {}, note: '' }); });
+    out.officeSeeded = true;
+  }
   if (!out.growth || !Array.isArray(out.growth.tiers)) out.growth = defaults().growth;
   if (!out.growthAI) { if (!out.growth.team.some((m) => /ai artist/i.test(m.role))) out.growth.team.push({ role: 'AI artist', need: 1, have: 0, salary: 0 }); out.growthAI = true; }
   // Nov 2026: Divyesh set his monthly target to Rs 15 lakh (was Rs 25 lakh)
@@ -76,7 +83,7 @@ export function migrate(d) {
     out.settings.vision = (out.settings.vision || []).map((v) => String(v).replace(/₹\s?25 lakh monthly revenue/, '₹15 lakh monthly revenue'));
     out.targetSet15 = true;
   }
-  ['reminders', 'clients', 'payments', 'loans', 'expenses', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'chat', 'log', 'specialDays', 'employees']
+  ['reminders', 'clients', 'payments', 'loans', 'expenses', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'chat', 'log', 'specialDays', 'employees', 'office']
     .forEach((k) => { if (!Array.isArray(out[k])) out[k] = []; });
   out.affirm = Object.assign({ done: {}, custom: [], spoken: {} }, d.affirm || {});
   return out;

@@ -28,7 +28,7 @@ export function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
 }
-export function openSheet(html, full) { const s = $('#sheet'); s.innerHTML = html; s.classList.toggle('full', !!full); s.scrollTop = 0; $('#sheet-wrap').hidden = false; }
+export function openSheet(html, full) { const s = $('#sheet'); delete s.dataset.nocap; s.innerHTML = html; s.classList.toggle('full', !!full); s.scrollTop = 0; $('#sheet-wrap').hidden = false; }
 export function closeSheet() { $('#sheet-wrap').hidden = true; $('#sheet').innerHTML = ''; $('#sheet').classList.remove('full'); }
 export function sheetOpen() { return !$('#sheet-wrap').hidden; }
 export const listOf = (rows, empty) => rows.length ? '<div class="list">' + rows.join('') + '</div>' : (empty ? '<div class="empty">' + empty + '</div>' : '');

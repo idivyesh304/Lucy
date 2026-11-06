@@ -346,7 +346,12 @@ function renderMoney() {
     const month = list.filter((e) => e.recurring || L.dayKey(e.date).slice(0, 7) === mk);
     const pr = B.payroll();
     if (pr.list.length) h += '<button class="panel gold" style="width:100%;text-align:left" data-a="sub" data-v="team"><div class="row"><div class="badge">' + icon('users', 18) + '</div><div class="grow"><b>Team salaries · ' + short(pr.total) + ' / month</b><div class="sub">Every month · ' + pr.paidCount + ' of ' + pr.list.length + ' paid this month · ' + short(pr.total - pr.paidAmount) + ' to pay. Counted in your monthly expenses automatically.</div></div>' + icon('right', 18) + '</div></button>';
-    h += '<div class="stats">' + stat('This month', short(month.reduce((a, e) => a + Number(e.amount), 0) + pr.total), month.length + ' entries' + (pr.total ? ' + salaries' : '')) + stat('Every month', short(list.filter((e) => e.recurring).reduce((a, e) => a + Number(e.amount), 0) + pr.total), 'fixed costs incl. salaries') + '</div>';
+    const om = B.officeMonth();
+    h += '<div class="stats">' + stat('This month', short(month.reduce((a, e) => a + Number(e.amount), 0) + pr.total + om.total), 'office, salaries and other') + stat('Office bills', short(om.total), short(om.paid) + ' paid') + '</div>';
+    h += '<h2>Office expenses<button class="link" data-a="new-office">Add</button></h2><div class="list">' + om.rows.map((r) => { const o = r.o;
+      return '<div class="item' + (r.status === 'off' ? ' off' : '') + '" data-a="open-office" data-id="' + esc(o.id) + '"><div class="badge" style="width:36px;height:36px">' + icon(OFFICE_ICON[o.cat] || 'building', 17) + '</div><div class="grow"><div class="t">' + esc(o.name) + '</div><div class="m">' + (r.status === 'off' ? 'Not tracking' : r.status === 'unset' ? 'Tap to set amount' : (o.variable ? 'About ' : '') + money(o.amount) + ' · due on ' + o.dueDay + (o.note ? ' · ' + esc(o.note) : '')) + '</div></div>' +
+        '<div class="right"><div class="m" style="font-size:12px">' + (r.status === 'paid' ? '<span class="good">Paid ' + money(r.paid) + '</span>' : r.status === 'part' ? '<span class="gold">Part ' + money(r.paid) + '</span>' : r.status === 'due' ? '<span class="warn">Due</span>' : '') + '</div></div></div>'; }).join('') + '</div>';
+    h += '<h2>Other expenses</h2>';
     h += listOf(list.slice(0, 60).map((e) => '<div class="item" data-a="edit-exp" data-id="' + e.id + '"><div class="badge">' + icon('card', 18) + '</div><div class="grow"><div class="t">' + esc(e.title) + '</div><div class="m">' + esc(e.cat || 'Other') + ' · ' + (e.recurring ? 'Every month' : L.fmtDate(e.date)) + '</div></div><div class="amount out">' + money(e.amount) + '</div></div>'), 'No expenses yet. Tap + to log salaries, rent, software and more.');
   }
   return h;
@@ -761,7 +766,8 @@ function chosenAmt(left) {
   const box = $('#amt-opt'), v = (box && box.dataset.v) || 'full';
   if (v === 'full') return left;
   if (v === 'half') return Math.round(left / 2);
-  return Math.min(left, Number(($('#amt-custom') || {}).value) || 0);
+  const c = Number(($('#amt-custom') || {}).value) || 0;
+  return $('#sheet').dataset.nocap === '1' ? c : Math.min(left, c);
 }
 function updateAmtView(left) {
   const amt = chosenAmt(left), v = ($('#amt-opt') || {}).dataset ? $('#amt-opt').dataset.v || 'full' : 'full';
@@ -772,6 +778,22 @@ function updateAmtView(left) {
 function partsList(parts, kind) {
   if (!parts.length) return '';
   return '<h2>History</h2><div class="list">' + parts.map((x, i) => '<div class="item"><div class="grow"><div class="t">' + money(x.amt) + '</div><div class="m">' + L.fmtDate(x.at) + (x.mode ? ' · ' + esc(x.mode) : '') + (x.note ? ' · ' + esc(x.note) : '') + '</div></div><button class="link" data-a="part-undo" data-k="' + kind + '" data-i="' + i + '">Undo</button></div>').join('') + '</div>';
+}
+const OFFICE_ICON = { 'Rent': 'building', 'Light bill': 'bolt', 'Internet': 'globe', 'AI subscriptions': 'spark', 'Adobe': 'image', 'Cleaner': 'droplet', 'Drinking water': 'cup', 'Other': 'note' };
+function officeSheet(o) {
+  const mk = B.officeMonth().mk, paid = B.officePaidOf(o, mk), amt = Number(o.amount) || 0, left = Math.max(0, amt - paid);
+  const parts = o.paid && o.paid[mk] ? o.paid[mk].parts || [] : [];
+  openSheet('<div class="eyebrow">Office expense · ' + L.MON[new Date().getMonth()] + '</div><h3 class="mt">' + esc(o.name) + '</h3>' +
+    '<div class="grid2"><div><label>' + (o.variable ? 'Usual amount (₹)' : 'Monthly amount (₹)') + '</label><input id="of-amt" type="number" inputmode="numeric" value="' + (amt || '') + '"></div><div><label>Due day of month</label><select id="of-day">' + Array.from({ length: 31 }, (_, i) => '<option ' + (Number(o.dueDay) === i + 1 ? 'selected' : '') + '>' + (i + 1) + '</option>').join('') + '</select></div></div>' +
+    '<label>Name</label><input id="of-name" value="' + esc(o.name) + '"><label>Vendor or note</label><input id="of-note" value="' + esc(o.note || '') + '" placeholder="e.g. Jio Fiber, ChatGPT + Claude">' +
+    '<div class="row mt"><input type="checkbox" id="of-var" ' + (o.variable ? 'checked' : '') + '><span>Amount changes every month (like light bill)</span></div>' +
+    '<button class="btn ghost block" data-a="save-office" data-id="' + esc(o.id) + '">Save details</button>' +
+    (amt || o.variable ? '<h2>Pay this month</h2><div class="stats">' + stat('This month', money(o.variable ? Math.max(amt, paid) : amt), '') + stat('Paid', money(paid), '') + '</div>' +
+      (left > 0 || o.variable ? amtChooser(o.variable && !left ? amt || 0 : left) + '<button class="btn block" id="amt-go" data-verb="Confirm paid" data-a="office-pay" data-id="' + esc(o.id) + '">Confirm paid ' + money(o.variable && !left ? amt : left) + '</button>' : '<div class="panel gold">Paid in full this month.</div>') : '<div class="hint">Set the amount to track payments and get reminders before the due day.</div>') +
+    (parts.length ? '<h2>Paid this month</h2><div class="list">' + parts.map((x, i) => '<div class="item"><div class="grow"><div class="t">' + money(x.amt) + '</div><div class="m">' + L.fmtDate(x.at) + (x.mode ? ' · ' + esc(x.mode) : '') + (x.note ? ' · ' + esc(x.note) : '') + '</div></div><button class="link" data-a="office-undo" data-id="' + esc(o.id) + '" data-i="' + i + '">Undo</button></div>').join('') + '</div>' : '') +
+    '<button class="btn small ghost mt" data-a="office-off" data-id="' + esc(o.id) + '">' + (o.active === false ? 'Turn back on' : 'Stop tracking this') + '</button>');
+  $('#sheet').dataset.left = o.variable && !left ? (amt || 0) : left;
+  $('#sheet').dataset.nocap = o.variable ? '1' : '';
 }
 function settleSheet(p) {
   const left = B.leftOf(p), paidSoFar = B.paidOf(p), inn = p.type === 'in';
@@ -1060,6 +1082,19 @@ document.addEventListener('click', async (ev) => {
     }
     case 'settle': { const p = payById(id); if (p) settleSheet(p); break; }
     case 'settle-go': settleGo(id); break;
+    case 'open-office': officeSheet(S.office.find((x) => x.id === el.dataset.id)); break;
+    case 'new-office': { const o = { id: 'of-' + nid(), cat: 'Other', name: 'New office expense', amount: 0, dueDay: 5, variable: false, paid: {}, note: '' }; S.office.push(o); save({ local: true }); officeSheet(o); break; }
+    case 'save-office': { const o = S.office.find((x) => x.id === el.dataset.id); Object.assign(o, { amount: Number($('#of-amt').value) || 0, dueDay: Number($('#of-day').value) || 1, name: $('#of-name').value.trim() || o.name, note: $('#of-note').value.trim(), variable: $('#of-var').checked }); save(); toast('Saved'); officeSheet(o); render(); break; }
+    case 'office-pay': {
+      const o = S.office.find((x) => x.id === el.dataset.id), mk = B.officeMonth().mk, amt = chosenAmt(Number($('#sheet').dataset.left));
+      if (!amt || amt <= 0) { toast('Enter the amount'); break; }
+      o.paid = o.paid || {}; o.paid[mk] = o.paid[mk] || { parts: [] };
+      o.paid[mk].parts.push({ amt: amt, at: fromInputs($('#amt-date').value, '12:00'), mode: $('#amt-mode').value, note: $('#amt-note').value.trim() });
+      logEvent('office', { task: o.name, amount: amt });
+      save(); closeSheet(); render(); celebrate('small'); toast(o.name + ': ' + money(amt) + ' paid'); break;
+    }
+    case 'office-undo': { const o = S.office.find((x) => x.id === el.dataset.id), mk = B.officeMonth().mk; if (!confirm('Remove this payment entry?')) break; o.paid[mk].parts.splice(Number(el.dataset.i), 1); save(); officeSheet(o); render(); break; }
+    case 'office-off': { const o = S.office.find((x) => x.id === el.dataset.id); o.active = o.active === false; save(); closeSheet(); render(); break; }
     case 'amt-opt': { document.querySelectorAll('#amt-opt button').forEach((b) => b.classList.toggle('on', b === el)); $('#amt-opt').dataset.v = v; const c = $('#amt-custom'); c.hidden = v !== 'custom'; if (v === 'custom') c.focus(); updateAmtView(Number($('#sheet').dataset.left)); break; }
     case 'salary-go': {
       const e = S.employees.find((x) => x.id === id), mk = B.payroll().month, left = Number($('#sheet').dataset.left), amt = chosenAmt(left);
@@ -1380,6 +1415,7 @@ function openHash() {
   } else if (h === '#plan' || h === '#money' || h === '#ascend' || h === '#home') { view.tab = h.slice(1); }
   else if (h === '#money-loans') { view.tab = 'money'; view.seg.money = 'loans'; }
   else if (h === '#more-team') { view.tab = 'more'; view.sub = 'team'; }
+  else if (h === '#money-expenses') { view.tab = 'money'; view.seg.money = 'expenses'; }
   else if (h === '#plan-special') { view.tab = 'plan'; view.seg.plan = 'special'; }
   else if (h === '#more-review') { view.tab = 'more'; view.sub = 'review'; }
   history.replaceState(null, '', location.pathname);

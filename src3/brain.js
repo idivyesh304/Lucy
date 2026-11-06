@@ -99,7 +99,7 @@ export function revenue() {
   const active = S.clients.filter((c) => c.active !== false && Number(c.retainer) > 0);
   const mrr = active.reduce((a, c) => a + Number(c.retainer || 0), 0);
   const avg = active.length ? mrr / active.length : 0;
-  const expenses = S.expenses.filter((e) => (e.recurring && e.date <= now) || inThisMonth(e.date)).reduce((a, e) => a + Number(e.amount || 0), 0) + S.employees.filter((e) => e.active !== false).reduce((a, e) => a + (Number(e.salary) || 0), 0);
+  const expenses = S.expenses.filter((e) => (e.recurring && e.date <= now) || inThisMonth(e.date)).reduce((a, e) => a + Number(e.amount || 0), 0) + S.employees.filter((e) => e.active !== false).reduce((a, e) => a + (Number(e.salary) || 0), 0) + officeMonth().total;
   const target = Number(S.settings.revenueTarget) || 0;
   const gap = Math.max(0, target - collected);
   const clientsNeeded = avg ? Math.ceil(Math.max(0, target - mrr) / avg) : null;
@@ -309,4 +309,16 @@ export function billClients() {
     }
   });
   return changed;
+}
+
+// Office expenses: monthly bills with due day; variable bills (light, water) use what was actually paid.
+export function officePaidOf(o, mk) { const x = o.paid && o.paid[mk]; return x ? (x.parts || []).reduce((a, y) => a + Number(y.amt || 0), 0) : 0; }
+export function officeMonth() {
+  const mk = monthKey(Date.now());
+  const items = S.office || [];
+  const rows = items.map((o) => { const paid = officePaidOf(o, mk), amt = Number(o.amount) || 0; const due = o.variable ? Math.max(amt, paid) : amt;
+    return { o: o, paid: paid, due: due, left: Math.max(0, amt - paid), status: !amt && !paid ? 'unset' : paid >= amt && paid > 0 ? 'paid' : paid > 0 ? 'part' : 'due' }; });
+  rows.forEach((r) => { if (r.o.active === false) r.status = 'off'; });
+  const on = rows.filter((r) => r.o.active !== false);
+  return { mk: mk, rows: on.concat(rows.filter((r) => r.o.active === false)), total: on.reduce((a, r) => a + r.due, 0), paid: on.reduce((a, r) => a + r.paid, 0) };
 }

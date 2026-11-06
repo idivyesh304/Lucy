@@ -26,6 +26,20 @@ export function buildSchedule() {
     });
   });
 
+  // office bills: evening before and on the due day, until paid
+  (S.office || []).filter((o) => o.active !== false && Number(o.amount) > 0).forEach((o) => {
+    for (let mo = 0; mo < 2; mo++) {
+      const base = new Date(now), y = base.getFullYear(), m = base.getMonth() + mo;
+      const day = new Date(y, m, Math.min(Number(o.dueDay) || 1, new Date(y, m + 1, 0).getDate())).getTime();
+      const mk = y + '-' + String((m % 12) + 1).padStart(2, '0');
+      const paid = o.paid && o.paid[new Date(day).getFullYear() + '-' + String(new Date(day).getMonth() + 1).padStart(2, '0')];
+      const paidAmt = paid ? (paid.parts || []).reduce((a, x) => a + Number(x.amt || 0), 0) : 0;
+      if (paidAmt >= Number(o.amount)) continue;
+      push(L.atTime(L.addDays(day, -1), 19, 30), o.name + ' due tomorrow', 'About ' + L.money(o.amount) + '. Keep it ready, ' + nm + '.', 'office-' + o.id, '#money-expenses');
+      push(L.atTime(day, 10, 30), 'Pay ' + o.name + ' today', L.money(Math.max(0, o.amount - paidAmt)) + ' due today.', 'office-' + o.id, '#money-expenses');
+    }
+  });
+
   // salary day
   if (S.employees.some((e) => e.active !== false)) {
     const sd = Number(st.salaryDay) || 1;

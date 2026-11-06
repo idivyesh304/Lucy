@@ -27,7 +27,7 @@ export function defaults() {
     growth: {
       tiers: [{ name: 'Premium', price: 50000, count: 15 }, { name: 'Growth', price: 30000, count: 15 }, { name: 'Starter', price: 25000, count: 15 }],
       team: [{ role: 'Video editor', need: 4, have: 0, salary: 0 }, { role: 'Graphic designer', need: 3, have: 0, salary: 0 }, { role: 'Marketing / sales', need: 2, have: 0, salary: 0 },
-        { role: 'Photographer & videographer', need: 1, have: 0, salary: 0 }, { role: 'Social media manager', need: 1, have: 0, salary: 0 }, { role: 'Company manager', need: 1, have: 0, salary: 0 }]
+        { role: 'Photographer & videographer', need: 1, have: 0, salary: 0 }, { role: 'Social media manager', need: 1, have: 0, salary: 0 }, { role: 'Company manager', need: 1, have: 0, salary: 0 }, { role: 'AI artist', need: 1, have: 0, salary: 0 }]
     },
     profile: { photo: '', fullName: 'Divyesh Umesh Panchal', nickname: 'Divyesh', dob: '', anniversary: '', spouse: '', phone: '+91 99789 92233', altPhone: '', email: 'dzynlabpvtltd@gmail.com',
       city: 'Ahmedabad', address: '', company: 'DZYN LAB PRIVATE LIMITED', role: 'Director & CEO', website: 'www.dzynlabpvtltd.com',
@@ -69,6 +69,7 @@ export function migrate(d) {
   }
   out.profile = Object.assign(defaults().profile, d.profile || {});
   if (!out.growth || !Array.isArray(out.growth.tiers)) out.growth = defaults().growth;
+  if (!out.growthAI) { if (!out.growth.team.some((m) => /ai artist/i.test(m.role))) out.growth.team.push({ role: 'AI artist', need: 1, have: 0, salary: 0 }); out.growthAI = true; }
   // Nov 2026: Divyesh set his monthly target to Rs 15 lakh (was Rs 25 lakh)
   if (!out.targetSet15) {
     if (Number(out.settings.revenueTarget) === 2500000) out.settings.revenueTarget = 1500000;

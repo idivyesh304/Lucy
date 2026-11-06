@@ -110,9 +110,12 @@ function renderHome() {
     '<div class="sub">Target ' + short(rev.target) + ' · gap ' + short(rev.gap) + '</div>' +
     (rev.outstanding ? '<div class="sub mt" style="margin-top:6px"><span class="gold">' + short(rev.outstanding) + '</span> waiting to be collected</div>' : '') + '</div></div></div>';
 
+  const dues = allDues(), soonCut = L.addDays(d0, 4);
+  const soonIn = dues.in.filter((x) => x.due < soonCut), soonOut = dues.out.filter((x) => x.due < soonCut);
+  if (soonIn.length || soonOut.length) h += '<h2>Money due soon<button class="link" data-a="seg-go" data-tab="money" data-k="money" data-v="cash">In &amp; out</button></h2>' + listOf(soonIn.concat(soonOut).sort((a, b2) => a.due - b2.due).slice(0, 5).map(dueRow));
   const spSoon = SP.upcoming(14);
   if (spSoon.length) h += '<h2>Special days<button class="link" data-a="seg-go" data-tab="plan" data-k="plan" data-v="special">All</button></h2>' + listOf(spSoon.slice(0, 3).map(spRow));
-  if (loansSoon.length || paysSoon.length) {
+  if (false) {
     h += '<h2>Money due soon</h2><div class="list">' +
       loansSoon.slice(0, 3).map((x) => '<div class="item" data-a="open-loan" data-id="' + x.l.id + '"><div class="badge">' + icon('bank', 18) + '</div><div class="grow"><div class="t">' + esc(loanTitle(x.l)) + '</div><div class="m">' + L.fmtDate(x.due) + (x.l.debitBank ? ' · from ' + esc(x.l.debitBank) : '') + '</div></div><div class="amount out">' + money(x.l.emi || x.l.amount) + '</div></div>').join('') +
       paysSoon.slice(0, 3).map((p) => payRow(p)).join('') + '</div>';
@@ -290,6 +293,50 @@ function remRow(r, timeOnly) {
 
 /* =============================== MONEY =============================== */
 function loanTitle(l) { return l.type === 'friend' ? 'Pay ' + (l.lender || 'friend') : (l.title || l.lender || 'Loan') + ' EMI'; }
+const DUE_KIND = { pay: { label: 'Payments', one: 'Payment', icon: 'card' }, client: { label: 'Clients', one: 'Client', icon: 'briefcase' }, salary: { label: 'Salaries', one: 'Salary', icon: 'users' }, office: { label: 'Office', one: 'Office', icon: 'building' }, emi: { label: 'EMIs', one: 'EMI', icon: 'bank' }, friend: { label: 'Friend loans', one: 'Friend loan', icon: 'heart' } };
+// Every receivable and payable from every section, in one list.
+function allDues() {
+  const now = Date.now(), d0 = L.startOfDay(now), horizon = L.addDays(d0, 35), mk = B.payroll().month, dIn = [], dOut = [], done = [];
+  const inMonth = (t) => t && L.dayKey(t).slice(0, 7) === L.dayKey(now).slice(0, 7);
+  S.payments.forEach((p) => {
+    if (p.status === 'pending') (p.type === 'in' ? dIn : dOut).push({ kind: p.clientId || p.auto ? (p.type === 'in' ? 'client' : 'pay') : 'pay', party: p.party, sub: (p.note || '') + (B.paidOf(p) ? (p.note ? ' · ' : '') + 'part ' + money(B.paidOf(p)) + ' of ' + money(p.amount) + ' done' : ''), amount: B.leftOf(p), due: p.due, a: 'settle', id: p.id });
+    else if (inMonth(p.settledAt)) done.push({ dir: p.type, kind: 'pay', party: p.party, amount: Number(p.amount), at: p.settledAt });
+  });
+  const sd = Number(S.settings.salaryDay) || 1, y = new Date(now).getFullYear(), m = new Date(now).getMonth();
+  const salDue = new Date(y, m, Math.min(sd, new Date(y, m + 1, 0).getDate())).getTime();
+  S.employees.filter((e) => e.active !== false && Number(e.salary) > 0).forEach((e) => {
+    if (e.joined && new Date(e.joined + 'T00:00').getTime() > salDue) return; // joined after this month's salary day
+    const paid = B.salaryPaidOf(e, mk), left = Math.max(0, Number(e.salary) - paid);
+    if (left > 0) dOut.push({ kind: 'salary', party: e.name, sub: 'Salary ' + L.MON[m] + (paid ? ' · part ' + money(paid) + ' paid' : '') + ' · ' + esc(e.role || ''), amount: left, due: salDue, a: 'emp-paid', id: e.id });
+    else done.push({ dir: 'out', kind: 'salary', party: e.name, amount: paid, at: now });
+  });
+  B.officeMonth().rows.forEach((r) => {
+    const o = r.o; if (o.active === false || !Number(o.amount)) return;
+    const due = new Date(y, m, Math.min(Number(o.dueDay) || 1, new Date(y, m + 1, 0).getDate())).getTime();
+    if (r.left > 0) dOut.push({ kind: 'office', party: o.name, sub: (o.note ? o.note + ' · ' : '') + (r.paid ? 'part ' + money(r.paid) + ' paid' : 'Office bill'), amount: r.left, due: due, a: 'open-office', sid: o.id });
+    else done.push({ dir: 'out', kind: 'office', party: o.name, amount: r.paid, at: now });
+  });
+  S.loans.filter((l) => !l.closed).forEach((l) => {
+    const due = nextLoanDue(l, now);
+    if (l.lastPaid && inMonth(l.lastPaid)) done.push({ dir: 'out', kind: l.type === 'friend' ? 'friend' : 'emi', party: loanTitle(l), amount: Number(l.type === 'friend' ? 0 : l.emi) || 0, at: l.lastPaid });
+    if (!due || due > horizon) return;
+    if (l.type === 'friend') { const left = B.loanOutstanding(l); if (left > 0) dOut.push({ kind: 'friend', party: l.lender || 'Friend', sub: (l.purpose ? l.purpose + ' · ' : '') + money(left) + ' left in total', amount: Math.min(left, Number(l.emi) || left), due: due, a: 'open-loan', id: l.id }); }
+    else dOut.push({ kind: 'emi', party: l.title || l.lender || 'Loan', sub: 'EMI' + (l.debitBank ? ' · from ' + l.debitBank : '') + (l.emisLeft ? ' · ' + l.emisLeft + ' left' : ''), amount: Number(l.emi) || 0, due: due, a: 'open-loan', id: l.id });
+  });
+  const by = (a, b2) => (a.due || 0) - (b2.due || 0);
+  return { in: dIn.sort(by), out: dOut.sort(by), done: done.sort((a, b2) => (b2.at || 0) - (a.at || 0)) };
+}
+function dueRow(x) {
+  const k = DUE_KIND[x.kind] || DUE_KIND.pay, late = x.due && x.due < L.startOfDay(Date.now()), today = x.due && L.dayKey(x.due) === L.dayKey(Date.now());
+  const inn = x.kind === 'client' || (x.kind === 'pay' && x.a === 'settle' && (payById(x.id) || {}).type === 'in');
+  return '<div class="item due-row"><div class="badge" style="--c:' + (inn ? 'var(--good)' : x.kind === 'salary' ? '#9FE7FF' : x.kind === 'office' ? 'var(--gold)' : 'var(--warn)') + '">' + icon(k.icon, 18) + '</div>' +
+    '<div class="grow" data-a="' + x.a + '"' + (x.sid ? ' data-id="' + esc(x.sid) + '"' : ' data-id="' + x.id + '"') + '><div class="t">' + esc(x.party) + ' <span class="kind">' + esc(k.one) + '</span></div><div class="m ' + (late ? 'late' : '') + '">' + (late ? 'Overdue · ' : today ? 'Today · ' : 'Due ') + (x.due ? L.fmtDate(x.due) : '') + (x.sub ? ' · ' + esc(x.sub) : '') + '</div></div>' +
+    '<div class="right"><div class="amount ' + (inn ? 'in' : 'out') + '">' + money(x.amount) + '</div><button class="link" data-a="' + x.a + '"' + (x.sid ? ' data-id="' + esc(x.sid) + '"' : ' data-id="' + x.id + '"') + '>' + (inn ? 'Receive' : 'Pay') + '</button></div></div>';
+}
+function doneRow(x) {
+  const k = DUE_KIND[x.kind] || DUE_KIND.pay;
+  return '<div class="item done"><div class="badge" style="width:32px;height:32px">' + icon('check', 15) + '</div><div class="grow"><div class="t">' + esc(x.party) + ' <span class="kind">' + esc(k.one) + '</span></div><div class="m">' + (x.at ? L.fmtDate(x.at) : '') + '</div></div><div class="amount ' + (x.dir === 'in' ? 'in' : 'out') + '">' + (x.amount ? money(x.amount) : '') + '</div></div>';
+}
 function payRow(p) {
   const late = p.status === 'pending' && L.atTime(p.due, 23, 59) < Date.now();
   const paidSoFar = B.paidOf(p), left = B.leftOf(p), part = p.status === 'pending' && paidSoFar > 0;
@@ -322,14 +369,19 @@ function renderMoney() {
     h += '<div class="sub" style="margin:4px 2px">Lucy uses only your real entries. Revenue is money received; it is not profit.</div>';
     h += '<button class="btn ghost block" data-a="edit-target">' + icon('target', 16) + 'Change monthly target</button>';
   } else if (s === 'cash') {
-    const t = segOf('cashdir', 'in');
-    const pend = S.payments.filter((p) => p.status === 'pending' && p.type === t).sort((a, b2) => a.due - b2.due);
-    const sum = (arr) => arr.reduce((a, p) => a + B.leftOf(p), 0);
-    h += '<div class="stats">' + stat('To receive', short(sum(S.payments.filter((p) => p.status === 'pending' && p.type === 'in'))), '') + stat('To pay', short(sum(S.payments.filter((p) => p.status === 'pending' && p.type === 'out'))), '') + '</div>';
+    const t = segOf('cashdir', 'in'), D = allDues();
+    const tot = (arr) => arr.reduce((a, x) => a + x.amount, 0);
+    h += '<div class="stats">' + stat('To receive', short(tot(D.in)), D.in.length + (D.in.length === 1 ? ' item' : ' items')) + stat('To pay', short(tot(D.out)), D.out.length + (D.out.length === 1 ? ' item' : ' items')) + '</div>';
     h += seg('cashdir', [['in', 'To receive'], ['out', 'To pay']], t);
-    h += listOf(pend.map(payRow), t === 'in' ? 'Nobody owes you anything right now.' : 'No bills pending.');
-    const settled = S.payments.filter((p) => p.status === 'settled' && p.type === t).sort((a, b2) => b2.settledAt - a.settledAt).slice(0, 12);
-    if (settled.length) h += '<h2>Settled</h2>' + listOf(settled.map(payRow));
+    const list = D[t];
+    if (t === 'out' && list.length) {
+      const by = {}; list.forEach((x) => { by[x.kind] = (by[x.kind] || 0) + x.amount; });
+      h += '<div class="chips-sum">' + Object.keys(by).map((k) => '<span class="chip">' + esc(DUE_KIND[k].label) + ' ' + short(by[k]) + '</span>').join('') + '</div>';
+    }
+    h += listOf(list.map(dueRow), t === 'in' ? 'Nobody owes you anything right now.' : 'Nothing to pay right now.');
+    h += '<div class="hint" style="margin:6px 2px 14px">' + (t === 'in' ? 'Includes client renewals and every amount added in Clients or here with +.' : 'Includes salaries, office bills, EMIs, friendly loans and bills added here with +.') + '</div>';
+    const done = D.done.filter((x) => x.dir === t);
+    if (done.length) h += '<h2>Done this month</h2>' + listOf(done.map(doneRow));
   } else if (s === 'loans') {
     const st = B.loanStats();
     h += '<div class="stats">' + stat('Monthly EMIs', short(st.monthly), st.open + ' open') + stat('Outstanding', short(st.outstanding), st.freeAt ? 'Debt-free by ' + L.MON[new Date(st.freeAt).getMonth()] + ' ' + new Date(st.freeAt).getFullYear() : 'Add EMIs left to see') + '</div>';

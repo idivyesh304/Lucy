@@ -85,7 +85,8 @@ async function syncNow(onReplaced) {
     const localDirty = (S.updatedAt || 0) > base();
     if (remote) {
       const remoteChanged = (remote.updatedAt || 0) !== base();
-      if (firstSync && records(S) && records(remote) && (S.updatedAt || 0) !== (remote.updatedAt || 0)) {
+      const shrink = records(S) >= 3 && records(remote) < records(S) * 0.7;
+      if ((firstSync && records(S) && (S.updatedAt || 0) !== (remote.updatedAt || 0)) || (remoteChanged && !localDirty && shrink)) {
         keepSafetyCopy('merge on first sync'); const m = mergeStates(S, remote); replaceState(m); S.updatedAt = Date.now(); save({ local: true }); await push(); if (onReplacedCb) onReplacedCb();
       } else if (firstSync || (remoteChanged && !localDirty)) {
         if ((remote.updatedAt || 0) !== (S.updatedAt || 0)) { keepSafetyCopy('before taking Drive copy'); replaceState(remote); if (onReplacedCb) onReplacedCb(); }

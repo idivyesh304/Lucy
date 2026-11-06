@@ -28,7 +28,8 @@ export function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
 }
-export function openSheet(html, full) { const s = $('#sheet'); delete s.dataset.nocap; s.innerHTML = html; s.classList.toggle('full', !!full); s.scrollTop = 0; $('#sheet-wrap').hidden = false; }
+const SHEET_BAR = '<div class="sheet-bar"><button class="sheet-back" data-a="close" aria-label="Back"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>Back</button><span class="sheet-grab"></span><button class="sheet-x" data-a="close" aria-label="Cancel">Cancel</button></div>';
+export function openSheet(html, full) { const s = $('#sheet'); delete s.dataset.nocap; s.innerHTML = SHEET_BAR + html; s.classList.toggle('full', !!full); s.scrollTop = 0; $('#sheet-wrap').hidden = false; }
 export function closeSheet() { $('#sheet-wrap').hidden = true; $('#sheet').innerHTML = ''; $('#sheet').classList.remove('full'); }
 export function sheetOpen() { return !$('#sheet-wrap').hidden; }
 export const listOf = (rows, empty) => rows.length ? '<div class="list">' + rows.join('') + '</div>' : (empty ? '<div class="empty">' + empty + '</div>' : '');

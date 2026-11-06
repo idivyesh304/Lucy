@@ -507,3 +507,10 @@ h1 b { background: linear-gradient(100deg, #FFF1CF 0%, #D8B56A 35%, #F3D9A0 55%,
 .mg-timer circle { fill: none; stroke: rgba(216,181,106,.2); stroke-width: 5; } .mg-timer circle.p { stroke: var(--gold); stroke-dasharray: 283; stroke-dashoffset: 0; animation: tmr 60s linear forwards; }
 @keyframes tmr { to { stroke-dashoffset: 283; } }
 .mg-timer span { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--mono); color: var(--gold); }
+/* every sheet: sticky Back / Cancel bar */
+.sheet-bar { position: sticky; top: -10px; z-index: 5; display: flex; align-items: center; justify-content: space-between; margin: -10px -18px 8px; padding: 10px 12px 8px; background: linear-gradient(var(--bg2) 75%, rgba(0,0,0,0)); touch-action: none; }
+.sheet-back, .sheet-x { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 12px; border-radius: 12px; font-weight: 600; font-size: 15px; color: var(--gold2); background: var(--glass); border: 1px solid var(--line); }
+.sheet-x { color: var(--muted); }
+.sheet-grab { width: 42px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.18); }
+#sheet > .grab { display: none; }
+#sheet { transition: transform .2s; }

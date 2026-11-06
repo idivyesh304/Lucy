@@ -43,7 +43,7 @@ function load() {
     const d = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (d) return migrate(d);
   } catch (e) { console.error(e); }
-  return defaults();
+  return migrate({ v: 3 });
 }
 
 // accepts Lucy v1, v2 or v3 data

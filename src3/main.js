@@ -1446,6 +1446,14 @@ document.addEventListener('keydown', (ev) => {
   else if (ev.target.id === 'f-task') { ev.preventDefault(); smartFill(); }
 });
 $('#sheet-wrap') && document.addEventListener('click', (ev) => { if (ev.target.id === 'sheet-bg') { closeSheet(); render(); } });
+// close a sheet by pulling its top bar down, or with Escape on the laptop
+(function () {
+  let y0 = null;
+  document.addEventListener('touchstart', (e) => { y0 = e.target.closest('.sheet-bar') ? e.touches[0].clientY : null; }, { passive: true });
+  document.addEventListener('touchmove', (e) => { if (y0 == null) return; const dy = e.touches[0].clientY - y0; const sh = $('#sheet'); if (sh && dy > 0) sh.style.transform = 'translateY(' + dy + 'px)'; }, { passive: true });
+  document.addEventListener('touchend', (e) => { if (y0 == null) return; const sh = $('#sheet'); const dy = (e.changedTouches[0] || {}).clientY - y0; if (sh) sh.style.transform = ''; y0 = null; if (dy > 90) { closeSheet(); render(); } });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (sheetOpen()) { closeSheet(); render(); } else if (!$('#overlay').hidden) { $('#overlay').hidden = true; V.stopSpeaking(); } } });
+})();
 
 async function refreshStatus(quiet) {
   if (!H.ready()) { connStatus = null; return; }

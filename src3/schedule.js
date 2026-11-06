@@ -36,6 +36,14 @@ export function buildSchedule() {
     push(L.atTime(L.addDays(l.followUp, 1), 10, 15), 'Still to follow up: ' + l.name, 'Open Lucy and log the call so this lead does not go cold.', 'lead-' + l.id, '#more-leads');
   });
 
+  // coach: evening reading nudge and the nightly check-in
+  for (let d = 0; d < 7; d++) {
+    const day = L.addDays(L.startOfDay(now), d);
+    const bk = (S.books || []).find((b) => b.status === 'reading');
+    if (bk && !(bk.logs || []).some((x) => L.dayKey(x.at) === L.dayKey(day))) push(L.atTime(day, 21, 0), 'Read 10 pages of ' + bk.title, 'Then tell Lucy one thing you learned.', 'read', '#more-reports');
+    push(L.atTime(day, 21, 45), 'Lucy has questions for you', 'Two honest minutes: your reading, what you watched, and anything that slipped today.', 'coach', '#more-reports');
+  }
+
   // office bills: evening before and on the due day, until paid
   (S.office || []).filter((o) => o.active !== false && Number(o.amount) > 0).forEach((o) => {
     for (let mo = 0; mo < 2; mo++) {

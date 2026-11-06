@@ -87,7 +87,7 @@ export function migrate(d) {
     out.settings.vision = (out.settings.vision || []).map((v) => String(v).replace(/₹\s?25 lakh monthly revenue/, '₹15 lakh monthly revenue'));
     out.targetSet15 = true;
   }
-  ['reminders', 'clients', 'payments', 'loans', 'expenses', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'chat', 'log', 'specialDays', 'employees', 'office', 'archive']
+  ['reminders', 'clients', 'payments', 'loans', 'expenses', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'chat', 'log', 'specialDays', 'employees', 'office', 'archive', 'coach', 'books', 'media']
     .forEach((k) => { if (!Array.isArray(out[k])) out[k] = []; });
   out.affirm = Object.assign({ done: {}, custom: [], spoken: {} }, d.affirm || {});
   return out;

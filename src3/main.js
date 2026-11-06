@@ -9,6 +9,7 @@ import { mountLucy } from './lucy3d.js';
 import { startNeural, startTilt, countUp } from './fx.js';
 import * as SP from './special.js';
 import * as MG from './magnet.js';
+import * as CO from './coach.js';
 import { celebrate, setTapPoint } from './celebrate.js';
 import { $, esc, hm, toTime, fromInputs, fmtHM, money, short, toast, openSheet, closeSheet, sheetOpen, listOf, seg, sw, catIcon, catStyle, ring, chart, imageToDataUrl, icon, L, C } from './ui.js';
 
@@ -104,6 +105,7 @@ function renderHome() {
   h += '<h2>Top 5 <span class="sub" style="letter-spacing:0;text-transform:none">picked by Lucy</span></h2>';
   h += top.length ? '<div class="list">' + top.map((x, i) => topRow(x, i)).join('') + '</div>' : '<div class="panel empty">Nothing urgent. Your Top 5 fills itself from reminders, payments and lead follow-ups.</div>';
 
+  h += coachHomeCard();
   h += '<h2>Revenue mission<button class="link" data-a="tab" data-v="money">Open</button></h2>';
   h += '<div class="panel"><div class="row" style="gap:16px">' + ring(rev.pct, '<span data-count="' + Math.round(rev.pct * 100) + '" data-fmt="pct">' + Math.round(rev.pct * 100) + '%</span>', 'of target') +
     '<div class="grow"><div class="sub">Collected this month</div><div class="num" style="font-size:24px;font-weight:600">' + short(rev.collected) + '</div>' +
@@ -590,7 +592,7 @@ function approveAction(i, j) {
 
 /* =============================== MORE =============================== */
 function renderMore() {
-  const subs = { team: renderTeam, profile: renderProfile, clients: renderClients, leads: renderLeads, ideas: renderIdeas, notes: renderNotes, shopping: renderShopping, learning: renderLearning, review: renderReview, settings: renderSettings, connections: renderConnections, backup: renderBackup, past: renderPast };
+  const subs = { team: renderTeam, profile: renderProfile, clients: renderClients, leads: renderLeads, ideas: renderIdeas, notes: renderNotes, shopping: renderShopping, learning: renderLearning, review: renderReview, settings: renderSettings, connections: renderConnections, backup: renderBackup, past: renderPast, reports: renderReports };
   if (view.sub && subs[view.sub]) return subs[view.sub]();
   const row = (sub, ic, t, s) => '<button class="mrow" data-a="sub" data-v="' + sub + '"><div class="badge">' + icon(ic, 20) + '</div><span class="grow"><b>' + t + '</b><small>' + s + '</small></span>' + icon('right', 18, 'chev') + '</button>';
   const openLeads = S.leads.filter((l) => !['Won', 'Lost'].includes(l.status)).length;
@@ -604,6 +606,7 @@ function renderMore() {
     row('shopping', 'cart', 'Shopping', S.shopping.filter((x) => !x.done).length + ' to buy') +
     row('learning', 'book', 'Learning', S.learning.filter((x) => !x.done).length + ' in queue') +
     row('past', 'clock', 'Past', 'Old clients, past team and anything moved out · all history kept') +
+    row('reports', 'trend', 'Reports and coach', (() => { const n = CO.questions().length; return (n ? n + ' question' + (n > 1 ? 's' : '') + ' from Lucy · ' : '') + 'scores, books, what you watch'; })()) +
     row('review', 'chart', 'Weekly review', 'Personal · company · money · ascend') +
     row('connections', 'link', 'Connections', (H.ready() ? 'Helper connected' : 'Set up notifications, Drive and AI')) +
     row('settings', 'gear', 'Settings', 'Routine, voice, notifications, business rules') +
@@ -1299,6 +1302,24 @@ document.addEventListener('click', async (ev) => {
     case 'del-client': { const c = S.clients.find((x) => x.id === id); if (c && confirm('Move ' + clientName(c) + ' to Past clients? All payments and history stay saved, and you can bring them back any time.')) { c.past = Date.now(); c.active = false; save(); closeSheet(); view.id = null; toast('Moved to Past clients'); render(); } break; }
     case 'open-lead': go('more', 'leads', id); break;
     case 'lead-filter': view.leadFilter = v; render(); break;
+    case 'rep-period': view.repPeriod = v; render(); break;
+    case 'co-chip': { const t = $('#co-a-' + el.dataset.i); if (t) { t.value = t.value && !t.value.includes(v) ? t.value + '. ' + v : (t.value || v); } $$('[data-a="co-chip"][data-i="' + el.dataset.i + '"]').forEach((x) => x.classList.toggle('on', x === el)); break; }
+    case 'co-save': coSave(Number(el.dataset.i)); break;
+    case 'co-skip': { const qq = CO.questions()[Number(el.dataset.i)]; if (qq) { S.coach.push({ id: nid(), at: Date.now(), key: qq.key, kind: qq.kind, ref: qq.ref, q: qq.q, a: '(skipped)' }); save(); render(); } break; }
+    case 'co-ai': go('lucy'); ask('Be my blunt coach. No sugar-coating, no generic advice. Using my real report and my own past answers below, tell me: 1) what I am doing wrong, 2) the excuses I keep repeating, 3) the 3 most important things to fix this week with exact actions, 4) one thing I am doing well. Speak to me like a demanding mentor who wants me to build a 15-lakh-a-month agency.\n\n' + CO.reportText(view.repPeriod || 'week'), 'chat'); break;
+    case 'book-start': { const t = el.dataset.v, bk = CO.BOOKS.find((x) => x[0] === t); S.books.forEach((x) => { if (x.status === 'reading') x.status = 'paused'; }); const ex = S.books.find((x) => x.title === t); if (ex) ex.status = 'reading'; else S.books.push({ id: nid(), title: t, author: bk ? bk[1] : '', status: 'reading', pages: 0, page: 0, started: Date.now(), logs: [] }); save(); render(); toast('Reading ' + t + '. Ten pages a day.'); break; }
+    case 'book-want': { const t = el.dataset.v, bk = CO.BOOKS.find((x) => x[0] === t); if (!S.books.some((x) => x.title === t)) S.books.push({ id: nid(), title: t, author: bk ? bk[1] : '', status: 'want', pages: 0, page: 0, logs: [] }); save(); render(); break; }
+    case 'book-add': bookSheet(); break;
+    case 'del-book': toPast('books', id); closeSheet(); render(); break;
+    case 'book-save': bookSave(el.dataset.id); break;
+    case 'book-edit': bookSheet(S.books.find((x) => x.id === id)); break;
+    case 'book-log': readSheet(S.books.find((x) => x.id === id)); break;
+    case 'read-save': readSave(S.books.find((x) => x.id === id)); break;
+    case 'book-done': bookDoneSheet(S.books.find((x) => x.id === id)); break;
+    case 'book-done-save': { const b = S.books.find((x) => x.id === id); const a2 = $('#bd-a').value.trim(); if (!a2) { toast('Write your top lessons first'); break; } b.status = 'done'; b.finishedAt = Date.now(); b.lessons = a2; b.action = $('#bd-act').value.trim(); S.coach.push({ id: nid(), at: Date.now(), key: 'bookdone:' + b.id, kind: 'bookdone', ref: b.id, q: 'You finished ' + b.title + '. Top lessons and one action?', a: a2 + (b.action ? ' · Action: ' + b.action : '') }); save(); closeSheet(); render(); celebrate('big', { title: 'Book finished', sub: b.title + '. Now use it.' }); break; }
+    case 'media-add': mediaSheet(); break;
+    case 'media-save': mediaSave(); break;
+    case 'lesson-done': { const ls = CO.lessonOfDay((CO.reports('week').weakest || {}).key); const a2 = ($('#lesson-a') || {}).value || ''; S.coach.push({ id: nid(), at: Date.now(), key: ls.key, kind: 'lesson', ref: ls.title, q: 'Lesson: ' + ls.title + '. How will you use it?', a: a2.trim() || 'Learned' }); save(); render(); toast('Saved'); break; }
     case 'lead-edit': leadSheet(leadById(id)); break;
     case 'save-lead': saveLead(el.dataset.id); break;
     case 'lead-log': activitySheet(leadById(id), v); break;
@@ -1524,6 +1545,7 @@ function openHash() {
   } else if (h === '#plan' || h === '#money' || h === '#ascend' || h === '#home') { view.tab = h.slice(1); }
   else if (h === '#money-loans') { view.tab = 'money'; view.seg.money = 'loans'; }
   else if (h === '#more-team') { view.tab = 'more'; view.sub = 'team'; }
+  else if (h === '#more-reports') { view.tab = 'more'; view.sub = 'reports'; view.seg.rep = 'ask'; }
   else if (h === '#more-leads') { view.tab = 'more'; view.sub = 'leads'; view.id = null; }
   else if (h === '#money-expenses') { view.tab = 'money'; view.seg.money = 'office'; }
   else if (h === '#ascend-manifest') { view.tab = 'ascend'; view.seg.ascend = 'manifest'; }
@@ -1582,7 +1604,7 @@ function toPast(kind, id) {
   S.archive.push({ id: nid(), kind: kind, at: Date.now(), item: item });
   save(); toast('Moved to Past. You can bring it back any time.');
 }
-const PAST_KIND = { payments: 'Payments', expenses: 'Expenses', loans: 'Loans and EMIs', reminders: 'Reminders', specialDays: 'Special days', leads: 'Leads', ideas: 'Ideas', notes: 'Notes', dreams: 'Dreams', shopping: 'Shopping', learning: 'Learning' };
+const PAST_KIND = { payments: 'Payments', expenses: 'Expenses', loans: 'Loans and EMIs', reminders: 'Reminders', specialDays: 'Special days', leads: 'Leads', ideas: 'Ideas', notes: 'Notes', dreams: 'Dreams', shopping: 'Shopping', learning: 'Learning', books: 'Books', media: 'Watched' };
 function pastTitle(e) { const x = e.item || {}; return x.party || x.title || x.name || x.task || x.text || x.company || x.lender || PAST_KIND[e.kind] || 'Entry'; }
 function renderPast() {
   const pc = S.clients.filter((c) => c.past).sort((a, b2) => b2.past - a.past);
@@ -1768,3 +1790,152 @@ function leadToClient(l) {
   go('more', 'clients', nc.id); setTimeout(() => clientSheet(nc), 400);
 }
 document.addEventListener('input', (ev) => { if (ev.target.id === 'lead-q') { view.leadQ = ev.target.value; clearTimeout(window.__lq); window.__lq = setTimeout(() => { render(); const e = $('#lead-q'); if (e) { e.focus(); e.setSelectionRange(e.value.length, e.value.length); } }, 250); } });
+
+/* ---------------- Reports and coach ---------------- */
+function scoreColor(n) { return n == null ? 'var(--text3)' : n >= 75 ? 'var(--good)' : n >= 50 ? 'var(--gold)' : 'var(--bad)'; }
+function coachHomeCard() {
+  const qs = CO.questions(), rp = CO.reports('week');
+  if (!qs.length && rp.overall == null) return '';
+  return '<button class="panel" style="width:100%;text-align:left" data-a="sub" data-v="reports"><div class="row"><div class="badge" style="--c:' + scoreColor(rp.overall) + '">' + (rp.overall == null ? icon('trend', 18) : '<span class="num" style="font-size:14px">' + rp.overall + '</span>') + '</div><div class="grow"><b>' + (qs.length ? 'Lucy has ' + qs.length + ' question' + (qs.length > 1 ? 's' : '') + ' for you' : 'Your weekly report card') + '</b><div class="sub">' + (qs.length ? esc(qs[0].q) : 'Weakest area: ' + (rp.weakest ? rp.weakest.title + ' (' + rp.weakest.score + ')' : '–')) + '</div></div>' + icon('right', 18) + '</div></button>';
+}
+function renderReports() {
+  const s = segOf('rep', 'report');
+  const qs = CO.questions();
+  let h = topbar('Reports', { back: 'More', eyebrow: 'Honest numbers · Lucy coaches you' }) + seg('rep', [['report', 'Report'], ['ask', 'Ask' + (qs.length ? ' ' + qs.length : '')], ['read', 'Books'], ['watch', 'Watched'], ['said', 'Answers']], s);
+  if (s === 'ask') return h + renderQuestions(qs);
+  if (s === 'read') return h + renderReading();
+  if (s === 'watch') return h + renderWatched();
+  if (s === 'said') return h + renderSaid();
+  const per = view.repPeriod || 'week', rp = CO.reports(per);
+  h += '<div class="hscroll" style="margin-bottom:12px">' + [['week', 'Last 7 days'], ['month', 'This month']].map((x) => '<button class="chip' + (x[0] === per ? ' on' : '') + '" data-a="rep-period" data-v="' + x[0] + '">' + x[1] + '</button>').join('') + '</div>';
+  h += '<div class="panel gold"><div class="row" style="gap:16px">' + ring((rp.overall || 0) / 100, '<span>' + (rp.overall == null ? '–' : rp.overall) + '</span>', 'overall') + '<div class="grow"><div class="eyebrow">' + rp.range.label + '</div><b style="font-size:18px">' + (rp.overall == null ? 'Not enough data yet' : rp.overall >= 75 ? 'Strong. Raise the bar.' : rp.overall >= 50 ? 'Average. You are capable of much more.' : 'Not good enough, ' + nm() + '.') + '</b>' + (rp.weakest ? '<div class="sub">Weakest: ' + rp.weakest.title + ' at ' + rp.weakest.score + '. Fix this first.</div>' : '') + '</div></div>' +
+    '<button class="btn block mt" data-a="co-ai">' + icon('spark', 15) + 'Get Lucy\'s blunt review</button></div>';
+  if (qs.length) h += '<button class="panel" style="width:100%;text-align:left;border-color:var(--gline2)" data-a="seg" data-k="rep" data-v="ask"><div class="row"><div class="badge">' + icon('chat', 18) + '</div><div class="grow"><b>Answer ' + qs.length + ' question' + (qs.length > 1 ? 's' : '') + ' first</b><div class="sub">' + esc(qs[0].q) + '</div></div>' + icon('right', 18) + '</div></button>';
+  rp.list.forEach((x) => {
+    h += '<h2>' + x.title + '<span class="num" style="color:' + scoreColor(x.score) + ';letter-spacing:0">' + (x.score == null ? 'no data' : x.score + '/100') + '</span></h2><div class="panel">' +
+      (x.score != null ? '<div class="bar" style="height:6px;border-radius:6px;background:var(--glass2);overflow:hidden;margin-bottom:12px"><i style="display:block;height:100%;width:' + x.score + '%;background:' + scoreColor(x.score) + '"></i></div>' : '') +
+      (x.stats.length ? '<div class="stats" style="margin:0 0 6px">' + x.stats.map((st) => stat(st[0], st[1], st[2])).join('') + '</div>' : '') +
+      x.verdicts.map((v) => '<div class="row" style="align-items:flex-start;gap:10px;margin-top:8px"><span class="status-dot" style="margin-top:7px;background:' + (v.t === 'good' ? 'var(--good)' : v.t === 'bad' ? 'var(--bad)' : 'var(--gold)') + '"></span><div class="grow" style="font-size:14px;line-height:1.45">' + esc(v.s) + '</div></div>').join('') +
+      (x.score == null && !x.verdicts.length ? '<div class="sub">Lucy needs a few days of your data here before she can judge it.</div>' : '') + '</div>';
+  });
+  const ls = CO.lessonOfDay(rp.weakest && rp.weakest.key);
+  const lsDone = CO.answered(ls.key);
+  h += '<h2>Learn today</h2><div class="panel"><div class="eyebrow">' + esc(ls.area) + '</div><b style="font-size:17px">' + esc(ls.title) + '</b><div class="sub" style="margin-top:6px;line-height:1.5">' + esc(ls.text) + '</div>' +
+    (lsDone ? '<div class="good mt">' + icon('check', 14) + ' Learned today</div>' : '<input id="lesson-a" class="mt" placeholder="How will you use this at DZYN LAB?"><button class="btn small mt" data-a="lesson-done">I will use this</button>') + '</div>';
+  const bks = CO.suggestBooks(rp.weakest && rp.weakest.key);
+  const reading = S.books.find((b) => b.status === 'reading');
+  h += '<h2>Your next book</h2>' + (reading ? '<div class="panel"><b>Reading: ' + esc(reading.title) + '</b><div class="sub">' + (reading.pages ? (reading.page || 0) + ' of ' + reading.pages + ' pages' : '') + '</div><button class="btn small mt" data-a="book-log" data-id="' + reading.id + '">Log today\'s reading</button></div>' : '') +
+    listOf(bks.map(bookSuggestRow));
+  return h;
+}
+function bookSuggestRow(b) { return '<div class="item"><div class="badge">' + icon('book', 18) + '</div><div class="grow"><div class="t">' + esc(b.title) + '</div><div class="m">' + esc(b.author) + ' · ' + esc(b.why) + '</div><div class="actions" style="margin-top:8px"><button class="btn small" data-a="book-start" data-v="' + esc(b.title) + '">Start reading</button><button class="btn small ghost" data-a="book-want" data-v="' + esc(b.title) + '">Later</button></div></div></div>'; }
+function renderQuestions(qs) {
+  if (!qs.length) return '<div class="panel empty">No questions right now. Lucy asks when a client pays late, a client or team member leaves, a lead is lost, a follow-up slips, a habit breaks, and every evening about your reading and what you watched.</div>';
+  return '<div class="sub" style="margin-bottom:12px">Answer honestly. Lucy saves every answer and will remind you of it when the same thing happens again.</div>' + qs.map((q, i) => {
+    let f = '<div class="panel" id="co-q-' + i + '"><b style="font-size:16px;line-height:1.4">' + esc(q.q) + '</b>' + (q.hint ? '<div class="sub" style="margin-top:4px">' + esc(q.hint) + '</div>' : '') +
+      (q.prev ? '<div class="panel" style="margin:10px 0 0;padding:10px 12px;border-color:rgba(255,107,107,.35)"><div class="eyebrow" style="color:var(--bad)">Last time you said · ' + L.fmtDate(q.prev.at) + '</div><div style="font-size:14px;margin-top:4px">"' + esc(q.prev.a) + '"</div></div>' : '');
+    if (q.kind === 'read') f += '<div class="grid2 mt"><div><label>Pages read today</label><input id="co-pages-' + i + '" type="number" inputmode="numeric" placeholder="10"></div><div><label>Now on page</label><input id="co-page-' + i + '" type="number" inputmode="numeric" value="' + ((q.book && q.book.page) || '') + '"></div></div>';
+    if (q.kind === 'media') f += '<div class="grid2 mt"><div><label>What</label><select id="co-mt-' + i + '">' + ['Nothing today', 'Reels', 'YouTube', 'Series', 'Movie', 'Podcast'].map((o) => '<option>' + o + '</option>').join('') + '</select></div><div><label>About how long (min)</label><input id="co-min-' + i + '" type="number" inputmode="numeric"></div></div><label>Title or account</label><input id="co-mtitle-' + i + '"><label>Why did you watch it?</label><input id="co-why-' + i + '" placeholder="Relax, research, competitor study, habit">';
+    const chips = CO.QUICK[q.kind] || [];
+    if (chips.length) f += '<div class="chips mt">' + chips.map((c) => '<button class="chip" data-a="co-chip" data-i="' + i + '" data-v="' + esc(c) + '">' + esc(c) + '</button>').join('') + '</div>';
+    f += '<textarea id="co-a-' + i + '" class="mt" placeholder="' + (q.kind === 'read' ? 'One idea from today\'s reading you can use' : q.kind === 'media' ? 'What did you learn? If nothing, write nothing.' : 'Your honest answer') + '"></textarea>' +
+      '<div class="actions"><button class="btn" data-a="co-save" data-i="' + i + '">Save answer</button><button class="btn ghost" data-a="co-skip" data-i="' + i + '">Skip</button></div></div>';
+    return f;
+  }).join('');
+}
+function coSave(i) {
+  const q = CO.questions()[i]; if (!q) return;
+  const a = ($('#co-a-' + i).value || '').trim();
+  const now = Date.now();
+  if (q.kind === 'read') {
+    const pages = Number($('#co-pages-' + i).value) || 0, page = Number($('#co-page-' + i).value) || 0;
+    if (!pages && !a) return toast('Add pages read or what you learned');
+    const b = S.books.find((x) => x.id === q.ref);
+    if (b) { (b.logs = b.logs || []).push({ id: nid(), at: now, pages: pages, learned: a }); if (page) b.page = page; else if (pages) b.page = (b.page || 0) + pages; }
+  } else if (q.kind === 'media') {
+    const type = $('#co-mt-' + i).value;
+    if (type !== 'Nothing today') S.media.push({ id: nid(), at: now, type: type, title: $('#co-mtitle-' + i).value.trim(), minutes: Number($('#co-min-' + i).value) || 0, why: $('#co-why-' + i).value.trim(), learned: a });
+  } else if (!a) return toast('Write your answer, or tap Skip');
+  S.coach.push({ id: nid(), at: now, key: q.key, kind: q.kind, ref: q.ref, q: q.q, a: a || (q.kind === 'media' ? 'Watched nothing' : 'Logged') });
+  if (q.kind === 'late' && /follow|invoice|remind/i.test(a)) toast('Then follow up today. That one is on you.');
+  else if (q.kind === 'media' && a.length < 8 && $('#co-mt-' + i).value !== 'Nothing today') toast('Nothing learned. Next time, watch with a purpose.');
+  else toast('Saved. Lucy will remember this.');
+  save(); render();
+}
+function renderReading() {
+  const reading = S.books.filter((b) => b.status === 'reading'), want = S.books.filter((b) => b.status === 'want' || b.status === 'paused'), done = S.books.filter((b) => b.status === 'done');
+  const pages30 = S.books.reduce((a, b) => a + (b.logs || []).filter((x) => x.at > Date.now() - 30 * 864e5).reduce((c, x) => c + Number(x.pages || 0), 0), 0);
+  let h = '<div class="stats">' + stat('Books finished', done.length, '') + stat('Pages in 30 days', pages30, pages30 >= 300 ? 'a book a month' : 'aim for 300') + '</div>';
+  h += '<h2>Reading now<button class="link" data-a="book-add">Add a book</button></h2>';
+  h += reading.length ? reading.map((b) => { const pc = b.pages ? Math.min(100, Math.round(100 * (b.page || 0) / b.pages)) : 0; const logs = (b.logs || []).slice().sort((x, y) => y.at - x.at);
+    return '<div class="panel"><div class="row"><div class="badge">' + icon('book', 18) + '</div><div class="grow"><b>' + esc(b.title) + '</b><div class="sub">' + esc(b.author || '') + (b.pages ? ' · page ' + (b.page || 0) + ' of ' + b.pages : '') + '</div></div><button class="iconbtn" data-a="book-edit" data-id="' + b.id + '">' + icon('edit', 16) + '</button></div>' +
+      (b.pages ? '<div style="height:6px;border-radius:6px;background:var(--glass2);overflow:hidden;margin-top:10px"><i style="display:block;height:100%;width:' + pc + '%;background:var(--gold)"></i></div>' : '') +
+      '<div class="actions"><button class="btn small" data-a="book-log" data-id="' + b.id + '">Log reading</button><button class="btn small ghost" data-a="book-done" data-id="' + b.id + '">Finished</button></div>' +
+      (logs.length ? '<div class="mt">' + logs.slice(0, 6).map((x) => '<div style="margin-top:8px;font-size:14px"><span class="sub">' + L.fmtDate(x.at) + (x.pages ? ' · ' + x.pages + ' pages' : '') + '</span><div>' + esc(x.learned || '') + '</div></div>').join('') + '</div>' : '') + '</div>'; }).join('') : '<div class="panel empty">You are not reading anything. Start one of the books below today.</div>';
+  if (want.length) h += '<h2>Next up</h2>' + listOf(want.map((b) => '<div class="item"><div class="badge">' + icon('book', 18) + '</div><div class="grow"><div class="t">' + esc(b.title) + '</div><div class="m">' + esc(b.author || '') + (b.status === 'paused' ? ' · paused at page ' + (b.page || 0) : '') + '</div></div><button class="btn small ghost" data-a="book-start" data-v="' + esc(b.title) + '">Read</button></div>'));
+  h += '<h2>Lucy suggests</h2>' + listOf(CO.suggestBooks((CO.reports('week').weakest || {}).key).map(bookSuggestRow));
+  if (done.length) h += '<h2>Finished</h2>' + listOf(done.map((b) => '<div class="item"><div class="badge" style="--c:var(--good)">' + icon('check', 18) + '</div><div class="grow"><div class="t">' + esc(b.title) + '</div><div class="m">' + (b.finishedAt ? L.fmtDate(b.finishedAt) + ' · ' : '') + esc(b.lessons || '') + (b.action ? ' · Action: ' + esc(b.action) : '') + '</div></div></div>'));
+  return h;
+}
+function bookSheet(b) {
+  b = b || {};
+  openSheet('<h3>' + (b.id ? 'Edit book' : 'Add a book') + '</h3><label>Title</label><input id="bk-title" value="' + esc(b.title || '') + '"><label>Author</label><input id="bk-author" value="' + esc(b.author || '') + '"><div class="grid2"><div><label>Total pages</label><input id="bk-pages" type="number" inputmode="numeric" value="' + esc(b.pages || '') + '"></div><div><label>Now on page</label><input id="bk-page" type="number" inputmode="numeric" value="' + esc(b.page || '') + '"></div></div>' +
+    '<label>Status</label><select id="bk-status">' + [['reading', 'Reading now'], ['want', 'Want to read'], ['paused', 'Paused'], ['done', 'Finished']].map((o) => '<option value="' + o[0] + '" ' + ((b.status || 'reading') === o[0] ? 'selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' +
+    '<button class="btn block" data-a="book-save" data-id="' + (b.id || '') + '">Save</button>' + (b.id ? '<button class="btn ghost block" data-a="del-book" data-id="' + b.id + '">Move to Past</button>' : ''));
+}
+function bookSave(idv) {
+  const t = $('#bk-title').value.trim(); if (!t) return toast('Add the title');
+  const st = $('#bk-status').value;
+  if (st === 'reading') S.books.forEach((x) => { if (x.status === 'reading' && String(x.id) !== String(idv)) x.status = 'paused'; });
+  const d = { title: t, author: $('#bk-author').value.trim(), pages: Number($('#bk-pages').value) || 0, page: Number($('#bk-page').value) || 0, status: st };
+  const b = idv ? S.books.find((x) => String(x.id) === String(idv)) : null;
+  if (b) Object.assign(b, d); else S.books.push(Object.assign({ id: nid(), started: Date.now(), logs: [] }, d));
+  save(); closeSheet(); render();
+}
+function readSheet(b) {
+  if (!b) return;
+  openSheet('<h3>' + esc(b.title) + '</h3><div class="grid2"><div><label>Pages read today</label><input id="rd-pages" type="number" inputmode="numeric" placeholder="10"></div><div><label>Now on page</label><input id="rd-page" type="number" inputmode="numeric" value="' + esc(b.page || '') + '"></div></div><label>What did you learn today?</label><textarea id="rd-learn" placeholder="One idea you can use in DZYN LAB or in life"></textarea><button class="btn block" data-a="read-save" data-id="' + b.id + '">Save</button>');
+}
+function readSave(b) {
+  if (!b) return;
+  const pages = Number($('#rd-pages').value) || 0, page = Number($('#rd-page').value) || 0, learned = $('#rd-learn').value.trim();
+  if (!pages && !learned) return toast('Add pages or what you learned');
+  (b.logs = b.logs || []).push({ id: nid(), at: Date.now(), pages: pages, learned: learned });
+  if (page) b.page = page; else if (pages) b.page = (b.page || 0) + pages;
+  const key = 'read:' + L.dayKey(Date.now());
+  if (!CO.answered(key)) S.coach.push({ id: nid(), at: Date.now(), key: key, kind: 'read', ref: b.id, q: 'What did you learn from ' + b.title + ' today?', a: learned || pages + ' pages' });
+  save(); closeSheet(); render(); toast(learned ? 'Saved. Use it today.' : 'Pages saved. Next time write one thing you learned.');
+}
+function bookDoneSheet(b) {
+  if (!b) return;
+  openSheet('<h3>You finished ' + esc(b.title) + '</h3><div class="sub">A book only counts if it changes something. Write it down.</div><label>Top 3 lessons</label><textarea id="bd-a" placeholder="1.\n2.\n3."></textarea><label>One action you will take this week</label><input id="bd-act"><button class="btn block" data-a="book-done-save" data-id="' + b.id + '">Save</button>');
+}
+function renderWatched() {
+  const wk = (S.media || []).filter((x) => x.at > Date.now() - 7 * 864e5);
+  const by = {}; wk.forEach((x) => { by[x.type] = (by[x.type] || 0) + Number(x.minutes || 0); });
+  const learned = wk.filter((x) => String(x.learned || '').trim().length > 8).length;
+  let h = '<div class="stats">' + stat('Watched this week', Math.round(wk.reduce((a, x) => a + Number(x.minutes || 0), 0) / 6) / 10 + ' h', Object.keys(by).map((k) => k + ' ' + Math.round(by[k]) + 'm').join(' · ')) + stat('With a lesson', wk.length ? learned + ' of ' + wk.length : '–', wk.length ? Math.round(100 * learned / wk.length) + '%' : '') + '</div>';
+  h += '<button class="btn block" data-a="media-add">' + icon('plus', 15) + 'Log something I watched</button>';
+  h += '<h2>History</h2>' + listOf((S.media || []).slice().sort((a, b) => b.at - a.at).slice(0, 60).map((x) => '<div class="item"><div class="badge">' + icon(x.type === 'Reels' ? 'camera' : x.type === 'Podcast' ? 'mic' : 'film', 18) + '</div><div class="grow"><div class="t">' + esc(x.type) + (x.title ? ' · ' + esc(x.title) : '') + (x.minutes ? ' · ' + x.minutes + ' min' : '') + '</div><div class="m">' + (x.why ? 'Why: ' + esc(x.why) + ' · ' : '') + (x.learned ? 'Learned: ' + esc(x.learned) : '<span class="bad">Nothing learned</span>') + '</div><div class="m" style="font-size:12px">' + L.fmtWhen(x.at) + '</div></div></div>'), 'Nothing logged yet. Every evening Lucy will ask what you watched and why.');
+  return h;
+}
+function mediaSheet() {
+  openSheet('<h3>What did you watch?</h3><div class="grid2"><div><label>Type</label><select id="md-type">' + ['Reels', 'YouTube', 'Series', 'Movie', 'Podcast'].map((o) => '<option>' + o + '</option>').join('') + '</select></div><div><label>Minutes</label><input id="md-min" type="number" inputmode="numeric"></div></div><label>Title or account</label><input id="md-title"><label>Why did you watch it?</label><input id="md-why" placeholder="Relax, research, competitor study, habit"><label>What did you learn?</label><textarea id="md-learn" placeholder="A hook, an edit style, a business idea. If nothing, leave it empty."></textarea><button class="btn block" data-a="media-save">Save</button>');
+}
+function mediaSave() {
+  S.media.push({ id: nid(), at: Date.now(), type: $('#md-type').value, title: $('#md-title').value.trim(), minutes: Number($('#md-min').value) || 0, why: $('#md-why').value.trim(), learned: $('#md-learn').value.trim() });
+  save(); closeSheet(); render(); toast($('#md-learn') && !S.media[S.media.length - 1].learned ? 'Saved. Nothing learned goes on your report.' : 'Saved');
+}
+function renderSaid() {
+  const all = CO.answers((x) => x.a !== '(skipped)');
+  if (!all.length) return '<div class="panel empty">Your answers to Lucy\'s questions will be kept here. She uses them to spot your patterns and excuses.</div>';
+  const KN = { late: 'Late payments', clientleft: 'Clients who left', empleft: 'Team who left', fu: 'Missed follow-ups', lostlearn: 'Lost deals', routine: 'Broken habits', overdue: 'Overdue tasks', read: 'Reading', bookdone: 'Books finished', media: 'What you watched', week: 'Weekly reflection', lesson: 'Lessons' };
+  const kinds = [...new Set(all.map((x) => x.kind))];
+  let h = '';
+  // patterns: repeated reasons
+  const pat = [];
+  ['late', 'fu', 'routine', 'clientleft', 'empleft'].forEach((k) => { const cnt = {}; all.filter((x) => x.kind === k).forEach((x) => (CO.QUICK[k] || []).forEach((c) => { if (x.a.includes(c)) cnt[c] = (cnt[c] || 0) + 1; })); Object.keys(cnt).forEach((c) => { if (cnt[c] >= 2) pat.push(KN[k] + ': you said "' + c + '" ' + cnt[c] + ' times.'); }); });
+  if (pat.length) h += '<div class="panel alert"><div class="eyebrow" style="color:var(--bad)">Your patterns</div>' + pat.map((p) => '<div style="margin-top:6px;font-size:14px">' + esc(p) + '</div>').join('') + '</div>';
+  kinds.forEach((k) => { h += '<h2>' + (KN[k] || k) + '</h2>' + listOf(all.filter((x) => x.kind === k).slice(0, 30).map((x) => '<div class="item"><div class="grow"><div class="m">' + esc(x.q) + '</div><div class="t" style="white-space:pre-wrap;font-weight:500">' + esc(x.a) + '</div><div class="m" style="font-size:12px">' + L.fmtWhen(x.at) + '</div></div></div>')); });
+  return h;
+}

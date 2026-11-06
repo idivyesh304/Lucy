@@ -1,11 +1,11 @@
-export const TRACK = ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'office'];
+export const TRACK = ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'office', 'coach', 'books', 'media'];
 // Merging two copies of Lucy's data. Shared by the app and the helper, so both merge the same way.
-const ARR_KEYS = ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'office', 'archive', 'chat', 'log'];
+const ARR_KEYS = ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'office', 'archive', 'coach', 'books', 'media', 'chat', 'log'];
 const MAP_KEYS = ['journal', 'manifest', 'routineLog', 'mission', 'celebrated'];
 export function records(d) {
   if (!d || typeof d !== 'object') return 0;
   let n = 0;
-  ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'archive'].forEach((k) => { if (Array.isArray(d[k])) n += d[k].length; });
+  ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'archive', 'coach', 'books', 'media'].forEach((k) => { if (Array.isArray(d[k])) n += d[k].length; });
   (d.office || []).forEach((o) => { if (Number(o.amount)) n++; Object.values(o.paid || {}).forEach((x) => { n += ((x && x.parts) || []).length; }); });
   (d.payments || []).forEach((p) => { n += (p.parts || []).length; });
   return n;
@@ -27,7 +27,7 @@ function mergeItem(older, newer) {
   Object.keys(older).forEach((k) => { const v = newer[k]; if ((v === undefined || v === null || v === '' || v === 0) && older[k] !== undefined && older[k] !== null && older[k] !== '' && older[k] !== 0) m[k] = older[k]; });
   if (older.parts || newer.parts) m.parts = mergeParts(older.parts, newer.parts);
   // activity history (lead calls, meetings, notes): keep every entry from both copies
-  if (Array.isArray(older.activity) || Array.isArray(newer.activity)) { const mm = new Map(); (older.activity || []).concat(newer.activity || []).forEach((x) => mm.set(String(x && x.id), x)); m.activity = [...mm.values()].sort((x, y) => (y.at || 0) - (x.at || 0)); }
+  ['activity', 'logs'].forEach((key) => { if (Array.isArray(older[key]) || Array.isArray(newer[key])) { const mm = new Map(); (older[key] || []).concat(newer[key] || []).forEach((x) => mm.set(String(x && x.id), x)); m[key] = [...mm.values()].sort((x, y) => (y.at || 0) - (x.at || 0)); } });
   if ((older.paid && typeof older.paid === 'object') || (newer.paid && typeof newer.paid === 'object')) {
     if (typeof older.paid === 'object' && typeof newer.paid === 'object') m.paid = mergePaidMaps(older.paid, newer.paid);
   }

@@ -5,5 +5,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - run: |
-          curl -sS -m 20 https://lucy-helper.idivyesh007.workers.dev/health; echo
-          curl -sS -m 20 -o /dev/null -w "%{http_code}\n" https://lucy-helper.idivyesh007.workers.dev/vapid
+          echo "helper: $(curl -sS -m 20 https://lucy-helper.idivyesh007.workers.dev/health)"
+          echo "vapid: $(curl -sS -m 20 -o /dev/null -w '%{http_code}' https://lucy-helper.idivyesh007.workers.dev/vapid)"
+          echo "site: $(curl -sS -m 20 -o /dev/null -w '%{http_code}' https://idivyesh304.github.io/Lucy/)"
+          echo "config: $(curl -sS -m 20 https://idivyesh304.github.io/Lucy/config.js?nc=$RANDOM)"
+          A=$(curl -sS -m 30 "https://idivyesh304.github.io/Lucy/app.js?nc=$RANDOM")
+          for k in "3-6-9" "Office expenses" "Confirm received" "Special days" "Start fresh" "Team salaries" "lucy-holo"; do
+            if echo "$A" | grep -q "$k"; then echo "app has: $k"; else echo "MISSING: $k"; fi
+          done
+          echo "apk: $(curl -sS -m 30 -o /dev/null -w '%{http_code} %{size_download}' -L https://github.com/idivyesh304/Lucy/releases/download/lucy-android/Lucy.apk)"

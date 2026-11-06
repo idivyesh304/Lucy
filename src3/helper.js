@@ -1,5 +1,5 @@
 // Talks to Lucy's private helper (Cloudflare Worker): Drive sync, notifications, AI.
-import { S, device, replaceState, save } from './store.js';
+import { S, device, replaceState, save, mergeStates, keepSafetyCopy, records } from './store.js';
 
 export function deviceName() {
   const ua = navigator.userAgent;
@@ -32,6 +32,14 @@ async function call(path, opts) {
   return data;
 }
 
+// save call that also reports a refused (shrinking) save instead of throwing it away
+async function callRaw(path, text, force) {
+  const res = await fetch(helperUrl() + path, { method: 'POST', headers: Object.assign({ 'content-type': 'application/json', 'x-lucy-key': passkey() }, force ? { 'x-lucy-force': '1' } : {}), body: text });
+  let data = {}; try { data = await res.json(); } catch (e) { /* empty */ }
+  if (res.status === 409) return Object.assign({ conflict: true }, data);
+  if (!res.ok) throw new Error(data.error || ('Helper error ' + res.status));
+  return data;
+}
 export const api = {
   health: () => call('/health', { auth: false }),
   setup: (key) => call('/setup', { body: { passkey: key }, auth: false }),
@@ -45,7 +53,9 @@ export const api = {
   ai: (payload) => call('/ai', { body: payload }),
   oauthLink: () => call('/oauth/link', { body: {} }),
   driveLoad: () => call('/drive/load', { body: {} }),
-  driveSave: (text) => call('/drive/save', { body: text }),
+  driveSave: (text, force) => callRaw('/drive/save', text, force),
+  driveHistory: () => call('/drive/history', { body: {} }),
+  driveVersion: (v) => call('/drive/version', { body: v }),
   driveDisconnect: () => call('/drive/disconnect', { body: {} })
 };
 
@@ -55,49 +65,73 @@ let saveTimer = null, saving = false, again = false;
 
 export function driveEnabled() { return ready() && device.get('drive', '') === 'on'; }
 
-export async function pullFromDrive(onReplaced) {
+// Safe sync. Every device remembers the Drive version it last synced with ("base").
+// - Drive changed and this device has no new edits: take Drive (after keeping a local safety copy).
+// - Both changed: merge record by record, so nothing either side added is lost.
+// - Only this device changed: save to Drive.
+// The helper also refuses any save that would suddenly shrink the data, and keeps a safety copy.
+const base = () => Number(device.get('syncBase', 0));
+let onReplacedCb = null;
+async function syncNow(onReplaced) {
   if (!driveEnabled()) return;
+  if (onReplaced) onReplacedCb = onReplaced;
+  if (saving) { again = true; return; }
+  saving = true;
   try {
     sync.state = 'syncing';
     const r = await api.driveLoad();
-    if (r.data) {
-      const remote = JSON.parse(r.data);
-      // A device that has never synced always takes the Drive copy first, so a new
-      // phone or laptop can never overwrite real data with its empty starter data.
-      const firstSync = !Number(device.get('lastSync', 0));
-      if (firstSync || (remote.updatedAt || 0) > (S.updatedAt || 0)) {
-        replaceState(remote);
-        markSynced();
-        if (onReplaced) onReplaced();
-      } else if ((S.updatedAt || 0) > (remote.updatedAt || 0)) {
-        await pushToDrive();
+    const remote = r.data ? JSON.parse(r.data) : null;
+    const firstSync = !Number(device.get('lastSync', 0)) || !base();
+    const localDirty = (S.updatedAt || 0) > base();
+    if (remote) {
+      const remoteChanged = (remote.updatedAt || 0) !== base();
+      if (firstSync && records(S) && records(remote) && (S.updatedAt || 0) !== (remote.updatedAt || 0)) {
+        keepSafetyCopy('merge on first sync'); const m = mergeStates(S, remote); replaceState(m); S.updatedAt = Date.now(); save({ local: true }); await push(); if (onReplacedCb) onReplacedCb();
+      } else if (firstSync || (remoteChanged && !localDirty)) {
+        if ((remote.updatedAt || 0) !== (S.updatedAt || 0)) { keepSafetyCopy('before taking Drive copy'); replaceState(remote); if (onReplacedCb) onReplacedCb(); }
+        device.set('syncBase', String(remote.updatedAt || 0));
+      } else if (remoteChanged && localDirty) {
+        keepSafetyCopy('before merge'); const m = mergeStates(S, remote); replaceState(m); S.updatedAt = Date.now(); save({ local: true }); await push(); if (onReplacedCb) onReplacedCb();
+      } else if (localDirty) {
+        await push();
       }
-    } else if (S.updatedAt) {
-      await pushToDrive();
+    } else if (records(S)) {
+      await push();
     }
     sync.state = 'ok'; sync.error = '';
     markSynced();
   } catch (e) {
     sync.state = 'error'; sync.error = e.message;
   }
+  saving = false;
+  if (again) { again = false; syncNow(); }
 }
+async function push(force) {
+  const res = await api.driveSave(JSON.stringify(S), force);
+  if (res && res.conflict) {
+    // Drive holds much more data than this device: never overwrite it, merge instead.
+    const remote = JSON.parse(res.remote);
+    keepSafetyCopy('helper refused shrink');
+    const m = mergeStates(S, remote); replaceState(m); S.updatedAt = Date.now(); save({ local: true });
+    const r2 = await api.driveSave(JSON.stringify(S), true);
+    if (r2 && r2.conflict) throw new Error('Sync paused to protect your data');
+    if (onReplacedCb) onReplacedCb();
+  }
+  device.set('syncBase', String(S.updatedAt || 0));
+}
+export async function pullFromDrive(onReplaced) { return syncNow(onReplaced); }
 export function queueDriveSave() {
   if (!driveEnabled()) return;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(pushToDrive, 3500);
+  saveTimer = setTimeout(() => syncNow(), 3500);
 }
-export async function pushToDrive() {
-  if (!driveEnabled()) return;
-  if (saving) { again = true; return; }
-  saving = true;
-  try {
-    sync.state = 'syncing';
-    await api.driveSave(JSON.stringify(S));
-    sync.state = 'ok'; sync.error = '';
-    markSynced();
-  } catch (e) { sync.state = 'error'; sync.error = e.message; }
-  saving = false;
-  if (again) { again = false; pushToDrive(); }
+export async function pushToDrive() { return syncNow(); }
+// Restore an earlier version on purpose (from the Recover screen).
+export async function restoreVersion(data) {
+  keepSafetyCopy('before restore');
+  replaceState(data); S.updatedAt = Date.now(); save({ local: true });
+  await api.driveSave(JSON.stringify(S), true);
+  device.set('syncBase', String(S.updatedAt)); markSynced();
 }
 function markSynced() { sync.last = Date.now(); device.set('lastSync', String(sync.last)); }
 

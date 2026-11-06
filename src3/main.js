@@ -1,5 +1,5 @@
 // LUCY 3 — Divyesh's AI personal assistant and founder partner (iPhone web app)
-import { S, save, nid, logEvent, view, device, replaceState, migrate, onSave } from './store.js';
+import { S, save, nid, logEvent, view, device, replaceState, migrate, onSave, records, safetyCopies } from './store.js';
 import * as B from './brain.js';
 import * as H from './helper.js';
 import { buildSchedule, nextLoanDue } from './schedule.js';
@@ -755,8 +755,21 @@ function renderConnections() {
   }
   return h;
 }
+let recover = null;
+const sumOf = (d) => { const c = (k) => (d[k] || []).length; return [['Clients', c('clients')], ['Payments', c('payments')], ['Team', c('employees')], ['Expenses', c('expenses')], ['Loans', c('loans')], ['Reminders', c('reminders')], ['Special days', c('specialDays')], ['Dreams', c('dreams')], ['Office bills set', (d.office || []).filter((o) => Number(o.amount)).length]].filter((x) => x[1]).map((x) => x[1] + ' ' + x[0].toLowerCase()).join(' · ') || 'empty'; };
+function renderRecover() {
+  let h = '<h2>Recover earlier data</h2><div class="panel gold"><div class="sub">Lucy keeps every saved version in your Google Drive, a daily backup, safety copies, and the last copies on this device. Pick one to see what is inside, then restore it.</div>' +
+    '<div class="actions"><button class="btn small" data-a="rec-load">' + icon('refresh', 15) + (recover ? 'Refresh list' : 'Find earlier versions') + '</button></div></div>';
+  const local = safetyCopies();
+  if (local.length) h += '<div class="list">' + local.map((x, i) => { let d = {}; try { d = JSON.parse(x.data); } catch (e) {} return '<div class="item"><div class="badge" style="width:34px;height:34px">' + icon('phone', 16) + '</div><div class="grow"><div class="t">On this device · ' + L.fmtWhen(x.at) + '</div><div class="m">' + esc(sumOf(d)) + '</div></div><button class="btn small line" data-a="rec-local" data-i="' + i + '">Restore</button></div>'; }).join('') + '</div>';
+  if (recover && recover.loading) h += '<div class="empty">Looking in Google Drive…</div>';
+  if (recover && recover.error) h += '<div class="hint bad">' + esc(recover.error) + '</div>';
+  if (recover && recover.list) h += '<div class="list">' + recover.list.slice(0, 80).map((v, i) => '<div class="item"><div class="badge" style="width:34px;height:34px">' + icon(v.kind === 'rev' ? 'clock' : 'cloud', 16) + '</div><div class="grow"><div class="t">' + esc(v.label) + ' · ' + L.fmtWhen(new Date(v.at).getTime()) + '</div><div class="m">' + (v.summary ? esc(v.summary) : v.size ? Math.round(v.size / 1024) + ' KB' : '') + '</div></div>' +
+    (v.data ? '<button class="btn small" data-a="rec-restore" data-i="' + i + '">Restore</button>' : '<button class="btn small ghost" data-a="rec-check" data-i="' + i + '">Check</button>') + '</div>').join('') + '</div>';
+  return h;
+}
 function renderBackup() {
-  return topbar('Backup', { back: 'More' }) + '<div class="panel"><div class="row"><span class="status-dot ' + (H.driveEnabled() ? 'ok' : '') + '"></span><b class="grow">Google Drive</b><span class="sub">' + (H.driveEnabled() ? 'Automatic' : 'Off') + '</span></div><div class="sub mt">' + (H.driveEnabled() ? 'Every change is saved to your Drive, with a dated copy each day for 14 days.' : 'Turn on in Connections for automatic backup.') + '</div></div>' +
+  return topbar('Backup', { back: 'More' }) + renderRecover() + '<div class="panel"><div class="row"><span class="status-dot ' + (H.driveEnabled() ? 'ok' : '') + '"></span><b class="grow">Google Drive</b><span class="sub">' + (H.driveEnabled() ? 'Automatic' : 'Off') + '</span></div><div class="sub mt">' + (H.driveEnabled() ? 'Every change is saved to your Drive, with a dated copy each day for 14 days.' : 'Turn on in Connections for automatic backup.') + '</div></div>' +
     '<h2>Start fresh</h2><div class="panel"><div class="sub">Choose what to delete. Your profile, settings, routine and Lucy herself stay.</div>' +
     [['clients', 'Clients', 1], ['payments', 'Money in and out', 1], ['expenses', 'Expenses', 1], ['loans', 'Loans and EMIs', 1], ['reminders', 'Reminders', 1], ['leads', 'Leads', 1], ['ideas', 'Ideas', 1], ['notes', 'Notes', 1], ['shopping', 'Shopping', 1], ['learning', 'Learning', 1], ['chat', 'Chat with Lucy', 1], ['log', 'Activity history', 1], ['team', 'Team members', 0], ['special', 'Special days', 0], ['dreams', 'Dreams', 0], ['journal', 'Journal, streaks and mission history', 0], ['profile', 'Keep my profile photo', 1]]
       .map(([k, l, on]) => '<div class="row" style="padding:7px 0"><input type="checkbox" id="fr-' + k + '" ' + (on ? 'checked' : '') + '><span>' + l + '</span></div>').join('') +
@@ -1168,6 +1181,10 @@ document.addEventListener('click', async (ev) => {
     }
     case 'settle': { const p = payById(id); if (p) settleSheet(p); break; }
     case 'settle-go': settleGo(id); break;
+    case 'rec-load': recover = { loading: true }; render(); try { const r = await H.api.driveHistory(); recover = { list: r.versions || [] }; } catch (e) { recover = { error: 'Could not reach Drive: ' + e.message + '. The helper may need its recovery update.' }; } render(); break;
+    case 'rec-check': { const v = recover.list[Number(el.dataset.i)]; el.textContent = 'Checking…'; try { const r = await H.api.driveVersion(v); const d = JSON.parse(r.data); v.data = d; v.summary = sumOf(d); } catch (e) { v.summary = 'Could not open: ' + e.message; } render(); break; }
+    case 'rec-restore': { const v = recover.list[Number(el.dataset.i)]; if (!confirm('Restore this version? It will contain: ' + v.summary + '. Your current data is kept as a safety copy.')) break; try { await H.restoreVersion(migrate(v.data)); toast('Restored. Your data is back.'); celebrate('big', { title: 'Data restored', sub: v.summary }); render(); } catch (e) { toast(e.message); } break; }
+    case 'rec-local': { const x = safetyCopies()[Number(el.dataset.i)]; const d = JSON.parse(x.data); if (!confirm('Restore the copy from ' + L.fmtWhen(x.at) + '? It contains: ' + sumOf(d) + '.')) break; try { await H.restoreVersion(migrate(d)); toast('Restored'); render(); } catch (e) { toast(e.message); } break; }
     case 'r369': {
       const k = B.today(), key = el.dataset.k, n = Number(el.dataset.n); S.manifest[k] = S.manifest[k] || {};
       const cur = S.manifest[k][key] || 0; if (cur >= n) break;

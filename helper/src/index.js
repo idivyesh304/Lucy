@@ -92,7 +92,9 @@ async function route(req, env, ctx) {
   if (p === '/ai' && req.method === 'POST') return ai(await req.json(), cfg);
   if (p === '/oauth/link' && req.method === 'POST') return oauthLink(url, env, cfg);
   if (p === '/drive/load' && req.method === 'POST') return driveLoad(env, cfg);
-  if (p === '/drive/save' && req.method === 'POST') return driveSave(await req.text(), env, cfg);
+  if (p === '/drive/save' && req.method === 'POST') return driveSave(await req.text(), env, cfg, req.headers.get('x-lucy-force') === '1');
+  if (p === '/drive/history' && req.method === 'POST') return driveHistory(env, cfg);
+  if (p === '/drive/version' && req.method === 'POST') return driveVersion(await req.json(), env, cfg);
   if (p === '/drive/disconnect' && req.method === 'POST') { await env.LUCY.delete('gtoken'); await env.LUCY.delete('gaccess'); return json({ ok: true }); }
 
   return json({ error: 'Not found' }, 404);
@@ -105,7 +107,7 @@ function json(obj, status) {
 function cors(res) {
   const h = new Headers(res.headers);
   h.set('Access-Control-Allow-Origin', '*');
-  h.set('Access-Control-Allow-Headers', 'content-type, x-lucy-key');
+  h.set('Access-Control-Allow-Headers', 'content-type, x-lucy-key, x-lucy-force');
   h.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   return new Response(res.body, { status: res.status, headers: h });
 }
@@ -300,11 +302,37 @@ async function upload(token, id, name, text) {
   });
   if (!res.ok) throw new Error('Drive create failed (' + res.status + ')');
 }
-async function driveSave(text, env, cfg) {
-  JSON.parse(text); // refuse to save broken data
+// how much real data a Lucy file holds
+function records(d) {
+  if (!d || typeof d !== 'object') return 0;
+  let n = 0;
+  ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning'].forEach((k) => { if (Array.isArray(d[k])) n += d[k].length; });
+  (d.office || []).forEach((o) => { if (Number(o.amount)) n++; Object.values(o.paid || {}).forEach((x) => { n += ((x && x.parts) || []).length; }); });
+  (d.payments || []).forEach((p) => { n += (p.parts || []).length; });
+  return n;
+}
+async function driveSave(text, env, cfg, force) {
+  const incoming = JSON.parse(text); // refuse to save broken data
   const token = await accessToken(env, cfg);
   const files = await findFiles(token, 'lucy-');
   const main = files.find((f) => f.name === DRIVE_FILE);
+  // Safety net: if this save would hold less data than what is in Drive now, keep a copy of the current file first.
+  if (main) {
+    const cur = await fetch('https://www.googleapis.com/drive/v3/files/' + main.id + '?alt=media', { headers: { Authorization: 'Bearer ' + token } });
+    if (cur.ok) {
+      const curText = await cur.text();
+      let curData = null; try { curData = JSON.parse(curText); } catch (e) {}
+      const before = records(curData), after = records(incoming);
+      if (after < before) {
+        const stamp = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        await upload(token, null, 'lucy-safety-' + stamp + '.json', curText);
+        const safes = files.filter((f) => /^lucy-safety-/.test(f.name)).sort((a, b) => b.name.localeCompare(a.name));
+        for (const old of safes.slice(39)) await fetch('https://www.googleapis.com/drive/v3/files/' + old.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+        // a big drop is almost always a stale device: refuse unless the person chose it
+        if (!force && before >= 5 && after < before * 0.7) return json({ error: 'shrink', before: before, after: after, remote: curText }, 409);
+      }
+    }
+  }
   await upload(token, main && main.id, DRIVE_FILE, text);
   // one dated safety copy per day, keep the last 14
   const today = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
@@ -317,4 +345,28 @@ async function driveSave(text, env, cfg) {
     }
   }
   return json({ ok: true, savedAt: Date.now() });
+}
+
+// Every earlier version Drive holds: file revisions, daily backups and safety copies.
+async function driveHistory(env, cfg) {
+  const token = await accessToken(env, cfg);
+  const files = await findFiles(token, 'lucy-');
+  const out = [];
+  const main = files.find((f) => f.name === DRIVE_FILE);
+  if (main) {
+    const r = await fetch('https://www.googleapis.com/drive/v3/files/' + main.id + '/revisions?fields=revisions(id,modifiedTime,size)&pageSize=200', { headers: { Authorization: 'Bearer ' + token } });
+    if (r.ok) ((await r.json()).revisions || []).forEach((v) => out.push({ kind: 'rev', id: v.id, file: main.id, at: v.modifiedTime, size: Number(v.size || 0), label: 'Saved version' }));
+  }
+  files.filter((f) => f.name !== DRIVE_FILE).forEach((f) => out.push({ kind: 'file', id: f.id, at: f.modifiedTime, label: /safety/.test(f.name) ? 'Safety copy' : 'Daily backup ' + f.name.slice(12, 22), name: f.name }));
+  out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  return json({ versions: out });
+}
+async function driveVersion(body, env, cfg) {
+  const token = await accessToken(env, cfg);
+  const url = body.kind === 'rev' ? 'https://www.googleapis.com/drive/v3/files/' + body.file + '/revisions/' + body.id + '?alt=media' : 'https://www.googleapis.com/drive/v3/files/' + body.id + '?alt=media';
+  const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+  if (!r.ok) throw new Error('Could not open that version (' + r.status + ')');
+  const text = await r.text();
+  let d = null; try { d = JSON.parse(text); } catch (e) {}
+  return json({ data: text, records: records(d) });
 }

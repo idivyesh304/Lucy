@@ -14,7 +14,7 @@ export const AFFIRMATIONS = [
   { id: 'm8', cat: 'Money', text: 'I clear my debts with discipline and I never fear money again.', action: 'Check your next EMI and keep the amount ready.' },
   // DZYN LAB
   { id: 'd1', cat: 'DZYN LAB', text: 'DZYN LAB is becoming one of India\'s most respected creative companies.', action: 'Post one piece of work that shows DZYN LAB\'s quality.' },
-  { id: 'd2', cat: 'DZYN LAB', text: 'We are building a ₹25 lakh a month company, one great client at a time.', action: 'Add one new prospect to Leads.' },
+  { id: 'd2', cat: 'DZYN LAB', text: 'We are building a ₹15 lakh a month company, one great client at a time.', action: 'Add one new prospect to Leads.' },
   { id: 'd3', cat: 'DZYN LAB', text: 'Premium jewellers, doctors and fashion brands choose DZYN LAB because we deliver.', action: 'Research one jewellery brand that needs better content.' },
   { id: 'd4', cat: 'DZYN LAB', text: 'My team grows stronger because I lead with clarity and standards.', action: 'Give one team member clear feedback today.' },
   { id: 'd5', cat: 'DZYN LAB', text: 'Every project we deliver becomes a reason for the next client to call.', action: 'Ask a happy client for a testimonial.' },
@@ -110,7 +110,7 @@ export const FOUNDER = {
   },
   breakdown: {
     title: 'Break a big goal into steps',
-    msg: 'Big goals become real when they become this-week actions. Example: ₹25 lakh a month at ₹50,000 average retainer means 50 retainer clients. That means a steady pipeline: about 10 new conversations every week.',
+    msg: 'Big goals become real when they become this-week actions. Example: ₹15 lakh a month at ₹50,000 average retainer means 30 retainer clients. That means a steady pipeline: about 6 to 8 new conversations every week.',
     actions: ['Write this week\'s three most important actions', 'Book two client meetings this week', 'Ask Lucy to break your goal into a 90-day plan']
   }
 };
@@ -168,7 +168,7 @@ export const LOAN_TYPES = [['bank', 'Bank loan', 'bank'], ['personal', 'Personal
 export const PAY_MODES = ['UPI', 'Bank transfer', 'Cash', 'Cheque', 'Auto-debit'];
 
 export const DEFAULT_VISION = [
-  'Build DZYN LAB to ₹25 lakh monthly revenue',
+  'Build DZYN LAB to ₹15 lakh monthly revenue',
   'Become one of Bollywood\'s most successful film directors',
   'Become one of the richest, most respected people of my generation'
 ];

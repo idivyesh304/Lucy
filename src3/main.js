@@ -370,7 +370,7 @@ const QUICK = [
   ['next', 'Next best move', 'What is my next best move right now, and why? Keep it short.'],
   ['hunter', 'Find clients', 'Find new potential clients for DZYN LAB using my Hunter profile.'],
   ['pricing', 'Price a client', 'Help me price a new client. Ask me what you need to know about their requirements.'],
-  ['plan90', '90-day plan', 'Break my ₹25 lakh monthly revenue goal into a realistic 90-day plan with weekly actions.'],
+  ['plan90', '90-day plan', 'Break my monthly revenue goal into a realistic 90-day plan with weekly actions.'],
   ['content', 'Content ideas', 'Give me 5 strong reel ideas for DZYN LAB\'s own Instagram this week, with hooks.'],
   ['director', 'Director mindset', 'I want to become a successful Bollywood director. Give me one practical step for this week that fits around running DZYN LAB.']
 ];

@@ -9,7 +9,7 @@ export function defaults() {
   return {
     v: 3, updatedAt: 0, seq: 1, onboarded: false,
     settings: {
-      name: 'Divyesh', revenueTarget: 2500000, vision: C.DEFAULT_VISION.slice(),
+      name: 'Divyesh', revenueTarget: 1500000, vision: C.DEFAULT_VISION.slice(),
       briefTime: '08:30', journalTime: '22:00', reviewDay: 0, reviewTime: '19:00',
       inspireOn: true, inspireStart: 10, inspireEnd: 20,
       speak: true, voiceURI: '', voiceRate: 0.95, voicePitch: 1.0, autoSpeakReplies: true,
@@ -63,6 +63,12 @@ export function migrate(d) {
     out.v = 3;
   }
   out.profile = Object.assign(defaults().profile, d.profile || {});
+  // Nov 2026: Divyesh set his monthly target to Rs 15 lakh (was Rs 25 lakh)
+  if (!out.targetSet15) {
+    if (Number(out.settings.revenueTarget) === 2500000) out.settings.revenueTarget = 1500000;
+    out.settings.vision = (out.settings.vision || []).map((v) => String(v).replace(/₹\s?25 lakh monthly revenue/, '₹15 lakh monthly revenue'));
+    out.targetSet15 = true;
+  }
   ['reminders', 'clients', 'payments', 'loans', 'expenses', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'chat', 'log', 'specialDays']
     .forEach((k) => { if (!Array.isArray(out[k])) out[k] = []; });
   out.affirm = Object.assign({ done: {}, custom: [], spoken: {} }, d.affirm || {});

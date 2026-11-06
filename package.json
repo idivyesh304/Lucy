@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "Lucy - personal assistant app",
   "scripts": {
-    "build": "esbuild src/app.js --bundle --format=iife --target=es2020 --outfile=www/app.js"
+    "build": "esbuild src/app.js --bundle --format=iife --target=es2020 --outfile=www/app.js",
+    "build:web": "esbuild src3/main.js --bundle --format=iife --target=es2020,safari15 --minify --outfile=web/app.js"
   },
   "keywords": [],
   "author": "",

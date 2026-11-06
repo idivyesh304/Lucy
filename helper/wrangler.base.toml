@@ -1,0 +1,11 @@
+name = "lucy-helper"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[triggers]
+crons = ["* * * * *"]
+
+[[kv_namespaces]]
+binding = "LUCY"
+id = "__KV_ID__"

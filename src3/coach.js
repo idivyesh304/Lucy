@@ -28,7 +28,7 @@ const said = (kind, ref) => answers((x) => x.kind === kind && (ref == null || St
 /* ---------------- reports ---------------- */
 export function reports(kind) {
   const r = range(kind);
-  const list = [company(r), money_(r), personal(r), routine(r), creativity(r), learning(r), ascend(r)];
+  const list = [company(r), money_(r), personal(r), creativity(r), learning(r), ascend(r)];
   const scored = list.filter((x) => x.score != null);
   return { range: r, list: list, overall: scored.length ? Math.round(avg(scored.map((x) => x.score))) : null, weakest: scored.slice().sort((a, b) => a.score - b.score)[0] || null };
 }
@@ -202,7 +202,7 @@ export function questions() {
   const overdue = S.reminders.filter((x) => x.status === 'pending' && x.due < L.startOfDay(now));
   if (overdue.length >= 5) q('overdue:' + today, 'overdue', null, overdue.length + ' tasks are overdue. What is really blocking you, and which of these can your team do?', overdue.slice(0, 4).map((x) => x.task).join(', '), { prio: 60 });
   const last3 = [1, 2, 3].map((i) => dk(L.addDays(L.startOfDay(now), -i)));
-  if (last3.some((k) => (S.routineLog[k] || []).length)) S.routine.filter((x) => x.on).forEach((it) => { if (last3.every((k) => !(S.routineLog[k] || []).includes(it.key))) q('routine:' + it.key + ':' + mk(now) + ':' + Math.floor(new Date(now).getDate() / 7), 'routine', it.key, 'You skipped "' + it.label + '" three days in a row. Why?', '', { prio: 50 }); });
+  if (false) S.routine.filter((x) => x.on).forEach((it) => { if (last3.every((k) => !(S.routineLog[k] || []).includes(it.key))) q('routine:' + it.key + ':' + mk(now) + ':' + Math.floor(new Date(now).getDate() / 7), 'routine', it.key, 'You skipped "' + it.label + '" three days in a row. Why?', '', { prio: 50 }); });
   const hr = new Date(now).getHours();
   const reading = (S.books || []).find((b) => b.status === 'reading');
   if (reading && hr >= 18 && !(reading.logs || []).some((x) => dk(x.at) === today)) q('read:' + today, 'read', reading.id, 'Did you read ' + reading.title + ' today? What did you learn?', 'Pages read and one idea you can use in DZYN LAB.', { prio: 40, book: reading });

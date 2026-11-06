@@ -77,7 +77,7 @@ export function buildSchedule() {
   for (let d = 0; d < 7; d++) {
     const day = L.addDays(L.startOfDay(now), d), dk = L.dayKey(day);
     const doneKeys = S.routineLog[dk] || [];
-    S.routine.forEach((it) => {
+    [].forEach((it) => {
       if (!it.on || doneKeys.includes(it.key)) return;
       const t = hm(it.time);
       push(L.atTime(day, t.h, t.m), it.label, it.ring ? 'Your routine, ' + nm + '. Tap when done.' : L.fmtTime(L.atTime(day, t.h, t.m)) + ' · routine', 'routine-' + it.key, '#plan');

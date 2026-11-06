@@ -123,7 +123,7 @@ function renderHome() {
       paysSoon.slice(0, 3).map((p) => payRow(p)).join('') + '</div>';
   }
 
-  if (act.length) {
+  if (false && act.length) {
     h += '<h2>Daily routine <span class="num gold">' + rCount + '/' + act.length + '</span></h2><div class="bar" style="margin-bottom:12px"><i style="width:' + Math.round(100 * rCount / act.length) + '%"></i></div>';
     const chips = due.concat(next);
     h += chips.length ? '<div class="rgrid">' + chips.map((it) => '<button class="rchip ' + (mins(it) <= tnow ? 'due' : '') + '" data-a="routine" data-k="' + it.key + '">' + icon(it.icon, 22) + '<span class="rt">' + fmtHM(it.time) + '</span><span class="rl">' + esc(it.label) + '</span></button>').join('') + '</div>'
@@ -158,7 +158,7 @@ function topRow(x, i) {
 /* =============================== PLAN =============================== */
 function renderPlan() {
   const s = segOf('plan', 'today');
-  let h = topbar('Plan', { eyebrow: 'Your day, organised' }) + seg('plan', [['today', 'Today'], ['reminders', 'Reminders'], ['special', 'Special days'], ['routine', 'Routine']], s);
+  let h = topbar('Plan', { eyebrow: 'Your day, organised' }) + seg('plan', [['today', 'Today'], ['reminders', 'Reminders'], ['special', 'Special days']], s);
   if (s === 'today') {
     const now = Date.now(), d0 = L.startOfDay(now), d1 = L.addDays(d0, 1);
     const rows = [];
@@ -167,7 +167,7 @@ function renderPlan() {
       if (t < d1) rows.push({ t: Math.max(t, d0 - 1), late: t < now, html: remRow(r, true) });
     });
     const done = S.routineLog[B.today()] || [];
-    S.routine.filter((x) => x.on).forEach((it) => {
+    [].forEach((it) => {
       const tt = hm(it.time), t = L.atTime(now, tt.h, tt.m), ok = done.includes(it.key);
       rows.push({ t: t, html: '<div class="item ' + (ok ? 'done' : '') + '"><button class="check ' + (ok ? 'on' : '') + '" data-a="routine" data-k="' + it.key + '">' + (ok ? icon('check', 16) : '') + '</button><div class="badge" style="width:32px;height:32px">' + icon(it.icon, 16) + '</div><div class="grow"><div class="t">' + esc(it.label) + '</div><div class="m">' + fmtHM(it.time) + ' · routine</div></div></div>' });
     });
@@ -186,9 +186,9 @@ function renderPlan() {
     h += body || '<div class="empty">Nothing here. Tap + to add a reminder.</div>';
     const done = S.reminders.filter((r) => r.status === 'done' && match(r)).sort((a, b2) => (b2.doneAt || 0) - (a.doneAt || 0)).slice(0, 10);
     if (done.length) h += '<h2>Recently done</h2>' + listOf(done.map((r) => remRow(r)));
-  } else if (s === 'special') {
+  } else if (s === 'special' || s === 'routine') {
     h += renderSpecial();
-  } else {
+  } else if (false) {
     const done = S.routineLog[B.today()] || [];
     h += '<div class="sub" style="margin:-4px 2px 12px">Change timings, ringing and voice in Settings.</div>';
     h += listOf(S.routine.map((it) => { const ok = done.includes(it.key); return '<div class="item ' + (ok ? 'done' : '') + (it.on ? '' : ' off') + '"><button class="check ' + (ok ? 'on' : '') + '" data-a="routine" data-k="' + it.key + '">' + (ok ? icon('check', 16) : '') + '</button><div class="badge" style="width:32px;height:32px">' + icon(it.icon, 16) + '</div><div class="grow"><div class="t">' + esc(it.label) + '</div><div class="m">' + fmtHM(it.time) + (it.on ? '' : ' · off') + '</div></div></div>'; }));
@@ -609,7 +609,7 @@ function renderMore() {
     row('reports', 'trend', 'Reports and coach', (() => { const n = CO.questions().length; return (n ? n + ' question' + (n > 1 ? 's' : '') + ' from Lucy · ' : '') + 'scores, books, what you watch'; })()) +
     row('review', 'chart', 'Weekly review', 'Personal · company · money · ascend') +
     row('connections', 'link', 'Connections', (H.ready() ? 'Helper connected' : 'Set up notifications, Drive and AI')) +
-    row('settings', 'gear', 'Settings', 'Routine, voice, notifications, business rules') +
+    row('settings', 'gear', 'Settings', 'Voice, notifications, business rules') +
     row('backup', 'cloud', 'Backup', H.driveEnabled() ? 'Google Drive on · last ' + (H.sync.last ? L.fmtWhen(H.sync.last) : 'never') : 'Copy or restore your data');
 }
 
@@ -677,7 +677,7 @@ function renderReview() {
   const leadsWon = S.leads.filter((l) => l.status === 'Won' && (l.wonAt || 0) >= from).length;
   return topbar('Weekly review', { back: 'More' }) + '<div class="sub">' + L.fmtDate(from) + ' to today</div><h2>Company</h2><div class="stats">' + stat('Work done', work, '') + stat('Received', short(received), '') + stat('Leads won', leadsWon, '') + stat('Mission days', days.filter((d) => (S.mission[L.dayKey(d)] || []).every((m) => m.done)).length + '/7', 'all 3 done') + '</div>' +
     '<h2>Personal</h2><div class="stats">' + stat('Mood average', ratings.length ? (ratings.reduce((a, b2) => a + b2, 0) / ratings.length).toFixed(1) + '/10' : '–', '') + stat('Journal', jDays + '/7', 'days written') + stat('Affirmations', affDays + '/7', 'days') + stat('Streak', B.streak() + ' days', '') + '</div>' +
-    '<div class="panel"><h3>Routine completion</h3>' + chart(routinePts, (v) => v + '%') + '</div><h2>Money</h2><div class="stats">' + stat('EMIs paid', short(emis), 'this week') + stat('Loans open', B.loanStats().open, short(B.loanStats().outstanding) + ' outstanding') + '</div>';
+    '<h2>Money</h2><div class="stats">' + stat('EMIs paid', short(emis), 'this week') + stat('Loans open', B.loanStats().open, short(B.loanStats().outstanding) + ' outstanding') + '</div>';
 }
 function renderSettings() {
   const st = S.settings, bz = st.business;
@@ -698,8 +698,7 @@ function renderSettings() {
     '<div><label>Morning briefing</label><input type="time" data-set="briefTime" value="' + st.briefTime + '"></div><div><label>Journal</label><input type="time" data-set="journalTime" value="' + st.journalTime + '"></div>' +
     '<div><label>Reminder repeats</label>' + sel('nagCount', [[0, 'None'], [1, '1 time'], [2, '2 times'], [3, '3 times']], st.nagCount) + '</div><div><label>Every</label>' + sel('nagMin', [[10, '10 min'], [15, '15 min'], [30, '30 min']], st.nagMin) + '</div>' +
     '<div><label>Weekly review</label>' + sel('reviewDay', L.DAYNAME.map((d, i) => [i, d]), st.reviewDay) + '</div><div><label>At</label><input type="time" data-set="reviewTime" value="' + st.reviewTime + '"></div></div>' +
-    '<h2 id="routine-settings">Daily routine</h2><div class="list">' + S.routine.map((it, i) => '<div class="rrow ' + (it.on ? '' : 'off') + '"><div class="badge" style="width:32px;height:32px">' + icon(it.icon, 16) + '</div><div class="grow"><b>' + esc(it.label) + '</b><div class="row mt" style="gap:6px;margin-top:6px"><button class="tgl ' + (it.ring ? 'on' : '') + '" data-a="rt" data-f="ring" data-i="' + i + '">Important</button><button class="tgl ' + (it.speak ? 'on' : '') + '" data-a="rt" data-f="speak" data-i="' + i + '">Voice</button></div></div><input type="time" class="tinput" data-rt="' + i + '" value="' + it.time + '">' + sw(it.on, 'rt', null, ' data-f="on" data-i="' + i + '"') + '</div>').join('') + '</div>' +
-    '<button class="btn small ghost" data-a="rt-reset">Reset routine to default</button>' +
+    
     '<h2>Business and pricing rules</h2><div class="grid2"><div><label>Minimum retainer</label><input type="number" data-biz="minRetainer" value="' + bz.minRetainer + '"></div><div><label>Minimum margin %</label><input type="number" data-biz="minMargin" value="' + bz.minMargin + '"></div>' +
     '<div><label>Maximum discount %</label><input type="number" data-biz="maxDiscount" value="' + bz.maxDiscount + '"></div><div><label>Minimum months</label><input type="number" data-biz="minMonths" value="' + bz.minMonths + '"></div></div>' +
     '<label>Payment terms</label><textarea data-biz="paymentTerms">' + esc(bz.paymentTerms) + '</textarea>' +
@@ -751,7 +750,7 @@ function renderRecover() {
 }
 function renderBackup() {
   return topbar('Backup', { back: 'More' }) + renderRecover() + '<div class="panel"><div class="row"><span class="status-dot ' + (H.driveEnabled() ? 'ok' : '') + '"></span><b class="grow">Google Drive</b><span class="sub">' + (H.driveEnabled() ? 'Automatic' : 'Off') + '</span></div><div class="sub mt">' + (H.driveEnabled() ? 'Every change is saved to your Drive, with a dated copy each day for 14 days.' : 'Turn on in Connections for automatic backup.') + '</div></div>' +
-    '<h2>Start fresh</h2><div class="panel"><div class="sub">Choose what to delete. Your profile, settings, routine and Lucy herself stay.</div>' +
+    '<h2>Start fresh</h2><div class="panel"><div class="sub">Choose what to delete. Your profile, settings and Lucy herself stay.</div>' +
     [['clients', 'Clients', 1], ['payments', 'Money in and out', 1], ['expenses', 'Expenses', 1], ['loans', 'Loans and EMIs', 1], ['reminders', 'Reminders', 1], ['leads', 'Leads', 1], ['ideas', 'Ideas', 1], ['notes', 'Notes', 1], ['shopping', 'Shopping', 1], ['learning', 'Learning', 1], ['chat', 'Chat with Lucy', 1], ['log', 'Activity history', 1], ['team', 'Team members', 0], ['special', 'Special days', 0], ['dreams', 'Dreams', 0], ['journal', 'Journal, streaks and mission history', 0], ['profile', 'Keep my profile photo', 1]]
       .map(([k, l, on]) => '<div class="row" style="padding:7px 0"><input type="checkbox" id="fr-' + k + '" ' + (on ? 'checked' : '') + '><span>' + l + '</span></div>').join('') +
     '<button class="btn danger block" data-a="fresh-start">Delete selected and start fresh</button></div>' +

@@ -47,8 +47,10 @@ export const MONEY_MAGNET = [
 ];
 
 // Dream-specific affirmation and manifestation, written as already done.
+// short spoken name: 'Rolex GMT-Master II - Oyster, 40 mm' -> 'Rolex GMT-Master II'
+export const shortTitle = (t) => String(t || '').split(/\s+[-–|]\s+|,\s/)[0].trim();
 function dreamLines(d) {
-  const t = String(d.title).replace(/^(my|the|a)\s+/i, ''), amt = Number(d.target) ? lakh(d.target) : '', by = d.targetDate ? new Date(d.targetDate).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : '';
+  const t = shortTitle(d.title).replace(/^(my|the|a)\s+/i, ''), amt = Number(d.target) ? lakh(d.target) : '', by = d.targetDate ? new Date(d.targetDate).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : '';
   const why = d.why ? ' ' + d.why.replace(/\.?$/, '.') : '';
   const T = {
     Car: [`My ${t} is mine, paid in full. I feel the steering in my hands, I hear the engine, and I drive it with pride.`, `I park my ${t} outside the DZYN LAB office. People look twice. My team smiles. I earned every bit of it with my work.`],
@@ -71,7 +73,7 @@ function dreamLines(d) {
 export function dreamAffirmations() {
   return S.dreams.filter((d) => !d.achieved).map((d) => {
     const l = dreamLines(d);
-    return { id: 'dr' + d.id, cat: 'Dream', text: l.affirm, action: Number(d.target) ? 'Move something towards ' + d.title + ' today, even ₹500.' : 'Look at your ' + d.title + ' photo for 30 seconds and feel it is yours.', dream: d };
+    return { id: 'dr' + d.id, cat: 'Dream', text: l.affirm, action: Number(d.target) ? 'Move something towards your ' + shortTitle(d.title) + ' today, even ₹500.' : 'Look at your ' + shortTitle(d.title) + ' photo for 30 seconds and feel it is yours.', dream: d };
   });
 }
 export function dreamManifestations() {
@@ -145,7 +147,7 @@ export function futureScript() {
   const p = S.profile || {}, name = p.fullName || nm();
   const date = new Date(); date.setFullYear(date.getFullYear() + 1);
   const ds = S.dreams.filter((d) => !d.achieved);
-  const pick = (cat) => { const d = ds.find((x) => x.cat === cat); return d ? Object.assign({}, d, { title: String(d.title).replace(/^(my|the|a)\s+/i, '') }) : null; };
+  const pick = (cat) => { const d = ds.find((x) => x.cat === cat); return d ? Object.assign({}, d, { title: shortTitle(d.title).replace(/^(my|the|a)\s+/i, '') }) : null; };
   const lines = [`Today is ${date.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}. I am ${name}, and I am living the life I once only imagined.`];
   lines.push(`This month DZYN LAB collected ${lakh(S.settings.revenueTarget || 1500000)}, and it felt normal. Clients pay on time, my team is full, and premium brands come to us first.`);
   const car = pick('Car'), home = pick('Home'), watch = pick('Watch'), office = pick('Office'), vac = pick('Vacation'), film = pick('Film'), bank = pick('Bank balance'), gold = pick('Gold');
@@ -157,7 +159,7 @@ export function futureScript() {
   if (gold) lines.push(`Our family's gold keeps growing: ${gold.title}.`);
   if (vac) lines.push(`Next week I leave for my ${vac.title}, fully paid, business running without me.`);
   if (film) lines.push(`In the evening I worked on my ${/film|movie/i.test(film.title) ? film.title : 'film, ' + film.title}. Directing is no longer a dream. It is my schedule.`);
-  ds.filter((d) => !['Home', 'Watch', 'Car', 'Office', 'Bank balance', 'Gold', 'Vacation', 'Film'].includes(d.cat)).slice(0, 3).forEach((d) => lines.push(`${d.title} is part of my life now.`));
+  ds.filter((d) => !['Home', 'Watch', 'Car', 'Office', 'Bank balance', 'Gold', 'Vacation', 'Film'].includes(d.cat)).slice(0, 3).forEach((d) => lines.push(`${shortTitle(d.title)} is part of my life now.`));
   if (!film && !ds.length) lines.push('In the evening I worked on my first film. Directing is no longer a dream. It is my schedule.');
   lines.push('I am grateful. I earned all of this, one focused day at a time, and the best is still ahead.');
   return lines.join(' ');
@@ -166,7 +168,7 @@ export function futureScript() {
 export function gratitudeInAdvance() {
   const ds = S.dreams.filter((d) => !d.achieved).slice(0, 4);
   const got = moneyStats().receivedToday;
-  const out = (got ? ['Thank you for the ' + L.money(got) + ' that came to DZYN LAB today. I receive it with gratitude, and I make space for more.'] : []).concat(ds.map((d) => 'Thank you for my ' + d.title + '. It is already on its way to me.'));
+  const out = (got ? ['Thank you for the ' + L.money(got) + ' that came to DZYN LAB today. I receive it with gratitude, and I make space for more.'] : []).concat(ds.map((d) => 'Thank you for my ' + shortTitle(d.title) + '. It is already on its way to me.'));
   out.push('Thank you for ' + lakh(S.settings.revenueTarget || 1500000) + ' a month flowing into DZYN LAB.');
   if (out.length < 3) out.push('Thank you for clients who respect my work and pay with joy.', 'Thank you for my health, my family and my unstoppable mind.');
   return out.slice(0, 5);

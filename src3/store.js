@@ -23,7 +23,7 @@ export function defaults() {
         services: 'Content production, reels, photography, branding, social media management, performance marketing' }
     },
     routine: C.ROUTINE_DEFAULT.map((r) => ({ key: r.key, icon: r.icon, label: r.label, time: r.time, on: true, ring: !!r.ring, speak: true })),
-    routineLog: {}, reminders: [], clients: [], payments: [], loans: [], expenses: [], dreams: [],
+    routineLog: {}, moneyMoves: {}, reminders: [], clients: [], payments: [], loans: [], expenses: [], dreams: [],
     affirm: { done: {}, custom: [], spoken: {} }, mission: {}, leads: [], ideas: [], notes: [], shopping: [], learning: [],
     journal: {}, chat: [], log: [], celebrated: {}, manifest: {},
     specialDays: [], employees: [], office: [],
@@ -73,6 +73,7 @@ export function migrate(d) {
   }
   out.profile = Object.assign(defaults().profile, d.profile || {});
   if (!out.manifest || typeof out.manifest !== 'object') out.manifest = {};
+  if (!out.moneyMoves || typeof out.moneyMoves !== 'object') out.moneyMoves = {};
   // Office expenses: add the standard items once (never removes or changes existing ones)
   if (!out.officeSeeded) {
     out.office = Array.isArray(d.office) ? d.office : [];

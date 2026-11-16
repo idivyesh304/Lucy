@@ -5,36 +5,45 @@ import * as L from '../src/logic.js';
 const nm = () => (S.settings.name || '').trim() || 'Divyesh';
 const lakh = (n) => { n = Number(n) || 0; return n >= 1e7 ? '₹' + (n / 1e7).toFixed(n % 1e7 ? 2 : 0).replace(/\.?0+$/, '') + ' crore' : n >= 1e5 ? '₹' + (n / 1e5).toFixed(n % 1e5 ? 1 : 0).replace(/\.0$/, '') + ' lakh' : L.money(n); };
 
-// Identity-level money affirmations: present tense, specific, felt in the body, each tied to an action.
+// Money Magnet. Honest principle: affirmations change how you act; actions bring the money.
+// So every affirmation is specific to DZYN LAB, spoken as a fact, and paired with a money action for today.
 export const MONEY_MAGNET = [
-  { id: 'mm1', text: 'I am the kind of man money trusts. It comes to me, it stays with me, and it multiplies under my care.', action: 'Open your bank app and look at it with pride, not fear.' },
-  { id: 'mm2', text: 'TARGET a month is not a dream for me. It is my minimum standard, and DZYN LAB is rising to meet it.', action: 'Write today\'s revenue gap and one move that closes part of it.' },
-  { id: 'mm3', text: 'Every no I hear today is clearing the road to the clients who will pay me lakhs.', action: 'Make the one sales call you have been avoiding.' },
-  { id: 'mm4', text: 'My name is becoming a brand that brands pay for.', action: 'Post one piece of work under your own name today.' },
-  { id: 'mm5', text: 'I do not chase money. I create value so big that money follows me.', action: 'Add one extra deliverable that wows your best client.' },
-  { id: 'mm6', text: 'I receive money with gratitude and pride. I never apologise for my price again.', action: 'Send one quote today without any discount.' },
-  { id: 'mm7', text: 'My income grows faster than my expenses, every single month, without exception.', action: 'Check this month\'s collected versus expenses in Lucy.' },
-  { id: 'mm8', text: 'I am building generational wealth. My parents see it, my wife feels it, and my children will inherit it.', action: 'Put aside a fixed amount for savings or SIP today.' },
-  { id: 'mm9', text: 'Clients who pay on time, refer others and stay for years are finding me right now.', action: 'Ask one happy client for a referral.' },
-  { id: 'mm10', text: 'One idea from my mind is worth more than a month of someone else\'s effort, and I charge like it.', action: 'Raise the price on your next proposal.' },
-  { id: 'mm11', text: 'Lakhs are moving towards DZYN LAB\'s account right now, from directions I have not even imagined yet.', action: 'Follow up on every pending receivable today.' },
-  { id: 'mm12', text: 'I am rich in skill, rich in vision, and becoming rich in money. All three are mine.', action: 'Learn one thing today that makes your work more valuable.' },
-  { id: 'mm13', text: 'When I walk into a meeting, the room feels my value before I say a word.', action: 'Dress and prepare for your next meeting like a crorepati.' },
-  { id: 'mm14', text: 'My first crore is coming. I can already see the number on my screen.', action: 'Write the date you will see ₹1 crore in your account.' },
-  { id: 'mm15', text: 'Money loves speed. I act fast, follow up fast, and I get paid fast.', action: 'Reply to every pending client message within the hour.' },
-  { id: 'mm16', text: 'I am becoming the richest man in my family\'s history, and the story has only started.', action: 'Do the highest-value task first today.' },
-  { id: 'mm17', text: 'My bank balance is the scoreboard of the value I create, and today I score.', action: 'Close or collect one payment before 6 PM.' },
-  { id: 'mm18', text: 'Wealth is drawn to clarity. I know exactly what I want, and it knows exactly where to find me.', action: 'Re-read your dreams in Lucy once, slowly.' },
-  { id: 'mm19', text: 'I release every old fear about money. I am safe, I am provided for, and I am rising.', action: 'Clear one small debt or EMI worry by planning it today.' },
-  { id: 'mm20', text: 'I deserve to be paid at the level of my dreams, not the level of my past.', action: 'Pitch one client from your Premium tier today.' },
-  { id: 'mm21', text: 'Every client I serve today becomes a channel of money, referrals and respect in my life.', action: 'Over-deliver for one client today.' },
-  { id: 'mm22', text: 'I think like a crorepati, decide like a crorepati, and work until my bank account agrees.', action: 'Make one decision today the way your future self would.' },
-  { id: 'mm23', text: 'Money is coming to me in increasing amounts, from multiple sources, continuously.', action: 'List one new income source you can start this month.' },
-  { id: 'mm24', text: 'My films will earn crores, and my agency will fund them. Both are already in motion.', action: 'Spend 20 minutes on your film idea tonight.' },
-  { id: 'mm25', text: 'I am grateful for every rupee that came today, and I make space for ten more.', action: 'Write down one payment you are grateful for.' },
-  { id: 'mm26', text: 'Premium brands are searching for exactly what DZYN LAB does. Today, one of them finds us.', action: 'Send one cold message to a premium brand.' },
-  { id: 'mm27', text: 'I am a money magnet. Opportunities stick to me because I show up every single day.', action: 'Complete today\'s 3-6-9 ritual in Lucy.' },
-  { id: 'mm28', text: 'Rich is my identity, not my goal. I am simply catching up to who I already am.', action: 'Walk, talk and decide like that man today.' }
+  // identity
+  { id: 'id1', cat: 'Identity', text: 'I am the owner of a TARGET-a-month agency. I make decisions today the way that man makes them.', action: 'Before every decision today, ask: what would the TARGET-a-month version of me do?' },
+  { id: 'id2', cat: 'Identity', text: 'Money comes to me because I solve expensive problems for businesses, and I solve them well.', action: 'Write down the most expensive problem one client has right now, and offer to solve it.' },
+  { id: 'id3', cat: 'Identity', text: 'I am a creative director who thinks like a businessman. Art gets attention, business gets paid, and I do both.', action: 'Put a revenue number next to your next creative idea.' },
+  { id: 'id4', cat: 'Identity', text: 'I am comfortable with big numbers. Lakhs do not scare me, they excite me.', action: 'Say your monthly target out loud three times, calmly, like a fact.' },
+  // value and pricing
+  { id: 'pr1', cat: 'Value', text: 'My price is a filter, not a barrier. The right clients pay it happily and the wrong ones leave.', action: 'Send your next quote at full price. No discount, no apology.' },
+  { id: 'pr2', cat: 'Value', text: 'I sell results, not reels. Clients pay me for more customers, more enquiries and a stronger name.', action: 'In your next pitch, lead with the result the client wants, then the deliverables.' },
+  { id: 'pr3', cat: 'Value', text: 'Every year of my experience is inside every frame I deliver, and my price reflects it.', action: 'Raise the price of your next new proposal by 10 to 20 percent.' },
+  { id: 'pr4', cat: 'Value', text: 'Discounts are for businesses without confidence. DZYN LAB adds value, it does not cut price.', action: 'If a client asks for less, offer fewer deliverables, not a lower rate.' },
+  // sales
+  { id: 'sa1', cat: 'Sales', text: 'Every follow-up I send is money moving closer to my account.', action: 'Follow up with every lead whose date has passed. Today, not tomorrow.' },
+  { id: 'sa2', cat: 'Sales', text: 'Selling is serving. When I pitch, I am offering a business owner the growth they are praying for.', action: 'Pitch one new business today, by call, visit or WhatsApp.' },
+  { id: 'sa3', cat: 'Sales', text: 'I am not afraid of no. Every no is one step closer to the yes that pays me for years.', action: 'Make the one call you have been avoiding.' },
+  { id: 'sa4', cat: 'Sales', text: 'My best clients come from my happy clients. Referrals flow to me because my work speaks.', action: 'Ask one happy client: who else do you know who needs this?' },
+  { id: 'sa5', cat: 'Sales', text: 'I fill my pipeline every week, so I never sell from fear.', action: 'Add three new leads from your target industries in Lucy.' },
+  { id: 'sa6', cat: 'Sales', text: 'Premium clients are looking for exactly what DZYN LAB does. Today I make it easy for one of them to find us.', action: 'Post one result or behind-the-scenes clip under your own name.' },
+  // collection
+  { id: 'co1', cat: 'Collection', text: 'I get paid on time because I ask on time. Collecting my money is respect for my work.', action: 'Send a polite payment reminder to every client with a pending amount.' },
+  { id: 'co2', cat: 'Collection', text: 'Money that is owed to me comes home. I ask clearly, I ask early, and I am paid in full.', action: 'Collect the oldest pending payment before 6 PM.' },
+  { id: 'co3', cat: 'Collection', text: 'No work starts without an advance. My cash flow is protected, always.', action: 'Make sure every new job this month has an advance before work starts.' },
+  // receiving and abundance
+  { id: 'rc1', cat: 'Receiving', text: 'I receive money with gratitude and without guilt. Every rupee I earn is earned honestly.', action: 'When the next payment comes in, stop for ten seconds and say thank you.' },
+  { id: 'rc2', cat: 'Receiving', text: 'Money is coming to DZYN LAB from clients I have, clients I will meet, and ideas I have not had yet.', action: 'Write one new income idea in Lucy Ideas today.' },
+  { id: 'rc3', cat: 'Receiving', text: 'There is more than enough business in Ahmedabad and beyond. My share is growing every month.', action: 'Look at one new industry you can serve and find three businesses in it.' },
+  // wealth building
+  { id: 'we1', cat: 'Wealth', text: 'I keep a part of every rupee I earn. Wealth is what I keep, not what I make.', action: 'Move a fixed amount to savings or SIP the day money comes in.' },
+  { id: 'we2', cat: 'Wealth', text: 'My income grows faster than my expenses, every single month.', action: 'Check this month\'s collected versus costs in Lucy, and cut one cost that does not pay back.' },
+  { id: 'we3', cat: 'Wealth', text: 'I am building wealth that my parents are proud of and my children will inherit.', action: 'Spend 10 minutes planning one investment or saving goal.' },
+  // scale
+  { id: 'sc1', cat: 'Scale', text: 'My team multiplies my time. The more I delegate, the more I earn.', action: 'Hand one task you do every week to your team today.' },
+  { id: 'sc2', cat: 'Scale', text: 'DZYN LAB runs on systems, so growth does not depend on me doing everything.', action: 'Write a one-page checklist for one task your team repeats.' },
+  { id: 'sc3', cat: 'Scale', text: 'I am CLIENTSNEED clients away from TARGET a month, and I add them one conversation at a time.', action: 'Book one meeting with a potential client this week.' },
+  // gratitude
+  { id: 'gr1', cat: 'Gratitude', text: 'Thank you for every client who trusted DZYN LAB this month. I will serve them so well they never leave.', action: 'Send one client a short thank-you message today, with no ask.' },
+  { id: 'gr2', cat: 'Gratitude', text: 'I am grateful for the money that came today, and I make space for much more.', action: 'Note one payment you are grateful for in Lucy\'s journal.' }
 ];
 
 // Dream-specific affirmation and manifestation, written as already done.
@@ -68,10 +77,61 @@ export function dreamAffirmations() {
 export function dreamManifestations() {
   return S.dreams.filter((d) => !d.achieved).map((d) => ({ dream: d, text: dreamLines(d).manifest, affirm: dreamLines(d).affirm }));
 }
-export function magnetAffirmations() {
+function fill(t) {
   const target = lakh(S.settings.revenueTarget || 1500000);
-  return MONEY_MAGNET.map((a) => ({ id: a.id, cat: 'Money Magnet', text: a.text.replace('TARGET', target), action: a.action }));
+  const tiers = ((S.growth || {}).tiers || []).filter((x) => Number(x.price) > 0);
+  const avg = tiers.length ? tiers.reduce((a, x) => a + Number(x.price), 0) / tiers.length : 35000;
+  const active = S.clients.filter((c) => !c.past && c.active !== false);
+  const mrr = active.reduce((a, c) => a + (c.billing === 'once' ? 0 : Number(c.retainer || c.amount || 0)), 0);
+  const need = Math.max(1, Math.ceil(Math.max(0, (S.settings.revenueTarget || 1500000) - mrr) / avg));
+  return String(t).split('TARGET').join(target).split('CLIENTSNEED').join(String(need));
 }
+export function magnetAffirmations() {
+  return MONEY_MAGNET.map((a) => ({ id: a.id, cat: 'Money Magnet', sub: a.cat, text: fill(a.text), action: fill(a.action) }));
+}
+
+/* ---------------- Money moves: the part of the magnet that actually brings money ---------------- */
+const DAYK = (t) => L.dayKey(t);
+const nmC = (c) => (c && (c.company || [c.firstName, c.lastName].filter(Boolean).join(' '))) || 'a client';
+function paidSoFar(p) { return (p.parts && p.parts.length ? p.parts : p.status === 'settled' ? [{ amt: p.amount }] : []).reduce((a, x) => a + Number(x.amt || 0), 0); }
+export function moneyMoves() {
+  const now = Date.now(), today = L.startOfDay(now), done = (S.moneyMoves || {})[DAYK(now)] || {};
+  const moves = [];
+  // 1. collect
+  const pend = S.payments.filter((p) => p.type === 'in' && p.status === 'pending' && p.due < L.addDays(today, 4)).map((p) => ({ p: p, left: Math.max(0, Number(p.amount || 0) - paidSoFar(p)) })).filter((x) => x.left > 0).sort((a, b) => a.p.due - b.p.due);
+  if (pend.length) { const x = pend[0], late = Math.floor((today - L.startOfDay(x.p.due)) / L.DAY); moves.push({ key: 'collect', cat: 'Collect', title: 'Collect ' + L.money(x.left) + ' from ' + x.p.party, why: late > 0 ? late + ' days late. Money owed to you is the fastest money you can get.' : late === 0 ? 'Due today. Send the reminder in the morning, not the evening.' : 'Due in ' + (-late) + ' days. A friendly heads-up now means you get paid on time.', amt: x.left, hash: '#money', more: pend.length > 1 ? pend.length - 1 + ' more pending' : '' }); }
+  else { const ren = S.clients.filter((c) => !c.past && c.active !== false && c.billing !== 'once' && c.nextDate).sort((a, b) => a.nextDate - b.nextDate)[0];
+    moves.push(ren ? { key: 'collect', cat: 'Collect', title: 'Confirm ' + nmC(ren) + '\'s renewal of ' + L.money(ren.retainer || ren.amount), why: 'Renews ' + L.fmtDate(ren.nextDate) + '. Send the invoice early so it is paid on the day.', hash: '#more-clients' } : { key: 'collect', cat: 'Collect', title: 'Ask for an advance on your next job', why: 'No work starts without an advance. That is how cash flow stays healthy.' }); }
+  // 2. close
+  const open = S.leads.filter((l) => !['Won', 'Lost'].includes(l.status));
+  const hot = open.slice().sort((a, b) => ((a.followUp && a.followUp < L.addDays(today, 1)) ? 0 : 1) - ((b.followUp && b.followUp < L.addDays(today, 1)) ? 0 : 1) || ({ Hot: 0, Warm: 1, Cold: 2 }[a.temp] || 1) - ({ Hot: 0, Warm: 1, Cold: 2 }[b.temp] || 1) || (Number(b.dealMonthly || 0) - Number(a.dealMonthly || 0)))[0];
+  if (hot) moves.push({ key: 'close', cat: 'Close', title: (hot.nextAction ? hot.nextAction + ' · ' : 'Call ') + hot.name, why: [Number(hot.dealMonthly) ? L.money(hot.dealMonthly) + ' a month on the table' : '', hot.status, hot.followUp && hot.followUp < today ? 'follow-up overdue' : ''].filter(Boolean).join(' · ') + '.', amt: Number(hot.dealMonthly || 0), hash: '#more-leads' });
+  else moves.push({ key: 'close', cat: 'Prospect', title: 'Add 3 new leads from your target industries', why: 'Your pipeline is empty. No leads today means no clients next month.', hash: '#more-leads' });
+  // 3. upsell
+  const tiers = ((S.growth || {}).tiers || []).map((x) => Number(x.price)).filter(Boolean).sort((a, b) => a - b);
+  const act = S.clients.filter((c) => !c.past && c.active !== false && c.billing !== 'once');
+  const up = act.map((c) => ({ c: c, cur: Number(c.retainer || c.amount || 0) })).map((x) => ({ c: x.c, cur: x.cur, next: tiers.find((t) => t > x.cur) })).filter((x) => x.next).sort((a, b) => a.cur - b.cur)[(new Date(now).getDate()) % Math.max(1, act.length)] || null;
+  if (up) moves.push({ key: 'upsell', cat: 'Upsell', title: 'Offer ' + nmC(up.c) + ' an upgrade to ' + L.money(up.next), why: 'From ' + L.money(up.cur) + ' a month. Add Meta ads, extra reels or a shoot day. Upgrading a happy client is the easiest money in an agency.', amt: up.next - up.cur, hash: '#more-clients' });
+  else moves.push({ key: 'upsell', cat: 'Upsell', title: 'Offer one client an add-on this month', why: 'A shoot day, Meta ads or a website. Existing clients already trust you.' });
+  // 4. referral
+  const ref = act.slice().sort((a, b) => (a.created || 0) - (b.created || 0))[(new Date(now).getDate() + 1) % Math.max(1, act.length)];
+  moves.push({ key: 'referral', cat: 'Referral', title: ref ? 'Ask ' + nmC(ref) + ' for one referral' : 'Ask one happy client or friend for a referral', why: 'Referred clients close faster, pay better and stay longer. Just ask: who else do you know who needs this?' });
+  // 5. visibility (alternates with outreach)
+  const ind = ['dental clinics', 'cafes', 'jewellers', 'real estate developers', 'skin clinics', 'car detailing studios', 'interior designers'][Math.floor(today / L.DAY) % 7];
+  moves.push(Math.floor(today / L.DAY) % 2 ? { key: 'visible', cat: 'Visibility', title: 'Post one result or behind-the-scenes under your name', why: 'People buy from the face they see. Your work is your best salesman.' } : { key: 'visible', cat: 'Outreach', title: 'Send 5 messages to ' + ind + ' in Ahmedabad', why: 'Short, personal, with one idea for their business. Five today becomes one client this month.' });
+  moves.forEach((m) => { m.done = !!done[m.key]; });
+  return moves;
+}
+export function moneyStats() {
+  const log = S.moneyMoves || {}, now = Date.now();
+  let streak = 0;
+  for (let i = 0; i < 400; i++) { const k = DAYK(L.addDays(L.startOfDay(now), -i)); const n = Object.keys(log[k] || {}).length; if (n >= 3) streak++; else if (i > 0) break; }
+  const m = DAYK(now).slice(0, 7);
+  const monthMoves = Object.keys(log).filter((k) => k.startsWith(m)).reduce((a, k) => a + Object.keys(log[k]).length, 0);
+  const received = S.payments.filter((p) => p.type === 'in').reduce((a, p) => a + (p.parts && p.parts.length ? p.parts : p.status === 'settled' ? [{ amt: p.amount, at: p.settledAt || p.due }] : []).filter((x) => DAYK(x.at) === DAYK(now)).reduce((b, x) => b + Number(x.amt || 0), 0), 0);
+  return { streak: streak, monthMoves: monthMoves, today: Object.keys(log[DAYK(now)] || {}).length, receivedToday: received };
+}
+
 
 // One affirmation per day for the 3-6-9 ritual (3 times morning, 6 afternoon, 9 night).
 export function ritualAffirmation() {
@@ -105,7 +165,8 @@ export function futureScript() {
 
 export function gratitudeInAdvance() {
   const ds = S.dreams.filter((d) => !d.achieved).slice(0, 4);
-  const out = ds.map((d) => 'Thank you for my ' + d.title + '. It is already on its way to me.');
+  const got = moneyStats().receivedToday;
+  const out = (got ? ['Thank you for the ' + L.money(got) + ' that came to DZYN LAB today. I receive it with gratitude, and I make space for more.'] : []).concat(ds.map((d) => 'Thank you for my ' + d.title + '. It is already on its way to me.'));
   out.push('Thank you for ' + lakh(S.settings.revenueTarget || 1500000) + ' a month flowing into DZYN LAB.');
   if (out.length < 3) out.push('Thank you for clients who respect my work and pay with joy.', 'Thank you for my health, my family and my unstoppable mind.');
   return out.slice(0, 5);

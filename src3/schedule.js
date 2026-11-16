@@ -36,6 +36,13 @@ export function buildSchedule() {
     push(L.atTime(L.addDays(l.followUp, 1), 10, 15), 'Still to follow up: ' + l.name, 'Open Lucy and log the call so this lead does not go cold.', 'lead-' + l.id, '#more-leads');
   });
 
+  // money moves: morning push with the most important one
+  for (let d = 0; d < 7; d++) {
+    const day = L.addDays(L.startOfDay(now), d);
+    const mv = MG.moneyMoves()[0];
+    push(L.atTime(day, 10, 5), 'Money moves for today', (d === 0 && mv ? mv.title + '. ' : 'Collect, close, upsell, ask for a referral, get visible. ') + 'Do at least three.', 'money-moves', '#ascend-manifest');
+  }
+
   // coach: evening reading nudge and the nightly check-in
   for (let d = 0; d < 7; d++) {
     const day = L.addDays(L.startOfDay(now), d);

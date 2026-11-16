@@ -52,6 +52,8 @@ export function mergeStates(a, b) {
     out[k] = order.map((id) => map.get(id));
   });
   MAP_KEYS.forEach((k) => { out[k] = Object.assign({}, older[k] || {}, newer[k] || {}); });
+  out.moneyMoves = Object.assign({}, older.moneyMoves || {}, newer.moneyMoves || {});
+  Object.keys(out.moneyMoves).forEach((d) => { out.moneyMoves[d] = Object.assign({}, (older.moneyMoves || {})[d] || {}, (newer.moneyMoves || {})[d] || {}); });
   out.affirm = Object.assign({}, older.affirm || {}, newer.affirm || {});
   ['done', 'spoken'].forEach((k) => { out.affirm[k] = Object.assign({}, (older.affirm || {})[k] || {}, (newer.affirm || {})[k] || {}); });
   const ids = (out.affirm.custom || []).map((x) => x.id);

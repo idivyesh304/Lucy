@@ -105,6 +105,7 @@ function renderHome() {
   h += '<h2>Top 5 <span class="sub" style="letter-spacing:0;text-transform:none">picked by Lucy</span></h2>';
   h += top.length ? '<div class="list">' + top.map((x, i) => topRow(x, i)).join('') + '</div>' : '<div class="panel empty">Nothing urgent. Your Top 5 fills itself from reminders, payments and lead follow-ups.</div>';
 
+  h += moneyMovesPanel(false);
   h += coachHomeCard();
   h += '<h2>Revenue mission<button class="link" data-a="tab" data-v="money">Open</button></h2>';
   h += '<div class="panel"><div class="row" style="gap:16px">' + ring(rev.pct, '<span data-count="' + Math.round(rev.pct * 100) + '" data-fmt="pct">' + Math.round(rev.pct * 100) + '%</span>', 'of target') +
@@ -464,7 +465,7 @@ function renderAscend() {
 function renderManifest() {
   const k = B.today(), m = S.manifest[k] || {}, ra = MG.ritualAffirmation(), dm = MG.dreamManifestations();
   const dots = (key, n) => '<div class="r369"><div class="r369-h"><b>' + n + '×</b><span>' + ({ m: 'Morning', a: 'Afternoon', n: 'Evening' })[key] + '</span></div><div class="r369-dots">' + Array.from({ length: n }, (_, i) => '<i class="' + (i < (m[key] || 0) ? 'on' : '') + '"></i>').join('') + '</div><button class="btn small ' + ((m[key] || 0) >= n ? 'ghost' : '') + '" data-a="r369" data-k="' + key + '" data-n="' + n + '">' + ((m[key] || 0) >= n ? 'Done' : 'Say it') + '</button></div>';
-  let h = '<div class="panel gold hero mg-hero"><div class="eyebrow">Money magnet · 3-6-9 ritual</div><div class="mg-quote">' + esc(ra.text) + '</div>' +
+  let h = moneyMovesPanel(true) + '<div class="panel gold hero mg-hero"><div class="eyebrow">Money magnet · 3-6-9 ritual</div><div class="mg-quote">' + esc(ra.text) + '</div>' +
     '<div class="sub">Say it out loud with feeling. Each tap, Lucy says it with you.</div>' + dots('m', 3) + dots('a', 6) + dots('n', 9) +
     '<div class="a" style="margin-top:12px">' + icon('bolt', 15) + '<span>' + esc(ra.action) + '</span></div></div>';
   h += '<h2>Your future, written as done</h2><div class="panel"><div class="serif mg-script">' + esc(MG.futureScript()) + '</div>' +
@@ -1302,6 +1303,8 @@ document.addEventListener('click', async (ev) => {
     case 'open-lead': go('more', 'leads', id); break;
     case 'lead-filter': view.leadFilter = v; render(); break;
     case 'rep-period': view.repPeriod = v; render(); break;
+    case 'mm-done': { const k = B.today(); S.moneyMoves[k] = S.moneyMoves[k] || {}; if (S.moneyMoves[k][v]) delete S.moneyMoves[k][v]; else { S.moneyMoves[k][v] = { at: Date.now() }; logEvent('mission', { task: 'Money move: ' + v, cat: 'Money' }); const n = Object.keys(S.moneyMoves[k]).length; if (n === 5) celebrate('big', { title: 'All 5 money moves done', sub: 'This is how money comes, ' + nm() + '. Same again tomorrow.' }); else celebrate('small'); } save(); render(); break; }
+    case 'mm-go': { const hsh = el.dataset.v; if (hsh) { history.replaceState(null, '', location.pathname + hsh); openHash(); render(); } break; }
     case 'co-chip': { const t = $('#co-a-' + el.dataset.i); if (t) { t.value = t.value && !t.value.includes(v) ? t.value + '. ' + v : (t.value || v); } $$('[data-a="co-chip"][data-i="' + el.dataset.i + '"]').forEach((x) => x.classList.toggle('on', x === el)); break; }
     case 'co-save': coSave(Number(el.dataset.i)); break;
     case 'co-skip': { const qq = CO.questions()[Number(el.dataset.i)]; if (qq) { S.coach.push({ id: nid(), at: Date.now(), key: qq.key, kind: qq.kind, ref: qq.ref, q: qq.q, a: '(skipped)' }); save(); render(); } break; }
@@ -1544,6 +1547,7 @@ function openHash() {
   } else if (h === '#plan' || h === '#money' || h === '#ascend' || h === '#home') { view.tab = h.slice(1); }
   else if (h === '#money-loans') { view.tab = 'money'; view.seg.money = 'loans'; }
   else if (h === '#more-team') { view.tab = 'more'; view.sub = 'team'; }
+  else if (h === '#more-clients') { view.tab = 'more'; view.sub = 'clients'; view.id = null; }
   else if (h === '#more-reports') { view.tab = 'more'; view.sub = 'reports'; view.seg.rep = 'ask'; }
   else if (h === '#more-leads') { view.tab = 'more'; view.sub = 'leads'; view.id = null; }
   else if (h === '#money-expenses') { view.tab = 'money'; view.seg.money = 'office'; }
@@ -1936,5 +1940,23 @@ function renderSaid() {
   ['late', 'fu', 'routine', 'clientleft', 'empleft'].forEach((k) => { const cnt = {}; all.filter((x) => x.kind === k).forEach((x) => (CO.QUICK[k] || []).forEach((c) => { if (x.a.includes(c)) cnt[c] = (cnt[c] || 0) + 1; })); Object.keys(cnt).forEach((c) => { if (cnt[c] >= 2) pat.push(KN[k] + ': you said "' + c + '" ' + cnt[c] + ' times.'); }); });
   if (pat.length) h += '<div class="panel alert"><div class="eyebrow" style="color:var(--bad)">Your patterns</div>' + pat.map((p) => '<div style="margin-top:6px;font-size:14px">' + esc(p) + '</div>').join('') + '</div>';
   kinds.forEach((k) => { h += '<h2>' + (KN[k] || k) + '</h2>' + listOf(all.filter((x) => x.kind === k).slice(0, 30).map((x) => '<div class="item"><div class="grow"><div class="m">' + esc(x.q) + '</div><div class="t" style="white-space:pre-wrap;font-weight:500">' + esc(x.a) + '</div><div class="m" style="font-size:12px">' + L.fmtWhen(x.at) + '</div></div></div>')); });
+  return h;
+}
+
+/* ---------------- Money moves (Money magnet) ---------------- */
+function moneyMovesPanel(full) {
+  const mv = MG.moneyMoves(), st = MG.moneyStats(), done = mv.filter((m) => m.done).length;
+  if (!full) {
+    const next = mv.find((m) => !m.done);
+    return '<button class="panel gold" style="width:100%;text-align:left" data-a="seg-go" data-tab="ascend" data-k="ascend" data-v="manifest"><div class="row"><div class="badge"><span class="num" style="font-size:14px">' + done + '/5</span></div><div class="grow"><div class="eyebrow">Money moves today' + (st.streak > 1 ? ' · ' + st.streak + '-day streak' : '') + '</div><b>' + (next ? esc(next.title) : 'All done. This is how money comes.') + '</b>' + (next ? '<div class="sub">' + esc(next.why) + '</div>' : '') + '</div>' + icon('right', 18) + '</div></button>';
+  }
+  const aff = MG.magnetAffirmations();
+  const pair = { Collect: 'Collection', Close: 'Sales', Prospect: 'Sales', Upsell: 'Value', Referral: 'Sales', Visibility: 'Sales', Outreach: 'Sales' };
+  const day = Math.floor(L.startOfDay(Date.now()) / L.DAY);
+  let h = '<div class="panel gold hero"><div class="eyebrow">Money magnet · today\'s money moves</div><div style="font-size:15px;line-height:1.5;margin-top:6px">Affirmations change how you think. These five moves are what bring the money in. Do at least three, every day.</div>' +
+    '<div class="stats" style="margin:12px 0 4px">' + stat('Done today', done + ' of 5', done >= 3 ? 'magnet on' : 'do 3 or more') + stat('Streak', st.streak + ' days', '3+ moves a day') + stat('Received today', short(st.receivedToday), st.monthMoves + ' moves this month') + '</div></div>';
+  h += '<div class="list">' + mv.map((m, i) => { const pool = aff.filter((a) => a.sub === pair[m.cat]); const a = pool[(day + i) % Math.max(1, pool.length)];
+    return '<div class="item ' + (m.done ? 'done' : '') + '" style="align-items:flex-start"><button class="check ' + (m.done ? 'on' : '') + '" data-a="mm-done" data-v="' + m.key + '">' + (m.done ? icon('check', 16) : '') + '</button><div class="grow"><div class="eyebrow">' + esc(m.cat) + (m.amt ? ' · ' + short(m.amt) : '') + '</div><div class="t">' + esc(m.title) + '</div><div class="m">' + esc(m.why) + (m.more ? ' · ' + esc(m.more) : '') + '</div>' +
+      (a ? '<div class="m" style="margin-top:6px;font-style:italic;color:var(--gold)">"' + esc(a.text) + '"</div>' : '') + '</div>' + (m.hash ? '<button class="iconbtn" data-a="mm-go" data-v="' + m.hash + '" aria-label="Open">' + icon('right', 16) + '</button>' : '') + '</div>'; }).join('') + '</div>';
   return h;
 }

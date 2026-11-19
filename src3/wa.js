@@ -18,7 +18,7 @@ export const CATS = [
   ['followup', 'Lead follow-up'], ['meeting', 'Meeting'], ['proposal', 'Proposal and quote'], ['welcome', 'New client welcome'], ['reminder', 'General reminder'],
   ['salary', 'Team and salary'], ['festival', 'Festival greetings']
 ];
-export const FIELDS = [['{name}', 'their name with ji'], ['{first}', 'first name'], ['{business}', 'business name'], ['{amount}', 'amount'], ['{due}', 'due date'], ['{days}', 'days late'], ['{package}', 'package'], ['{bank}', 'bank details'], ['{date}', 'date'], ['{time}', 'time'], ['{what}', 'what it is about'], ['{years}', 'years'], ['{month}', 'month'], ['{me}', 'your name'], ['{company}', 'DZYN LAB']];
+export const FIELDS = [['{name}', 'their name with Sir or Madam'], ['{first}', 'first name'], ['{business}', 'business name'], ['{amount}', 'amount'], ['{due}', 'due date'], ['{days}', 'days late'], ['{package}', 'package'], ['{bank}', 'bank details'], ['{date}', 'date'], ['{time}', 'time'], ['{what}', 'what it is about'], ['{years}', 'years'], ['{month}', 'month'], ['{me}', 'your name'], ['{company}', 'DZYN LAB']];
 const T = (cat, label, text) => ({ id: cat + ':' + label.toLowerCase().replace(/[^a-z0-9]+/g, '-'), cat: cat, label: label, text: text });
 export const DEFAULT_TEMPLATES = [
   // payment reminders
@@ -123,7 +123,10 @@ export function fill(text, ctx) {
   if (c.bank === CASH_TEXT) out = out.replace(/Please share the screenshot once done\./g, 'Please let me know a convenient time for us to collect it.').replace(/Jab time mile, transfer kar dena\./g, 'Jab time mile bata dena, hum cash collect kar lenge.');
   return out.replace(/\n{3,}/g, '\n\n').replace(/[ \t]+\n/g, '\n').trim();
 }
-const hiName = (person) => { const dr = String(person || '').match(/^dr\.?\s+(\S+)/i); if (dr) return 'Dr. ' + dr[1]; const f = first(person); return f ? f + ' ji' : 'Sir'; };
+// messages always greet with Sir or Madam (never "ji"); Mr gives Sir, Mrs or Ms gives Madam, Dr stays Dr.
+export const TITLES = ['Mr', 'Mrs', 'Ms', 'Dr'];
+const honor = (title) => (/^(mrs|ms|miss)$/i.test(String(title || '').replace(/\./g, '')) ? 'Madam' : 'Sir');
+const hiName = (person, title) => { const dr = String(person || '').match(/^dr\.?\s+(\S+)/i); const f = first(person); if (dr || (/^dr/i.test(title || '') && f)) return 'Dr. ' + (dr ? dr[1] : f); return f ? f + ' ' + honor(title) : honor(title); };
 
 /* ---------------- what Lucy knows for each kind of message ---------------- */
 function clientOf(p) { return p && p.clientId ? S.clients.find((c) => c.id === p.clientId) : null; }
@@ -136,12 +139,12 @@ export function forPayment(p) {
   const part = left(p) < Number(p.amount || 0);
   const pick = part ? 'Balance of part payment' : d >= 10 ? 'Final' : d >= 3 ? 'Firm' : d === 0 ? 'Due today' : 'Friendly';
   return { cats: ['payment', 'paid'], pick: 'payment:' + pick.toLowerCase().replace(/[^a-z0-9]+/g, '-'), to: person || (c && c.company) || p.party, phone: (c && (c.phone || c.personalPhone)) || p.phone || '', bank: (c && c.payTo) || p.payTo || defaultBank(),
-    ctx: { name: hiName(person), first: first(person) || 'Sir', business: (c && c.company) || p.party, amount: money(left(p)), due: dstr(p.due), days: Math.max(0, d), package: p.note || (c && c.pkg) || 'our services', date: dstr(L.addDays(Math.max(today, due), 2)) } };
+    ctx: { name: hiName(person, c && c.title), first: first(person) || honor(c && c.title), business: (c && c.company) || p.party, amount: money(left(p)), due: dstr(p.due), days: Math.max(0, d), package: p.note || (c && c.pkg) || 'our services', date: dstr(L.addDays(Math.max(today, due), 2)) } };
 }
 export function forClient(c, cat) {
   const person = personOfClient(c);
   return { cats: cat ? [cat] : ['renewal', 'meeting', 'paid', 'welcome', 'proposal', 'festival', 'birthday', 'anniversary', 'reminder'], pick: cat ? null : 'renewal:friendly', to: person || c.company, phone: c.phone || c.personalPhone || '', bank: c.payTo || defaultBank(),
-    ctx: { name: hiName(person), first: first(person) || 'Sir', business: c.company || person, amount: money(Math.round(Number(c.retainer || c.amount || 0) * (1 + (Number(c.gstRate) || 0) / 100))) + (Number(c.gstRate) ? ' (incl. ' + c.gstRate + '% GST)' : ''), due: c.nextDate ? dstr(c.nextDate) : '', package: c.pkg || 'our services', what: c.pkg || 'your work', date: dstr(L.addDays(L.startOfDay(Date.now()), 1)), time: '11:00 AM' } };
+    ctx: { name: hiName(person, c.title), first: first(person) || honor(c.title), business: c.company || person, amount: money(Math.round(Number(c.retainer || c.amount || 0) * (1 + (Number(c.gstRate) || 0) / 100))) + (Number(c.gstRate) ? ' (incl. ' + c.gstRate + '% GST)' : ''), due: c.nextDate ? dstr(c.nextDate) : '', package: c.pkg || 'our services', what: c.pkg || 'your work', date: dstr(L.addDays(L.startOfDay(Date.now()), 1)), time: '11:00 AM' } };
 }
 export function forSpecial(sd) {
   const rel = String(sd.relation || '').toLowerCase();
@@ -153,14 +156,14 @@ export function forSpecial(sd) {
   const recipients = [{ label: first(sd.name) || sd.name, phone: sd.phone || '' }].concat(sd.name2 || sd.phone2 ? [{ label: first(sd.name2) || 'Second number', phone: sd.phone2 || '' }] : []);
   return { cats: cat === 'festival' ? ['festival'] : [cat, 'festival'], pick: sd.wish ? 'own-text' : pick, ownText: sd.wish || '', recipients: recipients.filter((r) => r.phone).length > 1 ? recipients : null,
     to: sd.type === 'Other' ? sd.name : sd.name + (sd.name2 ? ' and ' + sd.name2 : ''), phone: sd.phone || sd.phone2 || '', bank: '',
-    ctx: { name: sd.name2 ? both : hiName(sd.name), first: both || 'there', business: 'your business', years: yrs > 0 && cat === 'anniversary' ? yrs + ' beautiful years together. ' : '' } };
+    ctx: { name: sd.name2 || family ? both : hiName(sd.name, sd.title || ((contacts().find((x) => x.phone && sd.phone && x.phone.replace(/\D/g, '').slice(-10) === sd.phone.replace(/\D/g, '').slice(-10) && x.title) || {}).title)), first: both || 'there', business: 'your business', years: yrs > 0 && cat === 'anniversary' ? yrs + ' beautiful years together. ' : '' } };
 }
 export function forLead(l) {
   const svc = (l.services || []).slice(0, 2).join(' and ') || 'your marketing';
   const pick = l.status === 'Proposal' || l.status === 'Negotiation' ? 'followup:after-proposal' : l.status === 'Meeting' ? 'meeting:confirm' : 'followup:after-first-talk';
   const t = l.followUp && l.followUp > Date.now() ? l.followUp : L.atTime(L.addDays(L.startOfDay(Date.now()), 1), 11, 0);
   return { cats: ['followup', 'meeting', 'proposal', 'festival'], pick: pick, to: l.contactName || l.name, phone: l.whatsapp || l.phone || '', bank: defaultBank(),
-    ctx: { name: hiName(l.contactName), first: first(l.contactName) || 'Sir', business: l.name, what: svc, amount: money(l.dealMonthly || l.dealOnce), date: dstr(t), time: L.fmtTime(t) } };
+    ctx: { name: hiName(l.contactName, l.title), first: first(l.contactName) || honor(l.title), business: l.name, what: svc, amount: money(l.dealMonthly || l.dealOnce), date: dstr(t), time: L.fmtTime(t) } };
 }
 export function forEmployee(e) {
   const mk = L.dayKey(Date.now()).slice(0, 7);
@@ -171,8 +174,8 @@ export function forEmployee(e) {
 // contacts known to Lucy, used to find the person a reminder is about
 export function contacts() {
   const out = [];
-  S.clients.forEach((c) => { const nm = personOfClient(c); if (c.phone) out.push({ name: nm || c.company, alt: [c.company, nm], phone: c.phone, business: c.company }); });
-  S.leads.forEach((l) => { if (l.phone || l.whatsapp) out.push({ name: l.contactName || l.name, alt: [l.name, l.contactName], phone: l.whatsapp || l.phone, business: l.name }); });
+  S.clients.forEach((c) => { const nm = personOfClient(c); if (c.phone) out.push({ name: nm || c.company, alt: [c.company, nm], phone: c.phone, business: c.company, title: c.title }); });
+  S.leads.forEach((l) => { if (l.phone || l.whatsapp) out.push({ name: l.contactName || l.name, alt: [l.name, l.contactName], phone: l.whatsapp || l.phone, business: l.name, title: l.title }); });
   S.employees.forEach((e) => { if (e.phone) out.push({ name: e.name, alt: [e.name], phone: e.phone, business: 'DZYN LAB' }); });
   S.specialDays.forEach((s) => { if (s.phone) out.push({ name: s.name, alt: [s.name], phone: s.phone, business: '' }); });
   return out;
@@ -197,7 +200,7 @@ export function forReminder(r) {
   const due = r.due || Date.now();
   return { cats: meet ? ['meeting', 'reminder', 'followup'] : ['reminder', 'meeting', 'followup'], pick: meet ? (/video/i.test(t) ? 'meeting:video-call' : 'meeting:ask-for-a-time') : 'reminder:general',
     to: c ? c.name : (r.waTo || (mr ? mr[0] : '')), phone: c ? c.phone : (r.waPhone || ''), bank: '',
-    ctx: { name: c ? hiName(c.name) : mr ? mr[2] + ' ji' : 'Sir', first: c ? first(c.name) : mr ? mr[2] : '', business: c ? c.business : '', what: what, date: dstr(L.addDays(L.startOfDay(due), due < Date.now() ? 1 : 0)), time: L.fmtTime(due) } };
+    ctx: { name: c ? hiName(c.name, c.title || (mr && mr[1])) : mr ? hiName(mr[2], mr[1]) : 'Sir', first: c ? first(c.name) : mr ? mr[2] : '', business: c ? c.business : '', what: what, date: dstr(L.addDays(L.startOfDay(due), due < Date.now() ? 1 : 0)), time: L.fmtTime(due) } };
 }
 
 export function sentRecently(kind, ref, days) {

@@ -1552,7 +1552,8 @@ function clientSheet(c) {
   const person = [c.firstName, c.lastName].filter(Boolean).join(' ');
   openSheet('<h3>' + (c.id ? 'Edit client' : 'New client') + '</h3>' +
     '<label>Brand name</label><input id="c-name" value="' + esc(c.company || '') + '" placeholder="e.g. Filmshoppee - Car Facelift Studio">' +
-    '<label>Client name</label><input id="c-person" value="' + esc(person) + '" placeholder="e.g. Sumit Keswani">' +
+    '<label>Client name</label><div class="row" style="gap:8px"><select id="c-title" style="width:86px">' + WA.TITLES.map((t) => '<option ' + (t === (c.title || 'Mr') ? 'selected' : '') + '>' + t + '</option>').join('') + '</select><input id="c-person" class="grow" value="' + esc(person) + '" placeholder="e.g. Sumit Keswani"></div>' +
+    '<div class="hint">Mr gets "Sir" and Mrs or Ms gets "Madam" in WhatsApp messages.</div>' +
     '<label>Contact number</label><input id="c-phone" type="tel" value="' + esc(c.phone || c.personalPhone || '') + '" placeholder="+91 98xxxxxxxx">' +
     '<label>Billing</label><div class="seg" id="c-bill"><button class="' + (monthly ? 'on' : '') + '" data-a="c-bill" data-v="monthly">Every month</button><button class="' + (monthly ? '' : 'on') + '" data-a="c-bill" data-v="once">One time</button></div>' +
     '<label>Amount (₹, before GST)</label><input id="c-amount" type="number" inputmode="numeric" value="' + esc(c.amount || c.retainer || '') + '">' +
@@ -1571,7 +1572,7 @@ function saveClient(id) {
   const person = $('#c-person').value.trim().split(/\s+/);
   const nextDate = billing === 'monthly' ? L.startOfDay(fromInputs($('#c-date').value, '09:00')) : L.startOfDay(Date.now());
   const d = { company: name, firstName: person[0] || '', lastName: person.slice(1).join(' '), phone: $('#c-phone').value.trim(), personalPhone: $('#c-phone').value.trim(), billing: billing, amount: amount,
-    retainer: billing === 'monthly' ? amount : 0, active: $('#c-active').checked, gstRate: $('#c-gst').checked ? 18 : 0, payTo: $('#c-pay').value, payMode: WA.payModeLabel($('#c-pay').value) + ($('#c-gst').checked ? ' · GST bill' : '') };
+    retainer: billing === 'monthly' ? amount : 0, active: $('#c-active').checked, gstRate: $('#c-gst').checked ? 18 : 0, title: $('#c-title').value, payTo: $('#c-pay').value, payMode: WA.payModeLabel($('#c-pay').value) + ($('#c-gst').checked ? ' · GST bill' : '') };
   let c;
   if (id) { c = clientById(id); const changedDate = billing === 'monthly' && (!c.nextDate || L.dayKey(c.nextDate) !== L.dayKey(nextDate)); Object.assign(c, d); if (changedDate) { c.nextDate = nextDate; c.renewDay = new Date(nextDate).getDate(); } }
   else { c = Object.assign({ id: nid(), notes: '', created: Date.now(), nextDate: nextDate }, d); if (billing === 'monthly') c.renewDay = new Date(nextDate).getDate(); S.clients.push(c); view.id = c.id; celebrate('small'); }
@@ -1841,7 +1842,7 @@ function leadSheet(l) {
     '<div class="grid2">' + sel('industry', 'Industry', C.LEAD_INDUSTRIES, l.industry, 'Choose') + inp('area', 'Area', l.area, '', 'e.g. Sindhu Bhavan') + inp('city', 'City', l.city) + inp('since', 'In business since', l.since, '', 'Year') + inp('teamSize', 'Team size', l.teamSize, '', 'People') + inp('branches', 'Branches or outlets', l.branches) + '</div>' +
     area('about', 'About the business', l.about, 'What they sell, who their customers are') + inp('address', 'Address', l.address) + inp('mapLink', 'Google Maps link', l.mapLink) + inp('gst', 'GST number', l.gst) +
     '<div class="grid2">' + inp('website', 'Website', l.website) + inp('instagram', 'Instagram', l.instagram, '', '@handle') + inp('facebook', 'Facebook', l.facebook) + inp('gbp', 'Google Business', l.gbp) + '</div>' +
-    '<h2>Contact person</h2><div class="grid2">' + inp('contactName', 'Name', l.contactName) + inp('designation', 'Designation', l.designation, '', 'Owner, manager') + inp('phone', 'Phone', l.phone, 'tel', '98xxxxxxxx') + inp('whatsapp', 'WhatsApp (if different)', l.whatsapp, 'tel') + inp('email', 'Email', l.email, 'email') + inp('bestTime', 'Best time to call', l.bestTime, '', 'e.g. after 4 pm') + inp('contact2', 'Second contact', l.contact2) + inp('contact2Phone', 'Second contact phone', l.contact2Phone, 'tel') + '</div>' +
+    '<h2>Contact person</h2><label>Title</label><select id="ld-title">' + WA.TITLES.map((t) => '<option ' + (t === (l.title || 'Mr') ? 'selected' : '') + '>' + t + '</option>').join('') + '</select><div class="grid2">' + inp('contactName', 'Name', l.contactName) + inp('designation', 'Designation', l.designation, '', 'Owner, manager') + inp('phone', 'Phone', l.phone, 'tel', '98xxxxxxxx') + inp('whatsapp', 'WhatsApp (if different)', l.whatsapp, 'tel') + inp('email', 'Email', l.email, 'email') + inp('bestTime', 'Best time to call', l.bestTime, '', 'e.g. after 4 pm') + inp('contact2', 'Second contact', l.contact2) + inp('contact2Phone', 'Second contact phone', l.contact2Phone, 'tel') + '</div>' +
     inp('decisionMaker', 'Who decides', l.decisionMaker, '', 'e.g. Owner and his son') +
     '<h2>Opportunity</h2>' +
     '<div class="grid2">' + sel('status', 'Stage', C.LEAD_STATUSES, l.status) + sel('temp', 'Temperature', C.LEAD_TEMPS, l.temp) + sel('leadSource', 'Source', C.LEAD_SOURCES, l.leadSource, 'Choose') + inp('referredBy', 'Referred by', l.referredBy) +
@@ -1859,7 +1860,7 @@ function saveLead(idv) {
   const name = g('name'); if (!name) return toast('Add the business name');
   const fuDate = g('fuDate');
   const d = { name: name, industry: g('industry'), area: g('area'), city: g('city'), since: g('since'), teamSize: g('teamSize'), branches: g('branches'), about: g('about'), address: g('address'), mapLink: g('mapLink'), gst: g('gst'),
-    website: g('website'), instagram: g('instagram'), facebook: g('facebook'), gbp: g('gbp'), contactName: g('contactName'), designation: g('designation'), phone: g('phone'), whatsapp: g('whatsapp'), email: g('email'), bestTime: g('bestTime'),
+    website: g('website'), instagram: g('instagram'), facebook: g('facebook'), gbp: g('gbp'), title: g('title') || 'Mr', contactName: g('contactName'), designation: g('designation'), phone: g('phone'), whatsapp: g('whatsapp'), email: g('email'), bestTime: g('bestTime'),
     contact2: g('contact2'), contact2Phone: g('contact2Phone'), decisionMaker: g('decisionMaker'), temp: g('temp'), leadSource: g('leadSource'), referredBy: g('referredBy'),
     dealMonthly: Number(g('dealMonthly')) || 0, dealOnce: Number(g('dealOnce')) || 0, budget: Number(g('budget')) || 0, closeBy: g('closeBy') ? fromInputs(g('closeBy'), '10:00') : 0,
     services: $$('#ld-services .chip.on').map((x) => x.dataset.v), competitor: g('competitor'), pain: g('pain'), nextAction: g('nextAction'), notes: g('notes'),
@@ -1916,7 +1917,8 @@ function leadToClient(l) {
   if (l.clientId && clientById(l.clientId)) { go('more', 'clients', l.clientId); return; }
   if (l.status !== 'Won') { l.status = 'Won'; l.wonAt = Date.now(); (l.activity = l.activity || []).push({ id: nid(), at: Date.now(), type: 'Note', outcome: 'Won, became a client', text: '' }); }
   const monthly = Number(l.dealMonthly) > 0, amount = monthly ? Number(l.dealMonthly) : Number(l.dealOnce) || 0;
-  const nc = { id: nid(), company: l.name, firstName: '', lastName: '', phone: l.phone || l.whatsapp || '', personalPhone: l.phone || '', pkg: (l.services || []).join(', ') || l.service || '', billing: monthly || !amount ? 'monthly' : 'once', amount: amount, retainer: monthly ? amount : 0,
+  const cp = String(l.contactName || '').trim().split(/\s+/);
+  const nc = { id: nid(), company: l.name, title: l.title || 'Mr', firstName: cp[0] || '', lastName: cp.slice(1).join(' '), phone: l.phone || l.whatsapp || '', personalPhone: l.phone || '', pkg: (l.services || []).join(', ') || l.service || '', billing: monthly || !amount ? 'monthly' : 'once', amount: amount, retainer: monthly ? amount : 0,
     active: true, notes: [l.contactName ? 'Contact: ' + leadContactName(l) : '', l.notes || ''].filter(Boolean).join('\n'), created: Date.now(), nextDate: L.startOfDay(Date.now()), leadId: l.id };
   S.clients.push(nc); l.clientId = nc.id; save();
   celebrate('big', { title: 'New client', sub: l.name + ' is now a DZYN LAB client.' });
@@ -2220,7 +2222,7 @@ function tplSheet(t) {
     '<div class="grid2"><div><label>Type</label><select id="tpl-cat">' + WA.CATS.map((c) => '<option value="' + c[0] + '" ' + (c[0] === t.cat ? 'selected' : '') + '>' + esc(c[1]) + '</option>').join('') + '</select></div><div><label>Name</label><input id="tpl-label" value="' + esc(t.label) + '" placeholder="e.g. Friendly"></div></div>' +
     '<label>Message</label><textarea id="tpl-text" style="min-height:220px;font-size:15px;line-height:1.45">' + esc(t.text) + '</textarea>' +
     '<label>Tap to insert</label><div class="chips">' + WA.FIELDS.map((f) => '<button class="chip" data-a="tpl-field" data-v="' + f[0] + '" title="' + esc(f[1]) + '">' + f[0] + '</button>').join('') + '</div>' +
-    '<div class="hint">Example: {name} becomes "Sumit ji", {amount} becomes "₹25,000", {bank} adds the bank details you choose.</div>' +
+    '<div class="hint">Example: {name} becomes "Sumit Sir", {amount} becomes "₹25,000", {bank} adds the bank details you choose.</div>' +
     '<button class="btn block" data-a="tpl-save" data-v="' + esc(t.id) + '">Save</button>' +
     (t.id && (S.waTemplates || []).some((x) => x.id === t.id) && WA.DEFAULT_TEMPLATES.some((x) => x.id === t.id) ? '<button class="btn ghost block" data-a="tpl-reset" data-v="' + esc(t.id) + '">Go back to Lucy\'s version</button>' : '') +
     (t.id ? '<button class="btn ghost block" data-a="tpl-remove" data-v="' + esc(t.id) + '">Remove this message</button>' : ''));

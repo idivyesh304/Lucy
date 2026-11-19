@@ -382,6 +382,7 @@ function allDues() {
     if (p.status === 'pending') (p.type === 'in' ? dIn : dOut).push({ kind: p.clientId || p.auto ? (p.type === 'in' ? 'client' : 'pay') : 'pay', party: p.party, sub: (p.note || '') + (B.paidOf(p) ? (p.note ? ' · ' : '') + 'part ' + money(B.paidOf(p)) + ' of ' + money(p.amount) + ' done' : ''), amount: B.leftOf(p), due: p.due, a: 'settle', id: p.id });
     else if (inMonth(p.settledAt)) done.push({ dir: p.type, kind: 'pay', party: p.party, amount: Number(p.amount), at: p.settledAt });
   });
+  const y = new Date(now).getFullYear(), m = new Date(now).getMonth();
   // salaries are paid in arrears: this month's payday covers last month, next month's payday covers this month
   [0, 1].forEach((off) => {
     const cyc = B.salaryCycle(off);

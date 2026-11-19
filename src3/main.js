@@ -418,6 +418,48 @@ function allDues() {
   const by = (a, b2) => (a.due || 0) - (b2.due || 0);
   return { in: dIn.sort(by), out: dOut.sort(by), done: done.sort((a, b2) => (b2.at || 0) - (a.at || 0)) };
 }
+// Cash plan: match money coming in to bills going out, in date order, splitting amounts where needed.
+// Client money is counted without GST (GST is kept aside for the government).
+function cashPlan() {
+  const now = Date.now(), d0 = L.startOfDay(now), horizon = L.addDays(d0, 35), D = allDues();
+  const ins = [], outs = [];
+  const opening = Math.max(0, Number(S.settings.cashInHand) || 0);
+  if (opening) ins.push({ id: 'open', party: 'Money in hand now', due: d0, amount: opening, gst: 0, mode: '' });
+  const modeOf = (c) => (!c || !c.payTo || c.payTo === 'none' ? '' : c.payTo === 'cash' ? 'Cash' : c.payTo === 'dzyn' ? 'DZYN LAB account' : String((WA.banks().find((b) => b.id === c.payTo) || {}).label || '').split(' ')[0] + '\'s account');
+  S.payments.filter((p) => p.type === 'in' && p.status === 'pending').forEach((p) => {
+    const left = B.leftOf(p); if (!left) return;
+    const c = p.clientId ? clientById(p.clientId) : null, gst = Number(p.gstRate) || 0, net = Math.round(left / (1 + gst / 100));
+    ins.push({ id: 'p' + p.id, party: p.party, due: Math.max(d0, L.startOfDay(p.due || now)), late: p.due < d0, amount: net, gst: left - net, mode: modeOf(c) || p.payMode || '' });
+  });
+  // renewals that are not billed yet
+  S.clients.filter((c) => !c.past && c.active !== false && c.billing === 'monthly' && Number(c.retainer || c.amount) > 0 && c.nextDate).forEach((c) => {
+    let t = L.startOfDay(c.nextDate); const base = Number(c.retainer || c.amount), gst = Number(c.gstRate) || 0;
+    for (let i = 0; i < 3 && t <= horizon; i++) {
+      if (t >= d0) ins.push({ id: 'c' + c.id + ':' + i, party: c.company, due: t, amount: base, gst: Math.round(base * gst / 100), mode: modeOf(c), projected: true });
+      const n = new Date(t); t = new Date(n.getFullYear(), n.getMonth() + 1, Math.min(c.renewDay || n.getDate(), new Date(n.getFullYear(), n.getMonth() + 2, 0).getDate())).getTime();
+    }
+  });
+  D.out.forEach((x, i) => outs.push({ id: 'o' + i, kind: x.kind, party: x.party, sub: x.sub, due: Math.max(d0, L.startOfDay(x.due || now)), late: x.due && x.due < d0, amount: x.amount }));
+  // next month's office bills that fall inside the plan
+  (S.office || []).filter((o) => o.active !== false && Number(o.amount) > 0).forEach((o) => {
+    const n = new Date(now), due = new Date(n.getFullYear(), n.getMonth() + 1, Math.min(Number(o.dueDay) || 1, new Date(n.getFullYear(), n.getMonth() + 2, 0).getDate())).getTime();
+    if (due <= horizon) outs.push({ id: 'n' + o.id, kind: 'office', party: o.name, sub: 'Office bill', due: due, amount: Number(o.amount) });
+  });
+  ins.sort((a, b2) => a.due - b2.due || (a.id === 'open' ? -1 : 0)); outs.sort((a, b2) => a.due - b2.due || a.amount - b2.amount);
+  ins.forEach((x) => { x.left = x.amount; x.uses = []; });
+  outs.forEach((o) => {
+    o.from = []; let need = o.amount;
+    // first money that has arrived by the due date, then later money (that part is paid late)
+    [ins.filter((x) => x.due <= o.due), ins.filter((x) => x.due > o.due)].forEach((pool, late) => pool.forEach((x) => {
+      if (need <= 0 || x.left <= 0) return;
+      const take = Math.min(need, x.left); x.left -= take; need -= take;
+      o.from.push({ party: x.party, due: x.due, amount: take, late: !!late }); x.uses.push({ party: o.party, kind: o.kind, due: o.due, amount: take, part: take < o.amount });
+    }));
+    o.short = need; o.lateBy = o.from.filter((f) => f.late).reduce((a, f) => a + f.amount, 0);
+  });
+  const tot = (a, k) => a.reduce((n, x) => n + (x[k] || 0), 0);
+  return { ins: ins, outs: outs, opening: opening, inTotal: tot(ins, 'amount'), gstTotal: tot(ins, 'gst'), outTotal: tot(outs, 'amount'), horizon: horizon };
+}
 function dueRow(x) {
   const k = DUE_KIND[x.kind] || DUE_KIND.pay, late = x.due && x.due < L.startOfDay(Date.now()), today = x.due && L.dayKey(x.due) === L.dayKey(Date.now());
   const inn = x.kind === 'client' || (x.kind === 'pay' && x.a === 'settle' && (payById(x.id) || {}).type === 'in');
@@ -466,7 +508,21 @@ function renderMoney() {
     const doneIn = D.done.filter((x) => x.dir === 'in'), doneOut = D.done.filter((x) => x.dir === 'out'), monName = L.MON[new Date().getMonth()];
     h += '<div class="stats">' + stat('Received in ' + monName, '<span class="good">' + short(tot(doneIn)) + '</span>', doneIn.length + ' payments') + stat('To receive', short(tot(D.in)), D.in.length + (D.in.length === 1 ? ' item' : ' items')) +
       stat('Paid in ' + monName, short(tot(doneOut)), doneOut.length + ' payments') + stat('To pay', short(tot(D.out)), D.out.length + (D.out.length === 1 ? ' item' : ' items')) + '</div>';
-    h += seg('cashdir', [['in', 'To receive'], ['out', 'To pay']], t);
+    h += seg('cashdir', [['in', 'To receive'], ['out', 'To pay'], ['plan', 'Cash plan']], t);
+    if (t === 'plan') {
+      const P = cashPlan(), gap = P.inTotal - P.outTotal, dd = (ms) => L.fmtDate(ms);
+      h += '<div class="panel gold"><div class="eyebrow">Next 35 days · till ' + dd(P.horizon) + '</div><div class="stats" style="margin-top:8px">' + stat('Coming in', '<span class="good">' + short(P.inTotal) + '</span>', P.gstTotal ? '+ ' + short(P.gstTotal) + ' GST kept aside' : 'client payments') + stat('Going out', short(P.outTotal), P.outs.length + ' bills and salaries') + stat(gap >= 0 ? 'Left over' : 'Short by', '<span class="' + (gap >= 0 ? 'good' : 'bad') + '">' + short(Math.abs(gap)) + '</span>', gap >= 0 ? 'after every due is paid' : 'over the whole period') + '</div>' +
+        '<label>Money in hand now (₹, optional)</label><input type="number" inputmode="numeric" data-set="cashInHand" value="' + (P.opening || '') + '" placeholder="Bank plus cash you can use today"></div>';
+      const shortList = P.outs.filter((o) => o.short > 0 || o.lateBy > 0);
+      if (shortList.length) h += '<h2>Needs attention</h2><div class="list">' + shortList.map((o) => '<div class="item"><div class="badge" style="--c:var(--warn)">' + icon('alert', 18) + '</div><div class="grow"><div class="t">' + esc(o.party) + ' · ' + money(o.amount) + '</div><div class="m">Due ' + dd(o.due) + ' · ' + (o.short > 0 ? '<span class="bad">' + money(o.short) + ' not covered</span>' : '') + (o.lateBy > 0 ? (o.short > 0 ? ' · ' : '') + money(o.lateBy) + ' only after ' + dd(Math.max.apply(null, o.from.filter((f) => f.late).map((f) => f.due))) : '') + '</div></div></div>').join('') + '</div>' +
+        '<div class="hint" style="margin:6px 2px 14px">Collect early from the clients below, pay part now and the rest later, or add money in hand above.</div>';
+      h += '<h2>Where each payment goes</h2>';
+      h += P.ins.length ? P.ins.map((x) => '<div class="panel"><div class="row"><div class="grow"><b>' + esc(x.party) + '</b><div class="sub">' + (x.id === 'open' ? 'Available today' : (x.late ? 'Overdue, expected ' : x.projected ? 'Renewal ' : 'Due ') + dd(x.due)) + (x.mode ? ' · ' + esc(x.mode) : '') + (x.gst ? ' · GST ' + money(x.gst) + ' kept aside' : '') + '</div></div><div class="amount in">' + money(x.amount) + '</div></div>' +
+        (x.uses.length ? '<div class="list" style="margin-top:8px">' + x.uses.map((u) => '<div class="row" style="padding:6px 0;border-top:1px solid rgba(255,255,255,.06)"><span class="grow">' + esc(u.party) + ' <span class="kind">' + esc((DUE_KIND[u.kind] || DUE_KIND.pay).one) + '</span><div class="m" style="font-size:12px;opacity:.7">due ' + dd(u.due) + (u.part ? ' · part payment' : '') + '</div></span><span class="amount out">' + money(u.amount) + '</span></div>').join('') + '</div>' : '') +
+        (x.left > 0 ? '<div class="sub mt"><span class="good">' + money(x.left) + ' free</span> after these</div>' : '') + '</div>').join('') : '<div class="panel empty">No client money expected in the next 35 days.</div>';
+      h += '<div class="hint" style="margin:6px 2px 14px">Lucy pays the earliest due first, using money that has arrived by then. Client renewals are counted on their renewal dates without GST. This is a plan; real dates can move.</div>';
+      return h;
+    }
     const list = D[t];
     const done = t === 'in' ? doneIn : doneOut;
     if (done.length) h += '<h2>' + (t === 'in' ? 'Received' : 'Paid') + ' in ' + monName + ' · ' + money(tot(done)) + '</h2>' + listOf(done.map(doneRow));
@@ -1653,6 +1709,7 @@ document.addEventListener('change', async (ev) => {
   const t = ev.target;
   if (t.dataset.set && t.dataset.set !== 'name') {
     const k = t.dataset.set; let v = t.value;
+    if (k === 'cashInHand') { S.settings.cashInHand = Number(v) || 0; save(); render(); return; }
     if (['salaryDay', 'revenueTarget', 'inspireStart', 'inspireEnd', 'nagCount', 'nagMin', 'reviewDay', 'voiceRate', 'voicePitch'].includes(k)) v = Number(v);
     S.settings[k] = v; save(); toast('Saved');
   } else if (t.dataset.biz) { S.settings.business[t.dataset.biz] = t.type === 'number' ? Number(t.value) : t.value; save(); }

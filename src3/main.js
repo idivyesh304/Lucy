@@ -43,8 +43,16 @@ function go(tab, sub, id) {
 }
 function render() {
   const screens = { home: renderHome, plan: renderPlan, money: renderMoney, ascend: renderAscend, lucy: renderLucy, more: renderMore };
-  $('#app').innerHTML = (screens[view.tab] || renderHome)();
-  renderTabs();
+  // a bug on one screen must never lock Lucy: show a gentle panel, keep the tabs working, and look for a fixed version
+  let html;
+  try { html = (screens[view.tab] || renderHome)(); }
+  catch (e) {
+    console.error(e); window.__lucyErr = String(e && e.message || e);
+    html = '<div class="panel" style="margin-top:60px"><b>This screen could not open.</b><div class="sub mt">Your data is safe. Tap Reload to get the latest Lucy, or open another tab below.</div><div class="sub mt" style="opacity:.6;font-size:12px">' + esc(window.__lucyErr) + '</div><button class="btn block mt" onclick="location.reload()">Reload</button></div>';
+    newVersionReady();
+  }
+  $('#app').innerHTML = html;
+  try { renderTabs(); } catch (e) { console.error(e); }
   const fabTabs = { plan: 1, money: 1 };
   const fabSubs = { team: 1, clients: 1, leads: 1, ideas: 1, notes: 1, shopping: 1, learning: 1 };
   const showFab = (fabTabs[view.tab] && !view.sub) || (view.tab === 'ascend' && ['dreams', 'affirm'].includes(segOf('ascend', 'manifest'))) || (view.tab === 'more' && fabSubs[view.sub] && !view.id);

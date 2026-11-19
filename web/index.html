@@ -25,6 +25,10 @@
   <div id="sheet-wrap" hidden><div id="sheet-bg" data-a="close"></div><div id="sheet"></div></div>
   <div id="overlay" hidden></div>
   <div id="toast" hidden></div>
+  <script>
+    // if Lucy fails to start, offer a one-tap reload instead of a blank screen
+    setTimeout(function () { var a = document.getElementById('app'); if (a && !a.innerHTML.trim()) a.innerHTML = '<div style="padding:80px 24px;text-align:center;color:#ddd;font-family:sans-serif"><p>Lucy is taking longer than usual to open.</p><p>Your data is safe.</p><button onclick="location.reload()" style="margin-top:12px;padding:12px 28px;border-radius:12px;border:0;background:#d4af37;color:#111;font-size:16px">Reload</button></div>'; }, 8000);
+  </script>
   <script src="config.js"></script>
   <script src="app.js"></script>
 </body>

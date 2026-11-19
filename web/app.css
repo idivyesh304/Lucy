@@ -531,3 +531,5 @@ h1 b { background: linear-gradient(100deg, #FFF1CF 0%, #D8B56A 35%, #F3D9A0 55%,
 .st-row .grow { min-width: 0; }
 .st-tag { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: rgba(255,255,255,.08); white-space: nowrap; }
 .st-tag.ok { color: var(--good); } .st-tag.late { color: var(--warn); } .st-tag.bad { color: var(--bad); }
+.right.stack { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; margin-left: 10px; }
+.right.stack .link { padding: 3px 0; font-size: 13px; line-height: 1.2; white-space: nowrap; margin-top: 0; }

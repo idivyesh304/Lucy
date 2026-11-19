@@ -437,12 +437,12 @@ function settlePlan() {
   S.payments.filter((p) => p.type === 'in' && p.status === 'pending').forEach((p) => {
     const left = B.leftOf(p); if (!left) return;
     const c = p.clientId ? clientById(p.clientId) : null;
-    ins.push({ party: p.party, day: Math.max(d0, L.startOfDay(p.due || now)), late: (p.due || now) < d0, amount: left, gst: p.gstRate ? Math.round(left - left / (1 + p.gstRate / 100)) : 0, gstMonth: L.dayKey(p.due || now).slice(0, 7), acct: acct(c) });
+    ins.push({ pid: p.id, due: p.due, party: p.party, day: Math.max(d0, L.startOfDay(p.due || now)), late: (p.due || now) < d0, amount: left, gst: p.gstRate ? Math.round(left - left / (1 + p.gstRate / 100)) : 0, gstMonth: L.dayKey(p.due || now).slice(0, 7), acct: acct(c) });
   });
   S.clients.filter((c) => !c.past && c.active !== false && c.billing === 'monthly' && Number(c.retainer || c.amount) > 0 && c.nextDate).forEach((c) => {
     let t = L.startOfDay(c.nextDate); const base = Number(c.retainer || c.amount), gst = Number(c.gstRate) || 0;
     for (let i = 0; i < 3 && t <= horizon; i++) {
-      if (t >= d0) ins.push({ party: c.company, day: t, amount: Math.round(base * (1 + gst / 100)), gst: Math.round(base * gst / 100), gstMonth: L.dayKey(t).slice(0, 7), acct: acct(c), projected: true });
+      if (t >= d0) ins.push({ cid: c.id, due: t, party: c.company, day: t, amount: Math.round(base * (1 + gst / 100)), gst: Math.round(base * gst / 100), gstMonth: L.dayKey(t).slice(0, 7), acct: acct(c), projected: true });
       const n = new Date(t); t = new Date(n.getFullYear(), n.getMonth() + 1, Math.min(c.renewDay || n.getDate(), new Date(n.getFullYear(), n.getMonth() + 2, 0).getDate())).getTime();
     }
   });
@@ -452,7 +452,7 @@ function settlePlan() {
     const kind = p && p.gst ? 'gst' : x.kind === 'pay' && p && /loan/i.test(p.note || '') ? 'friend' : x.kind;
     const l = x.kind === 'emi' || x.kind === 'friend' ? (S.loans.find((y) => y.id === x.id) || {}) : {};
     const note = kind === 'emi' ? (l.emisLeft ? l.emisLeft + ' EMIs left' : 'EMI') : p ? p.note || '' : String(x.sub || '').replace(/(\s·\s*)+$/, '');
-    outs.push({ kind: kind, party: x.party, note: note, day: Math.max(d0, L.startOfDay(x.due || now)), due: L.startOfDay(x.due || now), amount: x.amount, from: l.debitBank || '' });
+    outs.push({ a: x.a, id: x.id, sid: x.sid, kind: kind, party: x.party, note: note, day: Math.max(d0, L.startOfDay(x.due || now)), due: L.startOfDay(x.due || now), amount: x.amount, from: l.debitBank || '' });
   });
   (S.office || []).filter((o) => o.active !== false && Number(o.amount) > 0).forEach((o) => {
     const n = new Date(now), due = new Date(n.getFullYear(), n.getMonth() + 1, Math.min(Number(o.dueDay) || 1, new Date(n.getFullYear(), n.getMonth() + 2, 0).getDate())).getTime();
@@ -474,14 +474,15 @@ function settlePlan() {
   });
   // day by day: money arrives, bills fall due, each bill is paid in full when there is enough
   let bal = opening, low = { amount: opening, day: d0 }, need = 0, run = opening;
-  const queue = [], days = {};
+  const queue = [], days = {}; let lastIn = null;
+  ins.forEach((x) => { x.funds = []; });
   const dayOf = (t) => (days[t] = days[t] || { day: t, ins: [], pays: [], bal: 0 });
   // money needed to pay everything exactly on its due date
   const events = ins.map((x) => [x.day, x.amount]).concat(outs.map((o) => [o.due, -o.amount])).sort((a, b2) => a[0] - b2[0] || b2[1] - a[1]);
   events.forEach((e) => { run += e[1]; if (run < -need) need = -run; });
   for (let t = d0; t <= horizon; t += DAY) {
     const tt = L.startOfDay(t);
-    ins.filter((x) => x.day === tt).forEach((x) => { bal += x.amount; dayOf(tt).ins.push(x); });
+    ins.filter((x) => x.day === tt).forEach((x) => { bal += x.amount; dayOf(tt).ins.push(x); lastIn = x; });
     outs.filter((o) => o.day === tt).forEach((o) => queue.push(o));
     queue.sort((a, b2) => (ST_PRI[a.kind] || 9) - (ST_PRI[b2.kind] || 9) || (a.kind === 'salary' ? a.amount - b2.amount : a.due - b2.due));
     // the first day a given balance reaches a target, counting only money still to come
@@ -496,7 +497,7 @@ function settlePlan() {
       const hold = waiting + soon;
       if (hold && bal - o.amount < hold) { const r1 = reachDay(bal - o.amount, hold), r0 = reachDay(bal, hold); const small = r0 === Infinity && o.amount <= hold * 0.1; // a small bill (like a server) can go when the big ones cannot be paid in this period anyway
         if (!small && (r1 === Infinity || r1 > r0)) { waiting += o.amount; continue; } }
-      bal -= o.amount; o.payDay = tt; o.lateDays = Math.round((tt - o.due) / DAY); dayOf(tt).pays.push(o); queue.splice(i, 1); i--;
+      bal -= o.amount; o.payDay = tt; o.lateDays = Math.round((tt - o.due) / DAY); o.by = lastIn; if (lastIn) lastIn.funds.push(o); dayOf(tt).pays.push(o); queue.splice(i, 1); i--;
     }
     if (days[tt]) days[tt].bal = bal;
     if (bal < low.amount) low = { amount: bal, day: tt };
@@ -505,6 +506,55 @@ function settlePlan() {
   const unpaid = outs.filter((o) => !o.payDay), late = outs.filter((o) => o.payDay && o.lateDays > 0 && !o.reserve);
   return { opening: opening, ins: ins, outs: outs, inTotal: tot(ins), outTotal: tot(outs), gstIn: ins.reduce((n, x) => n + x.gst, 0), end: bal, horizon: horizon, need: need,
     days: Object.values(days).sort((a, b2) => a.day - b2.day), unpaid: unpaid.sort((a, b2) => a.due - b2.due), late: late, onTime: outs.filter((o) => o.payDay && o.lateDays <= 0).length };
+}
+// In & out: who pays you, whom you pay, and Lucy's suggestion for what each incoming payment should settle.
+function renderInOut() {
+  const t = segOf('cashdir', 'in') === 'out' ? 'out' : 'in', P = settlePlan(), dd = (x) => L.fmtDate(x), monName = L.MON[new Date().getMonth()];
+  const rv = B.revenue(), pr = B.payroll(), om = B.officeMonth();
+  let emi = 0; try { emi = B.loanStats().monthly || 0; } catch (e) { /* no loans */ }
+  let h = '<div class="stats">' +
+    stat('Clients income', '<span class="good">' + short(rv.collected) + '</span>', 'received in ' + monName + ' · ' + short(rv.mrr) + ' a month') +
+    stat('Team salaries', short(pr.total), pr.list.length + ' people a month') +
+    stat('Office expenses', short(om.total), 'a month') +
+    stat('EMIs', short(emi), S.loans.filter((l) => !l.closed).length + ' running a month') + '</div>';
+  const ins = P.ins.slice().sort((a, b2) => a.day - b2.day), outs = P.outs.filter((o) => !o.reserve).sort((a, b2) => a.due - b2.due);
+  const totIn = ins.reduce((n, x) => n + x.amount, 0), totOut = outs.reduce((n, o) => n + o.amount, 0);
+  h += seg('cashdir', [['in', 'To collect · ' + short(totIn)], ['out', 'To pay · ' + short(totOut)]], t);
+  const kindTag = (k) => '<span class="kind">' + (ST_LABEL[k] || 'Payment') + '</span>';
+  const payBtn = (o) => o.a ? '<button class="btn small" data-a="' + o.a + '"' + (o.sid ? ' data-id="' + esc(o.sid) + '"' : ' data-id="' + o.id + '"') + '>Pay</button>' : '';
+  if (t === 'in') {
+    h += '<div class="sub" style="margin:2px 2px 10px">Who pays you in the next 6 weeks, and what Lucy suggests you pay in full once it arrives.</div>';
+    const hand = P.outs.filter((o) => o.payDay && !o.by && !o.reserve);
+    const card = (title, sub, amount, right, funds, left) => '<div class="panel">' +
+      '<div class="row"><div class="grow" style="min-width:0"><b>' + title + '</b><div class="sub">' + sub + '</div></div><div class="right stack"><div class="amount in">' + amount + '</div>' + (right || '') + '</div></div>' +
+      (funds.length ? '<div class="eyebrow" style="margin-top:12px">Lucy suggests paying</div>' + funds.map((o) => '<div class="st-row"><div class="grow"><div class="t">' + esc(o.party) + ' ' + kindTag(o.kind) + '</div><div class="m" style="font-size:12px;opacity:.7">' +
+        (o.lateDays > 0 ? '<span class="gold">was due ' + dd(o.due) + '</span>' : 'due ' + dd(o.due)) + (o.note ? ' · ' + esc(o.note) : '') + '</div></div><span class="amount out">' + money(o.amount) + '</span></div>').join('') : '') +
+      (left != null ? '<div class="sub mt">' + (left > 0 ? 'Keep <b class="good">' + money(left) + '</b> after this' : 'Nothing left after this') + '</div>' : '') + '</div>';
+    if (P.opening || hand.length) h += card('Money in hand now', 'what you entered below', money(P.opening), '', hand, null);
+    let running = P.opening;
+    h += ins.length ? ins.map((x) => {
+      running += x.amount - x.funds.reduce((n, o) => n + o.amount, 0);
+      const right = x.pid ? '<button class="link wa-link" data-a="wa-pay" data-id="' + x.pid + '">' + icon('chat', 13) + ' Remind</button><button class="link" data-a="settle" data-id="' + x.pid + '">Received</button>' : '';
+      return card(esc(x.party), (x.late ? '<span class="bad">Overdue since ' + dd(x.due) + '</span>' : (x.pid ? 'Due ' : 'Renews ') + dd(x.day)) + (x.acct ? ' · ' + esc(x.acct) : '') + (x.gst ? ' · incl. GST ' + money(x.gst) : ''), money(x.amount), right, x.funds, Math.max(0, running));
+    }).join('') : '<div class="panel empty">Nobody owes you anything right now.</div>';
+    h += '<label>Money in hand now (₹, bank plus cash you can use)</label><input type="number" inputmode="numeric" data-set="cashInHand" value="' + (P.opening || '') + '" placeholder="e.g. 50000">' +
+      '<div class="hint" style="margin:6px 2px 14px">Lucy always suggests full payments, never part. When money is short she pays in this order: GST, EMIs, salaries, office bills, other payments, friendly loans.</div>';
+  } else {
+    h += '<div class="sub" style="margin:2px 2px 10px">Whom you pay in the next 6 weeks, in date order. Each line says when Lucy suggests paying it in full.</div>';
+    h += outs.length ? '<div class="list">' + outs.map((o) => {
+      const plan = !o.payDay ? '<span class="bad">Not enough money yet</span>' : o.lateDays > 0 ? '<span class="gold">Pay ' + dd(o.payDay) + (o.by ? ', after ' + esc(o.by.party) + ' pays' : '') + '</span>' : '<span class="good">On time' + (o.by ? ', from ' + esc(o.by.party) : ' from money in hand') + '</span>';
+      return '<div class="item due-row"><div class="badge" style="width:34px;height:34px">' + icon(o.kind === 'salary' ? 'users' : o.kind === 'emi' ? 'bank' : o.kind === 'office' ? 'building' : o.kind === 'gst' ? 'doc' : 'card', 16) + '</div>' +
+        '<div class="grow"><div class="t">' + esc(o.party) + ' ' + kindTag(o.kind) + '</div><div class="m' + (o.due < L.startOfDay(Date.now()) ? ' late' : '') + '">Due ' + dd(o.due) + (o.note ? ' · ' + esc(o.note) : '') + (o.from ? ' · from ' + esc(o.from) : '') + '</div><div class="m" style="font-size:12px">' + plan + '</div></div>' +
+        '<div class="right"><div class="amount out">' + money(o.amount) + '</div>' + payBtn(o) + '</div></div>';
+    }).join('') + '</div>' : '<div class="panel empty">Nothing to pay right now.</div>';
+    const keep = P.outs.filter((o) => o.reserve);
+    if (keep.length) h += '<div class="hint" style="margin:8px 2px">' + keep.map((o) => 'Keep ' + money(o.amount) + ' aside: ' + esc(o.note) + '.').join(' ') + '</div>';
+  }
+  // history
+  const tot = (arr) => arr.reduce((a, x) => a + x.amount, 0);
+  const D = allDues(), done = D.done.filter((x) => x.dir === t);
+  if (done.length) h += '<h2>' + (t === 'in' ? 'Received' : 'Paid') + ' in ' + monName + ' · ' + money(tot(done)) + '</h2>' + listOf(done.map(doneRow));
+  return h;
 }
 function renderSettle() {
   const P = settlePlan(), dd = (t) => L.fmtDate(t);
@@ -551,8 +601,8 @@ function payRow(p) {
     '<div class="right"><div class="amount ' + p.type + '">' + money(p.status === 'pending' ? left : p.amount) + '</div>' + (p.status === 'pending' ? '<button class="link" data-a="settle" data-id="' + p.id + '">' + (p.type === 'in' ? 'Receive' : 'Pay') + '</button>' : '') + '</div></div>';
 }
 function renderMoney() {
-  const s = segOf('money', 'mission');
-  let h = topbar('Money', { eyebrow: 'Money magnet' }) + seg('money', [['mission', 'Mission'], ['cash', 'In & out'], ['settle', 'Settle'], ['office', 'Office'], ['loans', 'EMIs'], ['expenses', 'Expenses']], s);
+  const s0 = segOf('money', 'cash'), s = ['cash', 'office', 'loans', 'mission'].includes(s0) ? s0 : 'cash';
+  let h = topbar('Money', { eyebrow: 'Money magnet' }) + seg('money', [['cash', 'In & out'], ['office', 'Office'], ['loans', 'EMIs'], ['mission', 'Mission']], s);
   if (s === 'mission') {
     const r = B.revenue();
     h += '<div class="panel gold hero"><div class="eyebrow">Revenue mission · ' + L.MON[new Date().getMonth()] + '</div>' +
@@ -574,34 +624,8 @@ function renderMoney() {
     if (g.clientsPerEditor) h += '<div class="sub" style="margin:0 2px 12px">Workload check: ' + g.planClients + ' clients across your editors is about <b class="gold">' + Math.round(g.clientsPerEditor) + ' clients per editor</b>.</div>';
     h += '<div class="sub" style="margin:4px 2px">Lucy uses only your real entries. Revenue is money received; it is not profit.</div>';
     h += '<button class="btn ghost block" data-a="edit-target">' + icon('target', 16) + 'Change monthly target</button>';
-  } else if (s === 'settle') {
-    h += renderSettle();
   } else if (s === 'cash') {
-    const t0 = segOf('cashdir', 'in'), t = t0 === 'plan' ? 'in' : t0, D = allDues();
-    const tot = (arr) => arr.reduce((a, x) => a + x.amount, 0);
-    const doneIn = D.done.filter((x) => x.dir === 'in'), doneOut = D.done.filter((x) => x.dir === 'out'), monName = L.MON[new Date().getMonth()];
-    h += '<div class="stats">' + stat('Received in ' + monName, '<span class="good">' + short(tot(doneIn)) + '</span>', doneIn.length + ' payments') + stat('To receive', short(tot(D.in)), D.in.length + (D.in.length === 1 ? ' item' : ' items')) +
-      stat('Paid in ' + monName, short(tot(doneOut)), doneOut.length + ' payments') + stat('To pay', short(tot(D.out)), D.out.length + (D.out.length === 1 ? ' item' : ' items')) + '</div>';
-    h += seg('cashdir', [['in', 'To receive'], ['out', 'To pay']], t);
-    const list = D[t];
-    const done = t === 'in' ? doneIn : doneOut;
-    if (done.length) h += '<h2>' + (t === 'in' ? 'Received' : 'Paid') + ' in ' + monName + ' · ' + money(tot(done)) + '</h2>' + listOf(done.map(doneRow));
-    h += '<h2>' + (t === 'in' ? 'Still to receive' : 'Still to pay') + '</h2>';
-    if (t === 'out' && list.length) {
-      const by = {}; list.forEach((x) => { by[x.kind] = (by[x.kind] || 0) + x.amount; });
-      h += '<div class="chips-sum">' + Object.keys(by).map((k) => '<span class="chip">' + esc(DUE_KIND[k].label) + ' ' + short(by[k]) + '</span>').join('') + '</div>';
-    }
-    h += listOf(list.map(dueRow), t === 'in' ? 'Nobody owes you anything right now.' : 'Nothing to pay right now.');
-    h += '<div class="hint" style="margin:6px 2px 14px">' + (t === 'in' ? 'Includes client renewals and every amount added in Clients or here with +.' : 'Includes salaries, office bills, EMIs, friendly loans and bills added here with +.') + '</div>';
-    if (t === 'in') {
-      // money received in the last few months, so past payments are always easy to find
-      for (let back = 1; back <= 3; back++) {
-        const d0 = new Date(new Date().getFullYear(), new Date().getMonth() - back, 1), d1 = new Date(d0.getFullYear(), d0.getMonth() + 1, 1);
-        const rows = [];
-        S.payments.filter((p) => p.type === 'in').forEach((p) => B.partsOf(p).forEach((x) => { if (x.at >= d0.getTime() && x.at < d1.getTime()) rows.push({ dir: 'in', kind: p.clientId ? 'client' : 'pay', party: p.party, amount: Number(x.amt || 0), at: x.at }); }));
-        if (rows.length) h += '<h2>Received in ' + L.MON[d0.getMonth()] + ' · ' + money(tot(rows)) + '</h2>' + listOf(rows.sort((a, b) => b.at - a.at).map(doneRow));
-      }
-    }
+    h += renderInOut();
   } else if (s === 'loans') {
     const st = B.loanStats();
     h += '<div class="stats">' + stat('Monthly EMIs', short(st.monthly), st.open + ' open') + stat('Outstanding', short(st.outstanding), st.freeAt ? 'Debt-free by ' + L.MON[new Date(st.freeAt).getMonth()] + ' ' + new Date(st.freeAt).getFullYear() : 'Add EMIs left to see') + '</div>';

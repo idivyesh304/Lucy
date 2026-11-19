@@ -3,6 +3,8 @@ import * as C from './content.js';
 import { TRACK, records, mergeStates } from './merge.js';
 export { records, mergeStates };
 
+// home bills, set up once like the office list; amounts start empty (tap to set)
+export const HOME_PRESET = [['Home rent', 'Home rent / EMI'], ['Maintenance', 'Society maintenance'], ['Home light bill', 'Light bill', true], ['Gas', 'Gas bill', true], ['Home internet', 'Home WiFi'], ['Mobile', 'Mobile recharges'], ['Groceries', 'Groceries', true], ['Milk', 'Milk', true], ['House help', 'House help'], ['Home water', 'Drinking water', true], ['Home other', 'Other home expense', true]];
 export const OFFICE_PRESET = [['Rent', 'Office rent'], ['Light bill', 'Electricity bill', true], ['Internet', 'Internet'], ['AI subscriptions', 'AI subscriptions'], ['Adobe', 'Adobe Pro subscription'], ['Cleaner', 'Office cleaner'], ['Drinking water', 'Drinking water supplier', true], ['Other', 'Other office expense', true]];
 export const KEY = 'lucy.v3';
 const listeners = [];
@@ -77,9 +79,12 @@ export function migrate(d) {
   // Office expenses: add the standard items once (never removes or changes existing ones)
   if (!out.officeSeeded) {
     out.office = Array.isArray(d.office) ? d.office : [];
-    OFFICE_PRESET.forEach(([cat, name, variable]) => { if (!out.office.some((o) => o.cat === cat)) out.office.push({ id: 'of-' + cat.toLowerCase().replace(/[^a-z]+/g, '-'), cat: cat, name: name, amount: 0, dueDay: 5, variable: !!variable, paid: {}, note: '' }); });
+    OFFICE_PRESET.forEach(([cat, name, variable]) => { if (!out.office.some((o) => !o.home && o.cat === cat)) out.office.push({ id: 'of-' + cat.toLowerCase().replace(/[^a-z]+/g, '-'), cat: cat, name: name, amount: 0, dueDay: 5, variable: !!variable, paid: {}, note: '' }); });
     out.officeSeeded = true;
   }
+  // Home expenses: the standard home bills, added once
+  if (!Array.isArray(out.office)) out.office = [];
+  if (!(out.settings || {}).homeSeeded) { HOME_PRESET.forEach(([cat, name, variable]) => { if (!out.office.some((o) => o.home && o.cat === cat)) out.office.push({ id: 'hm-' + cat.toLowerCase().replace(/[^a-z]+/g, '-'), cat: cat, name: name, amount: 0, dueDay: 5, variable: !!variable, paid: {}, note: '', home: true }); }); if (out.settings) out.settings.homeSeeded = true; }
   if (!out.growth || !Array.isArray(out.growth.tiers)) out.growth = defaults().growth;
   if (!out.growthAI) { if (!out.growth.team.some((m) => /ai artist/i.test(m.role))) out.growth.team.push({ role: 'AI artist', need: 1, have: 0, salary: 0 }); out.growthAI = true; }
   // Nov 2026: Divyesh set his monthly target to Rs 15 lakh (was Rs 25 lakh)

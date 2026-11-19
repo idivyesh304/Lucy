@@ -406,7 +406,8 @@ function allDues(days) {
   B.officeMonth().rows.concat(B.officeMonth('home').rows).forEach((r) => {
     const o = r.o; if (o.active === false || !Number(o.amount)) return;
     const due = new Date(y, m, Math.min(Number(o.dueDay) || 1, new Date(y, m + 1, 0).getDate())).getTime();
-    if (r.left > 0) dOut.push({ kind: o.home ? 'home' : 'office', party: o.name, sub: (o.note ? o.note + ' · ' : '') + (r.paid ? 'part ' + money(r.paid) + ' paid' : 'Office bill'), amount: r.left, due: due, a: 'open-office', sid: o.id });
+    if (o.since && o.since > due + L.DAY && !r.paid) return; // set up after this month's due day: starts next month
+    if (r.left > 0) dOut.push({ kind: o.home ? 'home' : 'office', party: o.name, sub: (o.note ? o.note + ' · ' : '') + (r.paid ? 'part ' + money(r.paid) + ' paid' : o.home ? 'Home bill' : 'Office bill'), amount: r.left, due: due, a: 'open-office', sid: o.id });
     else done.push({ dir: 'out', kind: o.home ? 'home' : 'office', party: o.name, amount: r.paid, at: now });
   });
   S.loans.filter((l) => !l.closed).forEach((l) => {
@@ -460,7 +461,7 @@ function settlePlan() {
   });
   (S.office || []).filter((o) => o.active !== false && Number(o.amount) > 0).forEach((o) => {
     const n = new Date(now), due = new Date(n.getFullYear(), n.getMonth() + 1, Math.min(Number(o.dueDay) || 1, new Date(n.getFullYear(), n.getMonth() + 2, 0).getDate())).getTime();
-    if (due <= horizon) outs.push({ kind: o.home ? 'home' : /rent/i.test(o.name) ? 'rent' : 'office', party: o.name, note: o.vendor || o.note || 'Office bill', day: due, due: due, amount: Number(o.amount) });
+    if (due <= horizon) outs.push({ kind: o.home ? 'home' : /rent/i.test(o.name) ? 'rent' : 'office', party: o.name, note: o.vendor || o.note || (o.home ? 'Home bill' : 'Office bill'), day: due, due: due, amount: Number(o.amount) });
   });
   S.loans.filter((l) => !l.closed && l.type !== 'friend' && Number(l.emi) > 0).forEach((l) => {
     // allDues lists the next EMI; add the one after it when it also falls inside the plan
@@ -631,7 +632,7 @@ function renderMoney() {
     const home = s === 'home', om = B.officeMonth(home ? 'home' : '');
     h += '<div class="stats">' + stat((home ? 'Home' : 'Office') + ' bills this month', short(om.total), '') + stat('Paid', short(om.paid), short(Math.max(0, om.total - om.paid)) + ' left') + '</div>';
     h += '<div class="sub" style="margin:0 2px 10px">Tap any item to set its amount, due day and pay it. Lucy reminds you before each due day.</div><h2>' + (home ? 'Home expenses' : 'Office expenses') + '<button class="link" data-a="new-office" data-v="' + (home ? 'home' : '') + '">Add</button></h2>' + (home && !om.rows.length ? '<div class="panel empty">Add your monthly home bills: rent or maintenance, light bill, gas, internet, groceries, school fees.</div>' : '') + '<div class="list">' + om.rows.map((r) => { const o = r.o;
-      return '<div class="item' + (r.status === 'off' ? ' off' : '') + '" data-a="open-office" data-id="' + esc(o.id) + '"><div class="badge" style="width:36px;height:36px">' + icon(o.home ? 'house' : OFFICE_ICON[o.cat] || 'building', 17) + '</div><div class="grow"><div class="t">' + esc(o.name) + '</div><div class="m">' + (r.status === 'off' ? 'Not tracking' : r.status === 'unset' ? 'Tap to set amount' : (o.variable ? 'About ' : '') + money(o.amount) + ' · due on ' + o.dueDay + (o.note ? ' · ' + esc(o.note) : '')) + '</div></div>' +
+      return '<div class="item' + (r.status === 'off' ? ' off' : '') + '" data-a="open-office" data-id="' + esc(o.id) + '"><div class="badge" style="width:36px;height:36px">' + icon(OFFICE_ICON[o.cat] || (o.home ? 'house' : 'building'), 17) + '</div><div class="grow"><div class="t">' + esc(o.name) + '</div><div class="m">' + (r.status === 'off' ? 'Not tracking' : r.status === 'unset' ? 'Tap to set amount' : (o.variable ? 'About ' : '') + money(o.amount) + ' · due on ' + o.dueDay + (o.note ? ' · ' + esc(o.note) : '')) + '</div></div>' +
         '<div class="right"><div class="m" style="font-size:12px">' + (r.status === 'paid' ? '<span class="good">Paid ' + money(r.paid) + '</span>' : r.status === 'part' ? '<span class="gold">Part ' + money(r.paid) + '</span>' : r.status === 'due' ? '<span class="warn">Due</span>' : '') + '</div></div></div>'; }).join('') + '</div>';
   } else {
     const mk = L.dayKey(Date.now()).slice(0, 7);
@@ -1093,7 +1094,7 @@ function partsList(parts, kind) {
   if (!parts.length) return '';
   return '<h2>History</h2><div class="list">' + parts.map((x, i) => '<div class="item"><div class="grow"><div class="t">' + money(x.amt) + '</div><div class="m">' + L.fmtDate(x.at) + (x.mode ? ' · ' + esc(x.mode) : '') + (x.note ? ' · ' + esc(x.note) : '') + '</div></div><button class="link" data-a="part-undo" data-k="' + kind + '" data-i="' + i + '">Undo</button></div>').join('') + '</div>';
 }
-const OFFICE_ICON = { 'Rent': 'building', 'Light bill': 'bolt', 'Internet': 'globe', 'AI subscriptions': 'spark', 'Adobe': 'image', 'Cleaner': 'droplet', 'Drinking water': 'cup', 'Other': 'note' };
+const OFFICE_ICON = { 'Home rent': 'house', 'Maintenance': 'building', 'Home light bill': 'bolt', 'Gas': 'flame', 'Home internet': 'globe', 'Mobile': 'phone', 'Groceries': 'cart', 'Milk': 'cup', 'House help': 'users', 'Home water': 'droplet', 'Home other': 'note', 'Rent': 'building', 'Light bill': 'bolt', 'Internet': 'globe', 'AI subscriptions': 'spark', 'Adobe': 'image', 'Cleaner': 'droplet', 'Drinking water': 'cup', 'Other': 'note' };
 function officeSheet(o) {
   const mk = B.officeMonth().mk, paid = B.officePaidOf(o, mk), amt = Number(o.amount) || 0, left = Math.max(0, amt - paid);
   const parts = o.paid && o.paid[mk] ? o.paid[mk].parts || [] : [];
@@ -1427,7 +1428,7 @@ document.addEventListener('click', async (ev) => {
     case 'mg-thanks': { const k = B.today(); S.manifest[k] = Object.assign(S.manifest[k] || {}, { thanks: true }); save(); render(); celebrate('small'); break; }
     case 'open-office': officeSheet(S.office.find((x) => x.id === el.dataset.id)); break;
     case 'new-office': { const o = { id: 'of-' + nid(), cat: 'Other', name: v === 'home' ? 'New home expense' : 'New office expense', amount: 0, dueDay: 5, variable: false, paid: {}, note: '', home: v === 'home' }; S.office.push(o); save({ local: true }); officeSheet(o); break; }
-    case 'save-office': { const o = S.office.find((x) => x.id === el.dataset.id); Object.assign(o, { amount: Number($('#of-amt').value) || 0, dueDay: Number($('#of-day').value) || 1, name: $('#of-name').value.trim() || o.name, note: $('#of-note').value.trim(), variable: $('#of-var').checked }); save(); toast('Saved'); officeSheet(o); render(); break; }
+    case 'save-office': { const o = S.office.find((x) => x.id === el.dataset.id); if (!o.since && !Number(o.amount) && Number($('#of-amt').value) > 0) o.since = Date.now(); Object.assign(o, { amount: Number($('#of-amt').value) || 0, dueDay: Number($('#of-day').value) || 1, name: $('#of-name').value.trim() || o.name, note: $('#of-note').value.trim(), variable: $('#of-var').checked }); save(); toast('Saved'); officeSheet(o); render(); break; }
     case 'office-pay': {
       const o = S.office.find((x) => x.id === el.dataset.id), mk = B.officeMonth().mk, amt = chosenAmt(Number($('#sheet').dataset.left));
       if (!amt || amt <= 0) { toast('Enter the amount'); break; }
@@ -1838,7 +1839,8 @@ function openHash() {
   else if (h === '#more-clients') { view.tab = 'more'; view.sub = 'clients'; view.id = null; }
   else if (h === '#more-reports') { view.tab = 'more'; view.sub = 'reports'; view.seg.rep = 'ask'; }
   else if (h === '#more-leads') { view.tab = 'more'; view.sub = 'leads'; view.id = null; }
-  else if (h === '#money-expenses') { view.tab = 'money'; view.seg.money = 'office'; }
+  else if (h === '#money-expenses' || h === '#money-office') { view.tab = 'money'; view.seg.money = 'office'; }
+  else if (h === '#money-home') { view.tab = 'money'; view.seg.money = 'home'; }
   else if (h === '#ascend-manifest') { view.tab = 'ascend'; view.seg.ascend = 'manifest'; }
   else if (h === '#plan-special') { view.tab = 'plan'; view.seg.plan = 'special'; }
   else if (h === '#more-review') { view.tab = 'more'; view.sub = 'review'; }

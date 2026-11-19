@@ -62,8 +62,8 @@ export function buildSchedule() {
       const paid = o.paid && o.paid[new Date(day).getFullYear() + '-' + String(new Date(day).getMonth() + 1).padStart(2, '0')];
       const paidAmt = paid ? (paid.parts || []).reduce((a, x) => a + Number(x.amt || 0), 0) : 0;
       if (paidAmt >= Number(o.amount)) continue;
-      push(L.atTime(L.addDays(day, -1), 19, 30), o.name + ' due tomorrow', 'Just a heads-up, about ' + L.money(o.amount) + '.', 'office-' + o.id, '#money-expenses');
-      push(L.atTime(day, 10, 30), o.name + ' is due today', L.money(Math.max(0, o.amount - paidAmt)) + ' is due today. Tap to mark it paid.', 'office-' + o.id, '#money-expenses');
+      push(L.atTime(L.addDays(day, -1), 19, 30), o.name + ' due tomorrow', 'Just a heads-up, about ' + L.money(o.amount) + '.', 'office-' + o.id, o.home ? '#money-home' : '#money-office');
+      push(L.atTime(day, 10, 30), o.name + ' is due today', L.money(Math.max(0, o.amount - paidAmt)) + ' is due today. Tap to mark it paid.', 'office-' + o.id, o.home ? '#money-home' : '#money-office');
     }
   });
 

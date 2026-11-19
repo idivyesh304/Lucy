@@ -4,6 +4,7 @@ import { upcoming as upcomingSpecial, specialTitle } from './special.js';
 import * as L from '../src/logic.js';
 import * as C from './content.js';
 import { S, nid } from './store.js';
+import { liveParts } from './merge.js';
 
 export const alertStart = (r) => Math.max(r.due, r.snoozeUntil || 0);
 export const today = () => L.dayKey(Date.now());
@@ -85,10 +86,10 @@ export function nextBestMove() {
 
 /* ---------------- Part payments ---------------- */
 // Every payment keeps a list of parts: [{ amt, at, mode, note }]. Older records without parts count as fully paid when settled.
-export function partsOf(p) { return p.parts && p.parts.length ? p.parts : (p.status === 'settled' ? [{ amt: Number(p.amount || 0), at: p.settledAt || p.due }] : []); }
+export function partsOf(p) { const parts = liveParts(p.parts, p.partsGone); return parts.length ? parts : (p.status === 'settled' && !(p.partsGone || []).length ? [{ amt: Number(p.amount || 0), at: p.settledAt || p.due }] : []); }
 export function paidOf(p) { return partsOf(p).reduce((a, x) => a + Number(x.amt || 0), 0); }
 export function leftOf(p) { return Math.max(0, Number(p.amount || 0) - paidOf(p)); }
-export function salaryPaidOf(e, mk) { const x = e.paid && e.paid[mk]; if (!x) return 0; if (typeof x === 'number') return Number(e.salary) || 0; return (x.parts || []).reduce((a, y) => a + Number(y.amt || 0), 0); }
+export function salaryPaidOf(e, mk) { const x = e.paid && e.paid[mk]; if (!x) return 0; if (typeof x === 'number') return Number(e.salary) || 0; return liveParts(x.parts, x.partsGone).reduce((a, y) => a + Number(y.amt || 0), 0); }
 
 /* ---------------- Revenue mission ---------------- */
 export function revenue() {
@@ -328,7 +329,7 @@ export function billClients() {
 }
 
 // Office expenses: monthly bills with due day; variable bills (light, water) use what was actually paid.
-export function officePaidOf(o, mk) { const x = o.paid && o.paid[mk]; return x ? (x.parts || []).reduce((a, y) => a + Number(y.amt || 0), 0) : 0; }
+export function officePaidOf(o, mk) { const x = o.paid && o.paid[mk]; return x ? liveParts(x.parts, x.partsGone).reduce((a, y) => a + Number(y.amt || 0), 0) : 0; }
 export function officeMonth() {
   const mk = monthKey(Date.now());
   const items = S.office || [];

@@ -10,13 +10,16 @@ export function records(d) {
   (d.payments || []).forEach((p) => { n += (p.parts || []).length; });
   return n;
 }
-const partKey = (x) => (x && (x.at + ':' + x.amt)) || JSON.stringify(x);
-function mergeParts(a, b) { const m = new Map(); (a || []).concat(b || []).forEach((x) => m.set(partKey(x), x)); return [...m.values()].sort((x, y) => (x.at || 0) - (y.at || 0)); }
+export const partKey = (x) => (x && (x.at + ':' + x.amt)) || JSON.stringify(x);
+// a removed payment entry is remembered in partsGone, so a device that still has it cannot bring it back
+const goneOf = (a, b) => [...new Set([].concat((a && a.partsGone) || [], (b && b.partsGone) || []))];
+export const liveParts = (parts, gone) => (parts || []).filter((x) => !(gone || []).includes(partKey(x)));
+function mergeParts(a, b, gone) { const m = new Map(); (a || []).concat(b || []).forEach((x) => m.set(partKey(x), x)); return liveParts([...m.values()], gone).sort((x, y) => (x.at || 0) - (y.at || 0)); }
 function mergePaidMaps(a, b) {
   const out = Object.assign({}, a || {});
   Object.keys(b || {}).forEach((k) => {
     const x = out[k], y = b[k];
-    if (x && y && typeof x === 'object' && typeof y === 'object') out[k] = Object.assign({}, x, y, { parts: mergeParts(x.parts, y.parts) });
+    if (x && y && typeof x === 'object' && typeof y === 'object') { const g = goneOf(x, y); out[k] = Object.assign({}, x, y, { parts: mergeParts(x.parts, y.parts, g) }, g.length ? { partsGone: g } : {}); }
     else out[k] = y || x;
   });
   return out;
@@ -25,7 +28,10 @@ function mergeItem(older, newer) {
   const m = Object.assign({}, older, newer);
   // never let an empty value from one copy wipe a real value from the other
   Object.keys(older).forEach((k) => { const v = newer[k]; if ((v === undefined || v === null || v === '' || v === 0) && older[k] !== undefined && older[k] !== null && older[k] !== '' && older[k] !== 0) m[k] = older[k]; });
-  if (older.parts || newer.parts) m.parts = mergeParts(older.parts, newer.parts);
+  const g = goneOf(older, newer); if (g.length) m.partsGone = g;
+  if (older.parts || newer.parts) m.parts = mergeParts(older.parts, newer.parts, g);
+  // a payment marked unpaid again on one device stays unpaid once its entries are removed
+  if (g.length && !(m.parts || []).length && (older.status !== 'settled' || newer.status !== 'settled')) { if (m.status === 'settled') m.status = 'pending'; if (m.status === 'pending') m.settledAt = 0; }
   // activity history (lead calls, meetings, notes): keep every entry from both copies
   ['activity', 'logs'].forEach((key) => { if (Array.isArray(older[key]) || Array.isArray(newer[key])) { const mm = new Map(); (older[key] || []).concat(newer[key] || []).forEach((x) => mm.set(String(x && x.id), x)); m[key] = [...mm.values()].sort((x, y) => (y.at || 0) - (x.at || 0)); } });
   if ((older.paid && typeof older.paid === 'object') || (newer.paid && typeof newer.paid === 'object')) {

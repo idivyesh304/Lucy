@@ -1306,7 +1306,7 @@ document.addEventListener('click', async (ev) => {
       logEvent('office', { task: o.name, amount: amt });
       save(); closeSheet(); render(); celebrate('small'); toast(o.name + ': ' + money(amt) + ' paid'); break;
     }
-    case 'office-undo': { const o = S.office.find((x) => x.id === el.dataset.id), mk = B.officeMonth().mk; if (!confirm('Remove this payment entry?')) break; o.paid[mk].parts.splice(Number(el.dataset.i), 1); save(); officeSheet(o); render(); break; }
+    case 'office-undo': { const o = S.office.find((x) => x.id === el.dataset.id), mk = B.officeMonth().mk; if (!confirm('Remove this payment entry?')) break; { const rm = o.paid[mk].parts.splice(Number(el.dataset.i), 1)[0]; if (rm) (o.paid[mk].partsGone = o.paid[mk].partsGone || []).push(rm.at + ':' + rm.amt); } save(); officeSheet(o); render(); break; }
     case 'office-off': { const o = S.office.find((x) => x.id === el.dataset.id); o.active = o.active === false; save(); closeSheet(); render(); break; }
     case 'amt-opt': { document.querySelectorAll('#amt-opt button').forEach((b) => b.classList.toggle('on', b === el)); $('#amt-opt').dataset.v = v; const c = $('#amt-custom'); c.hidden = v !== 'custom'; if (v === 'custom') c.focus(); updateAmtView(Number($('#sheet').dataset.left)); break; }
     case 'salary-go': {
@@ -1330,8 +1330,8 @@ document.addEventListener('click', async (ev) => {
     case 'part-undo': {
       const [kind, pid] = el.dataset.k.split(':'), i = Number(el.dataset.i);
       if (!confirm('Remove this entry?')) break;
-      if (kind === 'pay') { const p = payById(Number(pid)); p.parts.splice(i, 1); if (B.leftOf(p) > 0) { p.status = 'pending'; p.settledAt = 0; } save(); settleSheet(p); }
-      else { const e = S.employees.find((x) => x.id === Number(pid)), mk = $('#sheet').dataset.mk || B.payroll().month; e.paid[mk].parts.splice(i, 1); if (!e.paid[mk].parts.length) delete e.paid[mk]; save(); salarySheet(e); }
+      if (kind === 'pay') { const p = payById(Number(pid)); { const rm = p.parts.splice(i, 1)[0]; if (rm) (p.partsGone = p.partsGone || []).push(rm.at + ':' + rm.amt); } if (B.leftOf(p) > 0) { p.status = 'pending'; p.settledAt = 0; } save(); settleSheet(p); }
+      else { const e = S.employees.find((x) => x.id === Number(pid)), mk = $('#sheet').dataset.mk || B.payroll().month; { const rm = e.paid[mk].parts.splice(i, 1)[0]; if (rm) (e.paid[mk].partsGone = e.paid[mk].partsGone || []).push(rm.at + ':' + rm.amt); } save(); salarySheet(e); }
       render(); break;
     }
     case 'del-pay': toPast('payments', id); closeSheet(); render(); break;

@@ -96,8 +96,13 @@ export function banks() {
   list.forEach((b) => { const f = from[b.id]; if (f) Object.keys(f).forEach((k) => { if (!String(b[k] || '').trim() && f[k]) b[k] = f[k]; }); });
   return list;
 }
+// the four ways DZYN LAB takes payment; 'cash' means hard cash that we collect in person
+export const PAY_MODES = [['dzyn', 'DZYN LAB Private Limited · current account'], ['divyesh', 'Divyesh\'s account · savings'], ['devanshi', 'Devanshi\'s account · savings'], ['cash', 'Hard cash · we collect']];
+export const payModeLabel = (id) => ((PAY_MODES.find((m) => m[0] === id) || [])[1] || '');
+export const CASH_TEXT = 'Payment mode: cash, collected in person.';
 export function bankText(id) {
   if (!id || id === 'none') return '';
+  if (id === 'cash') return CASH_TEXT;
   const b = banks().find((x) => x.id === id);
   if (!b) return '';
   const rows = [['Account name', b.holder], ['Bank', b.bank], ['A/c no', b.acc], ['IFSC', b.ifsc], ['Branch', b.branch], ['UPI', b.upi]].filter((r) => String(r[1] || '').trim());
@@ -115,6 +120,7 @@ const dstr = (t) => { if (!t) return ''; const d = new Date(t); return DAYS[d.ge
 export function fill(text, ctx) {
   const c = Object.assign({ me: me(), company: 'DZYN LAB', name: 'Sir', first: '', business: '', amount: '', due: '', days: '', package: 'our services', bank: '', date: '', time: '', what: 'this', years: '', month: MONTHS[new Date().getMonth()] }, ctx || {});
   let out = String(text || '').replace(/\{(\w+)\}/g, (m, k) => (c[k] != null ? String(c[k]) : m));
+  if (c.bank === CASH_TEXT) out = out.replace(/Please share the screenshot once done\./g, 'Please let me know a convenient time for us to collect it.').replace(/Jab time mile, transfer kar dena\./g, 'Jab time mile bata dena, hum cash collect kar lenge.');
   return out.replace(/\n{3,}/g, '\n\n').replace(/[ \t]+\n/g, '\n').trim();
 }
 const hiName = (person) => { const dr = String(person || '').match(/^dr\.?\s+(\S+)/i); if (dr) return 'Dr. ' + dr[1]; const f = first(person); return f ? f + ' ji' : 'Sir'; };

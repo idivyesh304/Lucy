@@ -25,7 +25,7 @@ export function buildSchedule() {
     occs.forEach((t, i) => {
       const waOk = r.waPhone || WA.contactIn(r.task);
       push(t, r.task + who, waOk ? 'Tap for the WhatsApp message Lucy wrote.' : 'Reminder from Lucy. Open to mark it done.', 'rem-' + r.id, waOk ? '#wa-rem-' + r.id : '#plan');
-      if (i === 0) for (let k = 1; k <= st.nagCount; k++) push(t + k * st.nagMin * L.MIN, 'Still pending: ' + r.task, k === st.nagCount ? 'Last nudge, ' + nm + '. Two minutes and it is done.' : 'Tap to open Lucy and finish it.', 'rem-' + r.id, '#plan');
+      if (i === 0) for (let k = 1; k <= st.nagCount; k++) push(t + k * st.nagMin * L.MIN, 'Gentle reminder: ' + r.task, k === st.nagCount ? 'A gentle last reminder, ' + nm + '. Whenever you have two minutes.' : 'Just a gentle reminder. Tap when it is done.', 'rem-' + r.id, '#plan');
     });
   });
 
@@ -35,22 +35,22 @@ export function buildSchedule() {
     const who = l.name + (l.contactName ? ' · ' + l.contactName : '');
     const what = l.nextAction || ('Call or WhatsApp ' + (l.contactName || 'them') + (l.phone ? ' on ' + l.phone : ''));
     push(l.followUp, 'Follow up: ' + who, (l.phone || l.whatsapp) ? what + ' · Tap for the WhatsApp message.' : what, 'lead-' + l.id, (l.phone || l.whatsapp) ? '#wa-lead-' + l.id : '#more-leads');
-    push(L.atTime(L.addDays(l.followUp, 1), 10, 15), 'Still to follow up: ' + l.name, 'Open Lucy and log the call so this lead does not go cold.', 'lead-' + l.id, '#more-leads');
+    push(L.atTime(L.addDays(l.followUp, 1), 10, 15), 'Follow-up for ' + l.name, 'Whenever you get a moment, a quick call or message would keep this lead warm.', 'lead-' + l.id, '#more-leads');
   });
 
   // money moves: morning push with the most important one
   for (let d = 0; d < 7; d++) {
     const day = L.addDays(L.startOfDay(now), d);
     const mv = MG.moneyMoves()[0];
-    push(L.atTime(day, 10, 5), 'Money moves for today', (d === 0 && mv ? mv.title + '. ' : 'Collect, close, upsell, ask for a referral, get visible. ') + 'Do at least three.', 'money-moves', '#ascend-manifest');
+    push(L.atTime(day, 10, 5), 'Money moves for today', (d === 0 && mv ? 'Suggested first step: ' + mv.title + '. ' : 'Collect, close, upsell, referral and outreach. ') + 'Three small steps today would be wonderful.', 'money-moves', '#ascend-manifest');
   }
 
   // coach: evening reading nudge and the nightly check-in
   for (let d = 0; d < 7; d++) {
     const day = L.addDays(L.startOfDay(now), d);
     const bk = (S.books || []).find((b) => b.status === 'reading');
-    if (bk && !(bk.logs || []).some((x) => L.dayKey(x.at) === L.dayKey(day))) push(L.atTime(day, 21, 0), 'Read 10 pages of ' + bk.title, 'Then tell Lucy one thing you learned.', 'read', '#more-reports');
-    push(L.atTime(day, 21, 45), 'Lucy has questions for you', 'Two honest minutes: your reading, what you watched, and anything that slipped today.', 'coach', '#more-reports');
+    if (bk && !(bk.logs || []).some((x) => L.dayKey(x.at) === L.dayKey(day))) push(L.atTime(day, 21, 0), 'A little reading time', 'Ten pages of ' + bk.title + ' whenever you are ready. I would love to hear one thing you learned.', 'read', '#more-reports');
+    push(L.atTime(day, 21, 45), 'Your evening check-in', 'Two quiet minutes with Lucy about your day, whenever it suits you.', 'coach', '#more-reports');
   }
 
   // office bills: evening before and on the due day, until paid
@@ -62,8 +62,8 @@ export function buildSchedule() {
       const paid = o.paid && o.paid[new Date(day).getFullYear() + '-' + String(new Date(day).getMonth() + 1).padStart(2, '0')];
       const paidAmt = paid ? (paid.parts || []).reduce((a, x) => a + Number(x.amt || 0), 0) : 0;
       if (paidAmt >= Number(o.amount)) continue;
-      push(L.atTime(L.addDays(day, -1), 19, 30), o.name + ' due tomorrow', 'About ' + L.money(o.amount) + '. Keep it ready, ' + nm + '.', 'office-' + o.id, '#money-expenses');
-      push(L.atTime(day, 10, 30), 'Pay ' + o.name + ' today', L.money(Math.max(0, o.amount - paidAmt)) + ' due today.', 'office-' + o.id, '#money-expenses');
+      push(L.atTime(L.addDays(day, -1), 19, 30), o.name + ' due tomorrow', 'Just a heads-up, about ' + L.money(o.amount) + '.', 'office-' + o.id, '#money-expenses');
+      push(L.atTime(day, 10, 30), o.name + ' is due today', L.money(Math.max(0, o.amount - paidAmt)) + ' is due today. Tap to mark it paid.', 'office-' + o.id, '#money-expenses');
     }
   });
 
@@ -74,8 +74,8 @@ export function buildSchedule() {
       const base = new Date(now); const y = base.getFullYear(), m = base.getMonth() + mo;
       const day = new Date(y, m, Math.min(sd, new Date(y, m + 1, 0).getDate())).getTime();
       const total = S.employees.filter((e) => e.active !== false).reduce((a, e) => a + (Number(e.salary) || 0), 0);
-      push(L.atTime(L.addDays(day, -1), 19, 0), 'Salary day tomorrow', 'Keep ' + L.money(total) + ' ready for ' + S.employees.filter((e) => e.active !== false).length + ' team members.', 'salary', '#more-team');
-      push(L.atTime(day, 10, 0), 'Salary day, ' + nm, 'Pay your team today: ' + L.money(total) + '. Open Lucy, Team, to pay each one by UPI.', 'salary', '#more-team');
+      push(L.atTime(L.addDays(day, -1), 19, 0), 'Salary day tomorrow', 'Just a heads-up: ' + L.money(total) + ' for ' + S.employees.filter((e) => e.active !== false).length + ' team members.', 'salary', '#more-team');
+      push(L.atTime(day, 10, 0), 'Salary day today', 'Salaries of ' + L.money(total) + ' are due today. You can pay each team member from Lucy, Team.', 'salary', '#more-team');
     }
   }
 
@@ -92,13 +92,13 @@ export function buildSchedule() {
       push(L.atTime(day, t.h, t.m), it.label, it.ring ? 'Your routine, ' + nm + '. Tap when done.' : L.fmtTime(L.atTime(day, t.h, t.m)) + ' · routine', 'routine-' + it.key, '#plan');
     });
     const b = hm(st.briefTime);
-    push(L.atTime(day, b.h, b.m), L.greeting(nm, L.atTime(day, b.h, b.m)), 'Your morning briefing is ready. Open Lucy before you start working.', 'brief', '#home');
+    push(L.atTime(day, b.h, b.m), L.greeting(nm, L.atTime(day, b.h, b.m)), 'Your morning briefing is ready whenever you are.', 'brief', '#home');
     if (st.inspireOn) {
       const ra = MG.ritualAffirmation();
       if (ra) {
-        push(L.atTime(day, 10, 12), '3-6-9 · morning', 'Say or write it 3 times: ' + ra.text, 'ritual', '#ascend-manifest');
-        push(L.atTime(day, 15, 12), '3-6-9 · afternoon', 'Write it 6 times now: ' + ra.text, 'ritual', '#ascend-manifest');
-        push(L.atTime(day, 19, 48), '3-6-9 · evening', 'Write it 9 times and feel it done: ' + ra.text, 'ritual', '#ascend-manifest');
+        push(L.atTime(day, 10, 12), '3-6-9 · morning', 'If you have a moment, say or write it 3 times: ' + ra.text, 'ritual', '#ascend-manifest');
+        push(L.atTime(day, 15, 12), '3-6-9 · afternoon', 'Whenever you are free, write it 6 times: ' + ra.text, 'ritual', '#ascend-manifest');
+        push(L.atTime(day, 19, 48), '3-6-9 · evening', 'To end the day, write it 9 times: ' + ra.text, 'ritual', '#ascend-manifest');
       }
       for (let h = Number(st.inspireStart); h <= Number(st.inspireEnd); h++) {
         const t = L.atTime(day, h, 0);
@@ -121,10 +121,10 @@ export function buildSchedule() {
     const verb = p.type === 'in' ? 'Collect ' + L.money(left) + ' from ' + p.party : 'Pay ' + L.money(left) + ' to ' + p.party;
     const from = p.snoozeUntil || 0;
     const before = L.atTime(L.addDays(p.due, -1), 19, 0);
-    if (before >= from) push(before, 'Tomorrow: ' + verb, p.note || 'Heads-up from Lucy', 'pay-' + p.id, '#money');
+    if (before >= from) push(before, 'Tomorrow: ' + verb, p.note || 'Just a heads-up from Lucy.', 'pay-' + p.id, '#money');
     for (let i = 0; i < 4; i++) {
       const t = L.atTime(L.addDays(p.due, i), 10, 0);
-      if (t >= from) push(t, (i ? 'Overdue ' + i + 'd: ' : 'Today: ') + verb, p.type === 'in' ? 'Tap to send the WhatsApp reminder Lucy wrote.' : (p.note || 'Do not let it slip.'), 'pay-' + p.id, p.type === 'in' ? '#wa-pay-' + p.id : '#money');
+      if (t >= from) push(t, (i ? 'Overdue ' + i + 'd: ' : 'Today: ') + verb, p.type === 'in' ? 'Tap to send the WhatsApp reminder Lucy wrote.' : (p.note || 'Tap to mark it paid when done.'), 'pay-' + p.id, p.type === 'in' ? '#wa-pay-' + p.id : '#money');
     }
   });
 
@@ -137,8 +137,8 @@ export function buildSchedule() {
     const what = ln.type === 'friend' ? 'Pay ' + (ln.lender || 'friend') + ' ' + amt : (ln.title || ln.lender || 'EMI') + ' EMI ' + amt;
     const bank = ln.debitBank ? ' from ' + ln.debitBank : '';
     push(L.atTime(L.addDays(due, -3), 10, 0), 'In 3 days: ' + what, 'Due ' + L.fmtDate(due) + bank + '.', 'loan-' + ln.id, '#money-loans');
-    push(L.atTime(L.addDays(due, -1), 19, 0), 'Tomorrow: ' + what, ln.debitBank ? 'Keep ' + amt + ' ready in your ' + ln.debitBank + ' account tonight.' : 'Keep the amount ready.', 'loan-' + ln.id, '#money-loans');
-    push(L.atTime(due, 9, 0), 'Today: ' + what, ln.type === 'friend' ? 'Mode: ' + (ln.payMode || 'UPI') + '. Mark it paid in Lucy.' : 'Debit day' + bank + '. Mark it paid in Lucy.', 'loan-' + ln.id, '#money-loans');
+    push(L.atTime(L.addDays(due, -1), 19, 0), 'Tomorrow: ' + what, ln.debitBank ? 'Just a heads-up to keep ' + amt + ' in your ' + ln.debitBank + ' account.' : 'Just a heads-up for tomorrow.', 'loan-' + ln.id, '#money-loans');
+    push(L.atTime(due, 9, 0), 'Today: ' + what, ln.type === 'friend' ? 'Mode: ' + (ln.payMode || 'UPI') + '. You can mark it paid in Lucy.' : 'Debit day' + bank + '. You can mark it paid in Lucy.', 'loan-' + ln.id, '#money-loans');
   });
 
   out.sort((a, b) => a.at - b.at);
@@ -165,12 +165,12 @@ function inspiration(day, h) {
   const seed = Math.floor(day / L.DAY) * 31 + h;
   const pick = seed % 5;
   const mm = MG.magnetAffirmations(), dm = MG.dreamManifestations();
-  if (pick === 0 || pick === 3) { const a = mm[seed % mm.length]; return { title: 'Money magnet', body: a.text + ' Today: ' + a.action }; }
+  if (pick === 0 || pick === 3) { const a = mm[seed % mm.length]; return { title: 'Money magnet', body: a.text + ' A small idea for today: ' + a.action }; }
   if (pick === 1 || pick === 4) {
     if (dm.length) { const x = dm[seed % dm.length]; return { title: 'Manifest: ' + x.dream.title, body: (pick === 1 ? x.affirm : x.text) }; }
     return { title: 'Remember your potential', body: C.POTENTIAL[seed % C.POTENTIAL.length] };
   }
-  if (pick === 2 && h === 21) { return { title: '3-6-9 · night', body: 'Write it 9 times before sleep: ' + MG.ritualAffirmation().text }; }
-  if (pick === 2) { const a = pickAffirmation(seed); return { title: 'Affirmation · ' + a.cat, body: a.text + (a.action ? ' Today: ' + a.action : '') }; }
+  if (pick === 2 && h === 21) { return { title: '3-6-9 · night', body: 'Before you sleep, if you like, write it 9 times: ' + MG.ritualAffirmation().text }; }
+  if (pick === 2) { const a = pickAffirmation(seed); return { title: 'Affirmation · ' + a.cat, body: a.text + (a.action ? ' A small idea for today: ' + a.action : '') }; }
   return { title: 'Lucy', body: C.LINES[seed % C.LINES.length] };
 }

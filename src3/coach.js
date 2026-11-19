@@ -54,16 +54,16 @@ function company(r) {
   const v = [];
   if (target) {
     const pace = rv.collected / Math.max(frac, 0.05);
-    if (rv.collected || activeClients.length) v.push(pace >= target ? { t: 'good', s: 'On pace for ' + money(pace) + ' this month. Target ' + money(target) + '.' } : { t: 'bad', s: 'At this pace you close the month near ' + money(pace) + '. That is ' + money(target - pace) + ' short of ' + money(target) + '. Selling is the job this week.' });
+    if (rv.collected || activeClients.length) v.push(pace >= target ? { t: 'good', s: 'On pace for ' + money(pace) + ' this month. Target ' + money(target) + '.' } : { t: 'bad', s: 'At this pace you close the month near ' + money(pace) + '. That is ' + money(target - pace) + ' short of ' + money(target) + '. A few extra sales conversations this week could help close the gap.' });
   }
   if (rv.mrr && target) v.push({ t: rv.mrr >= target ? 'good' : 'warn', s: 'Retainers bring ' + money(rv.mrr) + ' a month. ' + (rv.clientsNeeded ? 'You need about ' + rv.clientsNeeded + ' more clients at your average retainer to hit target.' : '') });
   if (late.length) {
     const excuses = said('late');
-    v.push({ t: 'bad', s: late.length + ' client payment' + (late.length > 1 ? 's are' : ' is') + ' late: ' + money(lateAmt) + ' sitting with clients. ' + (excuses.filter((x) => /follow|invoice|remind/i.test(x.a)).length >= 2 ? 'By your own answers, most late payments happen because you did not follow up. That is a process problem, not a client problem.' : 'Collect before you chase new work.') });
+    v.push({ t: 'bad', s: late.length + ' client payment' + (late.length > 1 ? 's are' : ' is') + ' late: ' + money(lateAmt) + ' sitting with clients. ' + (excuses.filter((x) => /follow|invoice|remind/i.test(x.a)).length >= 2 ? 'By your own answers, most late payments happen because you did not follow up. A short follow-up routine might solve most of these.' : 'It may help to collect these before taking on new work.') });
   }
-  if (fuLate.length) v.push({ t: 'bad', s: fuLate.length + ' lead follow-up' + (fuLate.length > 1 ? 's are' : ' is') + ' overdue. Every day you wait, the lead cools down.' });
+  if (fuLate.length) v.push({ t: 'bad', s: fuLate.length + ' lead follow-up' + (fuLate.length > 1 ? 's are' : ' is') + ' overdue. A quick message soon would keep them warm.' });
   if (S.leads.length && open.length < 10) v.push({ t: 'warn', s: 'Only ' + open.length + ' open leads. A healthy pipeline for your target is 10 or more.' });
-  if (!contacts && S.leads.length) v.push({ t: 'bad', s: 'Zero sales calls or meetings logged in this period.' });
+  if (!contacts && S.leads.length) v.push({ t: 'bad', s: 'No sales calls or meetings were logged in this period. Even one this week would be a good start.' });
   if (churn.length) v.push({ t: 'bad', s: churn.length + ' client' + (churn.length > 1 ? 's' : '') + ' left: ' + churn.map((c) => c.company || c.firstName).join(', ') + '.' });
   if (won.length) v.push({ t: 'good', s: 'Won ' + won.length + ': ' + won.map((l) => l.name).join(', ') + '.' });
   return { key: 'company', title: 'Company', icon: 'building', score: subs.length ? Math.round(avg(subs)) : null,
@@ -91,10 +91,10 @@ function money_(r) {
   const payLate = S.payments.filter((p) => p.type === 'out' && p.status === 'pending' && p.due < L.startOfDay(now));
   const rv = revenue();
   const v = [];
-  if (lateList.length) v.push({ t: 'bad', s: 'Paid late or still unpaid: ' + lateList.slice(0, 5).join(', ') + (lateList.length > 5 ? ' and ' + (lateList.length - 5) + ' more' : '') + '. Late payments cost trust with your team and vendors.' });
+  if (lateList.length) v.push({ t: 'bad', s: 'Paid late or still unpaid: ' + lateList.slice(0, 5).join(', ') + (lateList.length > 5 ? ' and ' + (lateList.length - 5) + ' more' : '') + '. Paying on time helps keep trust with your team and vendors.' });
   else if (due) v.push({ t: 'good', s: 'Every bill and salary due so far this month was paid on time.' });
   if (payLate.length) v.push({ t: 'bad', s: payLate.length + ' payable' + (payLate.length > 1 ? 's' : '') + ' overdue: ' + payLate.slice(0, 3).map((p) => p.party).join(', ') + '.' });
-  if (rv.expenses && rv.mrr) { const ratio = rv.expenses / rv.mrr; v.push({ t: ratio > 0.7 ? 'bad' : ratio > 0.5 ? 'warn' : 'good', s: 'Fixed costs are ' + Math.round(ratio * 100) + '% of your retainer income. ' + (ratio > 0.7 ? 'Too tight. One lost client and you are in a cash crunch.' : ratio > 0.5 ? 'Keep it under 50% to stay safe.' : 'Healthy margin.') }); }
+  if (rv.expenses && rv.mrr) { const ratio = rv.expenses / rv.mrr; v.push({ t: ratio > 0.7 ? 'bad' : ratio > 0.5 ? 'warn' : 'good', s: 'Fixed costs are ' + Math.round(ratio * 100) + '% of your retainer income. ' + (ratio > 0.7 ? 'That is quite tight, so a small cash reserve would give you peace of mind.' : ratio > 0.5 ? 'Keep it under 50% to stay safe.' : 'Healthy margin.') }); }
   return { key: 'money', title: 'Money discipline', icon: 'wallet', score: due || payLate.length ? clamp(pct(onTime, due || 1) - payLate.length * 10) : null,
     stats: [['Paid on time', due ? onTime + ' of ' + due : '–', 'bills and salaries this month'], ['Overdue payables', String(payLate.length), money(payLate.reduce((a, p) => a + leftOf(p), 0))], ['Monthly costs', money(rv.expenses), 'salaries, office, expenses']], verdicts: v };
 }
@@ -107,9 +107,9 @@ function personal(r) {
   const overdue = S.reminders.filter((x) => x.status === 'pending' && x.due < L.startOfDay(now));
   const v = [];
   if (dueIn.length) v.push(doneOnTime / dueIn.length >= 0.8 ? { t: 'good', s: 'You did ' + pct(doneOnTime, dueIn.length) + '% of your tasks on time.' } : { t: 'bad', s: 'Only ' + pct(doneOnTime, dueIn.length) + '% of tasks were done on time. ' + doneLate + ' late, ' + (dueIn.length - doneOnTime - doneLate) + ' not done.' });
-  if (overdue.length >= 3) v.push({ t: 'bad', s: overdue.length + ' tasks are overdue. Either do them, hand them to your team, or delete them honestly.' });
+  if (overdue.length >= 3) v.push({ t: 'bad', s: overdue.length + ' tasks are overdue. It might help to hand some to your team, or let go of the ones that no longer matter.' });
   const deleg = overdue.filter((x) => /edit|design|post|reel|shoot|upload|caption|thumbnail|banner|creative|story|invoice|bill|follow/i.test(x.task));
-  if (deleg.length) v.push({ t: 'warn', s: deleg.length + ' overdue task' + (deleg.length > 1 ? 's look' : ' looks') + ' like team work: ' + deleg.slice(0, 3).map((x) => x.task).join(', ') + '. Delegate and get your time back.' });
+  if (deleg.length) v.push({ t: 'warn', s: deleg.length + ' overdue task' + (deleg.length > 1 ? 's look' : ' looks') + ' like team work: ' + deleg.slice(0, 3).map((x) => x.task).join(', ') + '. Your team could take these off your plate.' });
   return { key: 'personal', title: 'Personal execution', icon: 'check', score: dueIn.length ? clamp(pct(doneOnTime, dueIn.length) - Math.max(0, overdue.length - 2) * 5) : null,
     stats: [['Done on time', dueIn.length ? doneOnTime + ' of ' + dueIn.length : '–', doneLate + ' done late'], ['Overdue now', String(overdue.length), '']], verdicts: v };
 }
@@ -124,7 +124,7 @@ function routine(r) {
   const weak = per.filter((x) => x.n <= days.length * 0.4).sort((a, b) => a.n - b.n);
   const strong = per.filter((x) => x.n >= days.length * 0.85);
   const v = [];
-  if (!tracked) v.push({ t: 'warn', s: 'No routine ticks logged in this period. If you do it, tick it, or Lucy cannot coach you on it.' });
+  if (!tracked) v.push({ t: 'warn', s: 'No routine ticks logged in this period. Ticking them helps Lucy support you better.' });
   else {
     if (weak.length) v.push({ t: 'bad', s: 'You keep skipping: ' + weak.slice(0, 4).map((x) => x.it.label + ' (' + x.n + '/' + days.length + ')').join(', ') + '.' });
     if (strong.length) v.push({ t: 'good', s: 'Solid habits: ' + strong.slice(0, 4).map((x) => x.it.label).join(', ') + '.' });
@@ -140,8 +140,8 @@ function creativity(r) {
   const journal = days.filter((k) => S.journal[k] && Object.keys(S.journal[k]).length).length;
   const target = Math.max(3, Math.round(days.length * 0.7));
   const v = [];
-  v.push(ideas >= target ? { t: 'good', s: ideas + ' ideas captured. Keep feeding the machine.' } : { t: ideas ? 'warn' : 'bad', s: ideas + ' ideas in ' + days.length + ' days. A creative director should capture at least one a day. Write the half-baked ones too.' });
-  if (journal < days.length / 2) v.push({ t: 'warn', s: 'Journal written on ' + journal + ' of ' + days.length + ' days. Reflection is where your creative clarity comes from.' });
+  v.push(ideas >= target ? { t: 'good', s: ideas + ' ideas captured. Keep feeding the machine.' } : { t: ideas ? 'warn' : 'bad', s: ideas + ' ideas in ' + days.length + ' days. Capturing one small idea a day, even a rough one, can really add up.' });
+  if (journal < days.length / 2) v.push({ t: 'warn', s: 'Journal written on ' + journal + ' of ' + days.length + ' days. A few calm minutes of reflection can bring a lot of clarity.' });
   return { key: 'creativity', title: 'Creativity', icon: 'bulb', score: clamp((Math.min(ideas, target) / target) * 70 + (journal / days.length) * 30),
     stats: [['Ideas', String(ideas), 'target ' + target], ['Notes', String(notes), ''], ['Journal days', journal + ' of ' + days.length, '']], verdicts: v };
 }
@@ -157,10 +157,10 @@ function learning(r) {
   const lessons = (S.coach || []).filter((x) => x.kind === 'lesson' && inR(x.at, r)).length;
   const v = [];
   const reading = (S.books || []).find((b) => b.status === 'reading');
-  if (!reading) v.push({ t: 'bad', s: 'You are not reading any book right now. Pick one from Lucy\'s suggestions today.' });
-  else v.push(readDays >= days.length * 0.6 ? { t: 'good', s: 'Read on ' + readDays + ' of ' + days.length + ' days, ' + pages + ' pages of ' + reading.title + '.' } : { t: 'bad', s: 'Read on only ' + readDays + ' of ' + days.length + ' days. Ten pages a day is a book a month.' });
-  if (media.length) v.push(learnedMedia / media.length >= 0.6 ? { t: 'good', s: 'You took a lesson from ' + learnedMedia + ' of ' + media.length + ' things you watched.' } : { t: 'bad', s: Math.round(mins / 60 * 10) / 10 + ' hours watched, and you learned something from only ' + learnedMedia + ' of ' + media.length + '. That is entertainment, not input.' });
-  if (reels >= 120) v.push({ t: 'bad', s: Math.round(reels / 60 * 10) / 10 + ' hours of reels. Study your competitors\' reels on purpose, or put the phone down.' });
+  if (!reading) v.push({ t: 'bad', s: 'You are not reading a book right now. Lucy has a few suggestions whenever you would like one.' });
+  else v.push(readDays >= days.length * 0.6 ? { t: 'good', s: 'Read on ' + readDays + ' of ' + days.length + ' days, ' + pages + ' pages of ' + reading.title + '.' } : { t: 'bad', s: 'Read on only ' + readDays + ' of ' + days.length + ' days. Even ten pages a day adds up to a book a month.' });
+  if (media.length) v.push(learnedMedia / media.length >= 0.6 ? { t: 'good', s: 'You took a lesson from ' + learnedMedia + ' of ' + media.length + ' things you watched.' } : { t: 'bad', s: Math.round(mins / 60 * 10) / 10 + ' hours watched, and you learned something from only ' + learnedMedia + ' of ' + media.length + '. Watching with one small question in mind can turn it into learning.' });
+  if (reels >= 120) v.push({ t: 'bad', s: Math.round(reels / 60 * 10) / 10 + ' hours of reels. Studying a few competitor reels on purpose can make that time really useful.' });
   return { key: 'learning', title: 'Learning', icon: 'book', score: clamp((readDays / days.length) * 60 + (media.length ? (learnedMedia / media.length) * 25 : 25) + Math.min(lessons, 5) * 3),
     stats: [['Reading days', readDays + ' of ' + days.length, pages + ' pages'], ['Watched', Math.round(mins / 60 * 10) / 10 + ' h', learnedMedia + ' of ' + media.length + ' with a lesson'], ['Lessons learned', String(lessons), '']], verdicts: v };
 }
@@ -170,7 +170,7 @@ function ascend(r) {
   const aff = days.filter((k) => (S.affirm.done[k] || []).length).length;
   const rit = days.filter((k) => { const m = S.manifest[k] || {}; return Object.keys(m).length; }).length;
   const v = [];
-  v.push(aff >= days.length * 0.7 ? { t: 'good', s: 'Affirmations on ' + aff + ' of ' + days.length + ' days.' } : { t: 'warn', s: 'Affirmations on only ' + aff + ' of ' + days.length + ' days. Your mindset work only works if it is daily.' });
+  v.push(aff >= days.length * 0.7 ? { t: 'good', s: 'Affirmations on ' + aff + ' of ' + days.length + ' days.' } : { t: 'warn', s: 'Affirmations on only ' + aff + ' of ' + days.length + ' days. A minute a day keeps your mindset work strong.' });
   return { key: 'ascend', title: 'Mindset', icon: 'star', score: clamp(((aff + rit) / (days.length * 2)) * 100), stats: [['Affirmation days', aff + ' of ' + days.length, ''], ['Manifest ritual days', rit + ' of ' + days.length, '']], verdicts: v };
 }
 
@@ -193,16 +193,16 @@ export function questions() {
   const q = (key, kind, ref, text, hint, extra) => { if (!answered(key)) out.push(Object.assign({ key: key, kind: kind, ref: ref, q: text, hint: hint || '', prev: ref != null ? said(kind, ref)[0] : said(kind)[0] }, extra || {})); };
   S.payments.filter((p) => p.type === 'in' && p.status === 'pending' && p.due < L.startOfDay(now) - 2 * DAY).forEach((p) => {
     const d = Math.floor((L.startOfDay(now) - L.startOfDay(p.due)) / DAY);
-    q('late:' + p.id + ':' + Math.floor(d / 7), 'late', p.clientId || p.party, 'Why is ' + p.party + ' not paying on time? ' + money(leftOf(p)) + ' is ' + d + ' days late.', 'Be honest. If you did not follow up, say so.', { prio: 90 });
+    q('late:' + p.id + ':' + Math.floor(d / 7), 'late', p.clientId || p.party, 'What do you think is holding up ' + p.party + '\'s payment? ' + money(leftOf(p)) + ' is ' + d + ' days late.', 'Whatever the reason, it helps to note it honestly.', { prio: 90 });
   });
   S.clients.filter((c) => c.past && now - c.past < 60 * DAY).forEach((c) => q('clientleft:' + c.id, 'clientleft', c.id, 'Why did ' + (c.company || c.firstName) + ' stop working with us?', 'What would have made them stay?', { prio: 95 }));
   S.employees.filter((e) => e.past && now - e.past < 60 * DAY).forEach((e) => q('empleft:' + e.id, 'empleft', e.id, 'Why did ' + e.name + ' leave?', 'What should you change so the next person stays?', { prio: 85 }));
   S.leads.filter((l) => l.status === 'Lost' && l.lostAt && now - l.lostAt < 30 * DAY).forEach((l) => q('lostlearn:' + l.id, 'lostlearn', l.id, 'You lost ' + l.name + (l.lostReason ? ' (' + l.lostReason + ')' : '') + '. What will you do differently next time?', '', { prio: 70 }));
-  S.leads.filter((l) => !['Won', 'Lost'].includes(l.status) && l.followUp && l.followUp < L.startOfDay(now) - DAY).forEach((l) => q('fu:' + l.id + ':' + dk(l.followUp), 'fu', l.id, 'Why have you not followed up with ' + l.name + '? It was due ' + L.fmtDate(l.followUp) + '.', '', { prio: 80 }));
+  S.leads.filter((l) => !['Won', 'Lost'].includes(l.status) && l.followUp && l.followUp < L.startOfDay(now) - DAY).forEach((l) => q('fu:' + l.id + ':' + dk(l.followUp), 'fu', l.id, 'Is anything holding up the follow-up with ' + l.name + '? It was planned for ' + L.fmtDate(l.followUp) + '.', '', { prio: 80 }));
   const overdue = S.reminders.filter((x) => x.status === 'pending' && x.due < L.startOfDay(now));
-  if (overdue.length >= 5) q('overdue:' + today, 'overdue', null, overdue.length + ' tasks are overdue. What is really blocking you, and which of these can your team do?', overdue.slice(0, 4).map((x) => x.task).join(', '), { prio: 60 });
+  if (overdue.length >= 5) q('overdue:' + today, 'overdue', null, overdue.length + ' tasks are waiting from earlier. Is anything blocking them, and could your team help with some?', overdue.slice(0, 4).map((x) => x.task).join(', '), { prio: 60 });
   const last3 = [1, 2, 3].map((i) => dk(L.addDays(L.startOfDay(now), -i)));
-  if (false) S.routine.filter((x) => x.on).forEach((it) => { if (last3.every((k) => !(S.routineLog[k] || []).includes(it.key))) q('routine:' + it.key + ':' + mk(now) + ':' + Math.floor(new Date(now).getDate() / 7), 'routine', it.key, 'You skipped "' + it.label + '" three days in a row. Why?', '', { prio: 50 }); });
+  if (false) S.routine.filter((x) => x.on).forEach((it) => { if (last3.every((k) => !(S.routineLog[k] || []).includes(it.key))) q('routine:' + it.key + ':' + mk(now) + ':' + Math.floor(new Date(now).getDate() / 7), 'routine', it.key, '"' + it.label + '" has been missed three days in a row. Is anything making it hard?', '', { prio: 50 }); });
   const hr = new Date(now).getHours();
   const reading = (S.books || []).find((b) => b.status === 'reading');
   if (reading && hr >= 18 && !(reading.logs || []).some((x) => dk(x.at) === today)) q('read:' + today, 'read', reading.id, 'Did you read ' + reading.title + ' today? What did you learn?', 'Pages read and one idea you can use in DZYN LAB.', { prio: 40, book: reading });

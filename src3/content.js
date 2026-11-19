@@ -58,28 +58,28 @@ export const AFFIRMATIONS = [
 
 // Lucy's own lines shown when the app opens and in hourly notifications
 export const LINES = [
-  'Rich people are not busier than you. They are clearer. Decide what today is for.',
-  'Your future office, your car, your film premiere: they are all built in hours like this one.',
-  'Comfort is expensive. It costs you the life you said you wanted.',
-  'You were not born to settle, Divyesh. Act like it today.',
-  'One more call. One more pitch. One more frame. That is how empires are built.',
-  'The client who changes your year might be one message away.',
-  'Discipline is choosing between what you want now and what you want most.',
-  'Money follows value, value follows skill, skill follows practice. Practise today.',
-  'Directors are remembered for their vision. Protect yours.',
-  'Your potential is not a question. Your consistency is. Answer it today.',
-  'Big dreams need boring routines. Do the boring part brilliantly.',
-  'Do not wait to feel ready. Ready is a feeling that comes after action.',
-  'Ten serious years can change a family\'s history. You are writing yours now.',
-  'You already know what to do next. Do it before you overthink it.',
-  'Charge like a professional, deliver like a legend, follow up like a machine.',
-  'A rejected pitch is practice for the yes that changes everything.',
-  'The version of you with everything on your Dreams board is just more consistent than you are today.',
-  'Fortune favours the bold. Be bold in one conversation today.'
+  'A calm, clear plan makes the whole day lighter. What would you like today to be about?',
+  'Your future office, your car, your film premiere: each one is built quietly, in hours like this one.',
+  'Small, steady steps add up to big changes. One step is enough for now.',
+  'You have come a long way, Divyesh. Be proud of that, and keep going gently.',
+  'One kind message to a client today can open a door you did not expect.',
+  'The client who changes your year might be just one conversation away.',
+  'Discipline is simply choosing what you want most, again and again.',
+  'Money follows value, and value grows with every project you deliver with care.',
+  'Your vision is precious. A few minutes on it today will keep it close.',
+  'Consistency is quiet. Nobody sees it, but it shows in everything you build.',
+  'Big dreams are made of ordinary days done well. Today can be one of them.',
+  'You do not need to feel ready to begin. Starting small is more than enough.',
+  'Ten steady years can change a family\'s story. You are writing yours beautifully.',
+  'You often already know the next step. It is okay to trust yourself.',
+  'Fair pricing, great delivery and a friendly follow-up: that is a strong business.',
+  'Every pitch, even a no, is good practice for the yes that is coming.',
+  'Everything on your Dreams board is closer than it feels today.',
+  'A little courage in one conversation today could go a long way.'
 ];
 
 export const POTENTIAL = [
-  'You built DZYN LAB from Da Vinci Studio. You have already done the hard part once. Do it bigger.',
+  'You built DZYN LAB from Da Vinci Studio. You have already done the hardest part once, and you can grow it even further.',
   'You are a cinematographer, a designer, a marketer and a founder. Very few people carry that range.',
   'Your eye for a frame is rare. One day it will fill cinema screens.',
   'Clients trust you with their brands. That trust is proof of what you are capable of.',

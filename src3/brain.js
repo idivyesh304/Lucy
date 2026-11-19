@@ -184,7 +184,7 @@ export function briefing() {
   const now = Date.now(), d0 = L.startOfDay(now), d1 = L.addDays(d0, 1);
   const nm = S.settings.name || 'Divyesh';
   const lines = [];
-  upcomingSpecial(1).forEach((x) => { lines.push((Math.round((x.at - d0) / L.DAY) === 0 ? 'Today: ' : 'Tomorrow: ') + specialTitle(x.sd, x.at) + '.'); });
+  upcomingSpecial(1).forEach((x) => { lines.push((Math.round((x.at - d0) / L.DAY) === 0 ? 'Today is ' : 'Tomorrow is ') + specialTitle(x.sd, x.at) + '.'); });
   const meetings = S.reminders.filter((r) => r.status === 'pending' && r.cat === 'Meeting' && L.occurrencesBetween(r, d0, d1, 2).length);
   const todayRems = S.reminders.filter((r) => r.status === 'pending' && L.occurrencesBetween(r, d0, d1, 2).length);
   const overdue = S.reminders.filter((r) => r.status === 'pending' && !r.repeat && alertStart(r) < d0);
@@ -193,13 +193,13 @@ export function briefing() {
   const collectToday = S.payments.filter((p) => p.status === 'pending' && p.type === 'in' && p.due < d1);
   const followups = S.leads.filter((l) => l.followUp && l.followUp < d1 && !['Won', 'Lost'].includes(l.status));
 
-  if (meetings.length) lines.push(meetings.length + (meetings.length > 1 ? ' meetings' : ' meeting') + ' today: ' + meetings.slice(0, 2).map((r) => r.task + ' at ' + L.fmtTime(L.occurrencesBetween(r, d0, d1, 1)[0])).join(', ') + '.');
-  else lines.push(todayRems.length ? todayRems.length + ' reminders on today\'s list.' : 'No fixed commitments today. A good day for deep work and outreach.');
-  if (overdue.length) lines.push(overdue.length + ' item' + (overdue.length > 1 ? 's are' : ' is') + ' overdue. Clear ' + (overdue.length > 1 ? 'them' : 'it') + ' first.');
-  if (collectToday.length) lines.push('Collect ' + L.money(collectToday.reduce((a, p) => a + leftOf(p), 0)) + ' from ' + collectToday.map((p) => p.party).slice(0, 2).join(' and ') + '.');
-  if (followups.length) lines.push(followups.length + ' lead follow-up' + (followups.length > 1 ? 's' : '') + ' due.');
-  if (loansDue.length) lines.push('EMI coming up: ' + loansDue.map((x) => (x.l.title || x.l.lender) + ' ' + L.money(x.l.emi || x.l.amount) + ' on ' + L.fmtDate(x.due)).slice(0, 2).join(', ') + '.');
-  if (rev.target) lines.push('Revenue this month: ' + L.money(rev.collected) + ' of ' + L.money(rev.target) + ' (' + Math.round(rev.pct * 100) + '%).');
+  if (meetings.length) lines.push('You have ' + meetings.length + (meetings.length > 1 ? ' meetings' : ' meeting') + ' today: ' + meetings.slice(0, 2).map((r) => r.task + ' at ' + L.fmtTime(L.occurrencesBetween(r, d0, d1, 1)[0])).join(', ') + '.');
+  else lines.push(todayRems.length ? 'You have ' + todayRems.length + (todayRems.length > 1 ? ' reminders' : ' reminder') + ' for today.' : 'You have no fixed commitments today. It could be a lovely day for focused work and outreach.');
+  if (overdue.length) lines.push(overdue.length + ' item' + (overdue.length > 1 ? 's are' : ' is') + ' still pending from earlier. Whenever you are ready, ' + (overdue.length > 1 ? 'they' : 'it') + ' might be a good place to start.');
+  if (collectToday.length) lines.push('There is ' + L.money(collectToday.reduce((a, p) => a + leftOf(p), 0)) + ' to collect from ' + collectToday.map((p) => p.party).slice(0, 2).join(' and ') + '. I have a WhatsApp reminder ready if you would like it.');
+  if (followups.length) lines.push('You have ' + followups.length + ' lead follow-up' + (followups.length > 1 ? 's' : '') + ' for today.');
+  if (loansDue.length) lines.push('A small heads-up on EMIs: ' + loansDue.map((x) => (x.l.title || x.l.lender) + ' ' + L.money(x.l.emi || x.l.amount) + ' on ' + L.fmtDate(x.due)).slice(0, 2).join(', ') + '.');
+  if (rev.target) lines.push('So far this month, ' + L.money(rev.collected) + ' of your ' + L.money(rev.target) + ' target has come in, which is ' + Math.round(rev.pct * 100) + ' percent.');
   return { greeting: L.greeting(nm, now), lines: lines };
 }
 function nextDue(l) {
@@ -226,7 +226,7 @@ export function aiSystem(mode) {
   const dreams = S.dreams.map((d) => '- ' + d.title + (d.target ? ' (' + L.money(d.target) + ')' : '') + (d.targetDate ? ' by ' + L.fmtDate(d.targetDate) : '')).join('\n') || '- none added';
   const bz = st.business;
   let s = 'You are LUCY, the personal AI assistant and founder partner of ' + st.name + ' (Divyesh Umesh Panchal), founder of DZYN LAB PRIVATE LIMITED, a creative, content production, branding and digital marketing company in Ahmedabad, India. He is also a cinematographer who wants to become one of Bollywood\'s most successful film directors.\n' +
-    'Personality: warm, premium, intelligent, direct, encouraging but honest. Speak in clear Indian English; light Hinglish is fine when he uses it. Keep replies short and actionable unless he asks for detail. No emojis.\n' +
+    'Personality: a warm, polite and gentle personal assistant, never a boss. Always reply in clear, simple English only, never Hinglish, Hindi or Gujarati, even if he writes in them. Suggest, never order: use phrases like "you might like to", "would you like me to", "whenever you are ready". Be honest and kind, calm and respectful. Keep replies short and helpful unless he asks for detail. No emojis.\n' +
     'Rules: never invent numbers, clients, contacts or facts. Use only the data below or clearly label something as an estimate or assumption. If information is missing, say what is missing. Motivation must always lead to a concrete next action.\n\n' +
     'Now: ' + new Date(now).toString().slice(0, 21) + ' (Asia/Kolkata).\n' +
     'Profile: ' + profileLine() + '\n' +

@@ -692,9 +692,11 @@ function renderSettings() {
     '<label>Monthly revenue target (₹)</label><input type="number" data-set="revenueTarget" value="' + esc(st.revenueTarget) + '">' +
     '<h2>Lucy\'s voice and look</h2><div class="panel"><div class="row"><div class="grow"><b>Lucy speaks</b><div class="sub">Reads briefings, affirmations and replies aloud</div></div>' + sw(st.speak, 'toggle', 'speak') + '</div>' +
     '<div class="row mt"><div class="grow"><b>Speak AI replies automatically</b></div>' + sw(st.autoSpeakReplies, 'toggle', 'autoSpeakReplies') + '</div></div>' +
-    '<label>Voice</label><select data-set="voiceURI"><option value="">Automatic (best female Indian voice)</option>' + vs.map((v) => '<option value="' + esc(v.voiceURI) + '" ' + (v.voiceURI === st.voiceURI ? 'selected' : '') + '>' + esc(v.name + ' · ' + v.lang) + '</option>').join('') + '</select>' +
-    '<div class="hint">Lucy uses female voices only. Softest Indian voice: <b>iPhone</b> Settings &gt; Accessibility &gt; Spoken Content &gt; Voices &gt; English &gt; India &gt; download <b>Isha (Enhanced)</b>. <b>Android</b> Settings &gt; Text-to-speech &gt; Google &gt; English (India) &gt; pick a female voice. Then choose it here.</div>' +
-    '<div class="grid2"><div><label>Speed</label>' + sel('voiceRate', [[0.85, 'Slower'], [0.95, 'Natural'], [1.05, 'Faster']], st.voiceRate) + '</div><div><label>Tone</label>' + sel('voicePitch', [[0.95, 'Deeper'], [1, 'Balanced'], [1.08, 'Brighter']], st.voicePitch) + '</div></div>' +
+    '<label>Choose Lucy\'s voice on this device</label><div class="sub" style="margin-bottom:8px">Tap play to hear each one, then tap Use. Each device keeps its own choice.</div>' +
+    '<div class="list">' + vs.slice(0, 12).map((v, i) => { const cur = (V.deviceVoice() || (vs[0] && vs[0].voiceURI)) === v.voiceURI; return '<div class="item"><button class="iconbtn" data-a="voice-try" data-v="' + esc(v.voiceURI) + '" aria-label="Play">' + icon('volume', 16) + '</button><div class="grow"><div class="t">' + esc(v.name.replace(/\s*\(.*?\)\s*/g, ' ').trim()) + (/(premium|enhanced|natural|neural)/i.test(v.name) ? ' <span class="kind">natural</span>' : '') + '</div><div class="m">' + esc(v.lang) + (i === 0 ? ' · Lucy\'s pick' : '') + '</div></div>' + (cur ? '<span class="pill">In use</span>' : '<button class="btn small ghost" data-a="voice-use" data-v="' + esc(v.voiceURI) + '">Use</button>') + '</div>'; }).join('') + '</div>' +
+    (vs.length ? '' : '<div class="panel empty">Voices are still loading. Open this page again in a moment.</div>') +
+    '<div class="hint">For the most natural voice on iPhone: Settings &gt; Accessibility &gt; Spoken Content &gt; Voices &gt; English, and download a voice marked <b>Enhanced</b> or <b>Premium</b> (for example Ava, Zoe or Samantha). It will then appear here.</div>' +
+    '<div class="grid2"><div><label>Speed</label>' + sel('voiceRate', [[0.85, 'Slower'], [0.92, 'Gentle'], [1, 'Natural'], [1.08, 'Faster']], st.voiceRate) + '</div><div><label>Tone</label>' + sel('voicePitch', [[0.97, 'Deeper'], [1.03, 'Soft'], [1.1, 'Brighter']], st.voicePitch) + '</div></div>' +
     '<button class="btn ghost block" data-a="test-voice">' + icon('volume', 16) + 'Test Lucy\'s voice</button>' +
     '<label>Lucy\'s appearance</label><div class="row"><input type="file" accept="image/*" id="avatar-file"><button class="btn small ghost" data-a="avatar-reset">Default</button></div><div class="hint">Upload any image to replace the drawn android, for example one you generate later.</div>' +
     '<h2>Notifications</h2><div class="panel"><div class="row"><div class="grow"><b>Hourly inspiration</b><div class="sub">Affirmations, dreams and Lucy lines, ' + st.inspireStart + ':00 to ' + st.inspireEnd + ':00 only</div></div>' + sw(st.inspireOn, 'toggle', 'inspireOn') + '</div></div>' +
@@ -899,7 +901,7 @@ function settleGo(id) {
   if (rest <= 0) { p.status = 'settled'; p.settledAt = Date.now(); syncMission('pay:' + p.id); }
   else if ($('#amt-bal')) { p.due = L.startOfDay(fromInputs($('#amt-bal').value, '09:00')); }
   save(); closeSheet(); render();
-  if (p.type === 'in') { celebrate('coins'); toast(rest ? 'Received ' + money(amt) + ' · ' + money(rest) + ' still to come' : 'Fully received: ' + money(p.amount)); V.speak('Well done ' + nm() + '. ' + money(amt) + ' received.'); }
+  if (p.type === 'in') { celebrate('coins'); toast(rest ? 'Received ' + money(amt) + ' · ' + money(rest) + ' still to come' : 'Fully received: ' + money(p.amount)); V.speak('That is lovely, ' + nm() + '. ' + money(amt) + ' received.'); }
   else { celebrate('small'); toast(rest ? 'Paid ' + money(amt) + ' · ' + money(rest) + ' left' : 'Fully paid'); }
 }
 function salarySheet(e) {
@@ -917,7 +919,7 @@ function settle(id) {
   p.status = 'settled'; p.settledAt = Date.now();
   logEvent('paid', { task: p.party, cat: 'Money', amount: p.amount, dir: p.type, clientId: p.clientId });
   syncMission('pay:' + p.id); save();
-  if (p.type === 'in') { celebrate('coins'); toast('Money in: ' + money(p.amount)); V.speak('Well done ' + nm() + '. ' + money(p.amount) + ' received.'); }
+  if (p.type === 'in') { celebrate('coins'); toast('Money in: ' + money(p.amount)); V.speak('That is lovely, ' + nm() + '. ' + money(p.amount) + ' has been received.'); }
   else { celebrate('small'); toast('Paid ' + money(p.amount)); }
 }
 function loanSheet(l, type) {
@@ -970,7 +972,7 @@ function loanPaid(id) {
     if (l.emisLeft === 0) l.closed = true;
   }
   save(); closeSheet(); render();
-  if (l.closed) { celebrate('big', { title: 'Loan closed', sub: (l.title || l.lender) + ' is fully paid. One less weight on you.' }); V.speak('Congratulations ' + nm() + '. That loan is fully paid.'); }
+  if (l.closed) { celebrate('big', { title: 'Loan closed', sub: (l.title || l.lender) + ' is fully paid. One less weight on you.' }); V.speak('Congratulations, ' + nm() + '. That loan is now fully paid.'); }
   else { celebrate('small'); toast('Payment recorded'); }
 }
 function expenseSheet(e) {
@@ -1042,7 +1044,7 @@ document.addEventListener('pointerdown', (e) => setTapPoint(e.clientX, e.clientY
 document.addEventListener('click', async (ev) => {
   if (ev.target.closest('.lucy-stage') && !ev.target.closest('[data-a]')) {
     if (V.isSpeaking()) { V.stopSpeaking(); return; }
-    const lines = ['Hi ' + nm() + '. I am Lucy. Ask me anything, and I will help you get there faster.', 'You have more potential than you are using today, ' + nm() + '. Let us use it.', 'I am right here with you. What is the one thing that matters most right now?'];
+    const lines = ['Hi ' + nm() + '. I am here whenever you need me. How can I help?', 'Hello ' + nm() + '. Would you like me to read your briefing for today?', 'I am right here, ' + nm() + '. Just tell me what you would like to do next.'];
     V.speak(lines[Math.floor(Math.random() * lines.length)], { force: true }); return;
   }
   const el = ev.target.closest('[data-a]');
@@ -1332,7 +1334,7 @@ document.addEventListener('click', async (ev) => {
     case 'co-chip': { const t = $('#co-a-' + el.dataset.i); if (t) { t.value = t.value && !t.value.includes(v) ? t.value + '. ' + v : (t.value || v); } $$('[data-a="co-chip"][data-i="' + el.dataset.i + '"]').forEach((x) => x.classList.toggle('on', x === el)); break; }
     case 'co-save': coSave(Number(el.dataset.i)); break;
     case 'co-skip': { const qq = CO.questions()[Number(el.dataset.i)]; if (qq) { S.coach.push({ id: nid(), at: Date.now(), key: qq.key, kind: qq.kind, ref: qq.ref, q: qq.q, a: '(skipped)' }); save(); render(); } break; }
-    case 'co-ai': go('lucy'); ask('Be my blunt coach. No sugar-coating, no generic advice. Using my real report and my own past answers below, tell me: 1) what I am doing wrong, 2) the excuses I keep repeating, 3) the 3 most important things to fix this week with exact actions, 4) one thing I am doing well. Speak to me like a demanding mentor who wants me to build a 15-lakh-a-month agency.\n\n' + CO.reportText(view.repPeriod || 'week'), 'chat'); break;
+    case 'co-ai': go('lucy'); ask('Please give me an honest but kind review, in English. Using my real report and my own past answers below, tell me gently: 1) what is not working, 2) any patterns you notice in my answers, 3) the 3 most helpful things to focus on this week with simple steps, 4) what I am doing well. Speak like a caring, respectful assistant.\n\n' + CO.reportText(view.repPeriod || 'week'), 'chat'); break;
     case 'book-start': { const t = el.dataset.v, bk = CO.BOOKS.find((x) => x[0] === t); S.books.forEach((x) => { if (x.status === 'reading') x.status = 'paused'; }); const ex = S.books.find((x) => x.title === t); if (ex) ex.status = 'reading'; else S.books.push({ id: nid(), title: t, author: bk ? bk[1] : '', status: 'reading', pages: 0, page: 0, started: Date.now(), logs: [] }); save(); render(); toast('Reading ' + t + '. Ten pages a day.'); break; }
     case 'book-want': { const t = el.dataset.v, bk = CO.BOOKS.find((x) => x[0] === t); if (!S.books.some((x) => x.title === t)) S.books.push({ id: nid(), title: t, author: bk ? bk[1] : '', status: 'want', pages: 0, page: 0, logs: [] }); save(); render(); break; }
     case 'book-add': bookSheet(); break;
@@ -1378,7 +1380,9 @@ document.addEventListener('click', async (ev) => {
     case 'toggle': S.settings[v] = !S.settings[v]; save(); render(); break;
     case 'rt': { const it = S.routine[Number(el.dataset.i)]; it[el.dataset.f] = !it[el.dataset.f]; save(); render(); break; }
     case 'rt-reset': if (confirm('Reset your routine to the default timings?')) { S.routine = C.ROUTINE_DEFAULT.map((r) => ({ key: r.key, icon: r.icon, label: r.label, time: r.time, on: true, ring: !!r.ring, speak: true })); save(); render(); } break;
-    case 'test-voice': V.speak('Hi ' + nm() + '. I am Lucy. I will keep you focused, remind you of everything, and push you towards your dreams.', { force: true }); break;
+    case 'voice-try': V.speak('Hi ' + nm() + ', I am Lucy. How can I help you today?', { force: true, voiceURI: v }); break;
+    case 'voice-use': V.setDeviceVoice(v); render(); V.speak('Thank you, ' + nm() + '. I will use this voice from now on.', { force: true }); toast('Voice saved on this device'); break;
+    case 'test-voice': V.speak('Hi ' + nm() + '. I am Lucy, your assistant. I will gently remind you of everything that matters and help you whenever you need me.', { force: true }); break;
     case 'avatar-reset': S.settings.avatarImg = ''; save(); render(); break;
     // connections
     case 'save-helper': device.set('helperUrl', $('#helper-url').value.trim()); toast('Saved'); render(); refreshStatus(); break;
@@ -1836,8 +1840,8 @@ function renderReports() {
   if (s === 'said') return h + renderSaid();
   const per = view.repPeriod || 'week', rp = CO.reports(per);
   h += '<div class="hscroll" style="margin-bottom:12px">' + [['week', 'Last 7 days'], ['month', 'This month']].map((x) => '<button class="chip' + (x[0] === per ? ' on' : '') + '" data-a="rep-period" data-v="' + x[0] + '">' + x[1] + '</button>').join('') + '</div>';
-  h += '<div class="panel gold"><div class="row" style="gap:16px">' + ring((rp.overall || 0) / 100, '<span>' + (rp.overall == null ? '–' : rp.overall) + '</span>', 'overall') + '<div class="grow"><div class="eyebrow">' + rp.range.label + '</div><b style="font-size:18px">' + (rp.overall == null ? 'Not enough data yet' : rp.overall >= 75 ? 'Strong. Raise the bar.' : rp.overall >= 50 ? 'Average. You are capable of much more.' : 'Not good enough, ' + nm() + '.') + '</b>' + (rp.weakest ? '<div class="sub">Weakest: ' + rp.weakest.title + ' at ' + rp.weakest.score + '. Fix this first.</div>' : '') + '</div></div>' +
-    '<button class="btn block mt" data-a="co-ai">' + icon('spark', 15) + 'Get Lucy\'s blunt review</button></div>';
+  h += '<div class="panel gold"><div class="row" style="gap:16px">' + ring((rp.overall || 0) / 100, '<span>' + (rp.overall == null ? '–' : rp.overall) + '</span>', 'overall') + '<div class="grow"><div class="eyebrow">' + rp.range.label + '</div><b style="font-size:18px">' + (rp.overall == null ? 'Not enough data yet' : rp.overall >= 75 ? 'A strong week. Well done.' : rp.overall >= 50 ? 'A steady week, with room to grow.' : 'A slower week. Let us look at what would help.') + '</b>' + (rp.weakest ? '<div class="sub">Weakest: ' + rp.weakest.title + ' at ' + rp.weakest.score + '. Fix this first.</div>' : '') + '</div></div>' +
+    '<button class="btn block mt" data-a="co-ai">' + icon('spark', 15) + 'Get Lucy\'s honest review</button></div>';
   if (qs.length) h += '<button class="panel" style="width:100%;text-align:left;border-color:var(--gline2)" data-a="seg" data-k="rep" data-v="ask"><div class="row"><div class="badge">' + icon('chat', 18) + '</div><div class="grow"><b>Answer ' + qs.length + ' question' + (qs.length > 1 ? 's' : '') + ' first</b><div class="sub">' + esc(qs[0].q) + '</div></div>' + icon('right', 18) + '</div></button>';
   rp.list.forEach((x) => {
     h += '<h2>' + x.title + '<span class="num" style="color:' + scoreColor(x.score) + ';letter-spacing:0">' + (x.score == null ? 'no data' : x.score + '/100') + '</span></h2><div class="panel">' +
@@ -1885,8 +1889,8 @@ function coSave(i) {
     if (type !== 'Nothing today') S.media.push({ id: nid(), at: now, type: type, title: $('#co-mtitle-' + i).value.trim(), minutes: Number($('#co-min-' + i).value) || 0, why: $('#co-why-' + i).value.trim(), learned: a });
   } else if (!a) return toast('Write your answer, or tap Skip');
   S.coach.push({ id: nid(), at: now, key: q.key, kind: q.kind, ref: q.ref, q: q.q, a: a || (q.kind === 'media' ? 'Watched nothing' : 'Logged') });
-  if (q.kind === 'late' && /follow|invoice|remind/i.test(a)) toast('Then follow up today. That one is on you.');
-  else if (q.kind === 'media' && a.length < 8 && $('#co-mt-' + i).value !== 'Nothing today') toast('Nothing learned. Next time, watch with a purpose.');
+  if (q.kind === 'late' && /follow|invoice|remind/i.test(a)) toast('Thank you for being honest. A quick follow-up today may help.');
+  else if (q.kind === 'media' && a.length < 8 && $('#co-mt-' + i).value !== 'Nothing today') toast('Saved. Maybe next time we can look for one small lesson in it.');
   else toast('Saved. Lucy will remember this.');
   save(); render();
 }

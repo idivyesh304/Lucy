@@ -10,17 +10,19 @@ function emit(state) { subs.forEach((fn) => { try { fn(state); } catch (e) {} })
 
 export function voices() {
   if (!('speechSynthesis' in window)) return [];
-  return speechSynthesis.getVoices().filter((v) => /^(en|hi)/i.test(v.lang));
+  return speechSynthesis.getVoices().filter((v) => /^en/i.test(v.lang) && !/bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|grandma|grandpa|eddy|flo|reed|rocko|sandy|shelley/i.test(v.name));
 }
 // Lucy is female: only female voices are used, best Indian English first.
 const MALE = /\b(rishi|prabhat|ravi|hemant|daniel|alex|fred|aaron|arthur|gordon|oliver|thomas|tom|rocko|grandpa|reed|eddy|ralph|albert|bruce|junior|david|mark|george|guy|ryan|james|male)\b|en-in-x-(end|ene)|en-us-x-(iol|iom|tpd)|en-gb-x-(gbb|gbd|rjs)/i;
+// Softest, most natural English female voices first. Indian-accent voices come after the natural ones.
 const FEMALE_RANK = [
-  /\b(isha|veena|neerja|heera|kalpana|priya|sangeeta)\b/i,
-  /en-in-x-(ahp|cxx|ena)/i,
-  /google.*(india|हिन्दी)/i,
-  /\blekha\b/i,
-  /\b(samantha|karen|moira|tessa|serena|kate|fiona|victoria|allison|ava|susan|zira|aria|jenny|libby|sonia|martha|nicky|zoe|siri)\b/i,
-  /female|google uk english female|google us english/i
+  /(premium|enhanced|natural|neural)/i,
+  /\b(ava|zoe|samantha|serena|kate|karen|moira|tessa|fiona|martha|allison|susan|nicky|catherine|isha)\b/i,
+  /microsoft (aria|jenny|sonia|libby|natasha|neerja) online/i,
+  /google uk english female|google us english/i,
+  /\b(veena|neerja|heera|kalpana|priya|sangeeta)\b/i,
+  /en-in-x-(ahp|cxx|ena)|google.*india/i,
+  /female|zira|aria|jenny|libby|sonia|victoria/i
 ];
 function isMale(v) { return MALE.test(v.name) || MALE.test(v.voiceURI || ''); }
 function rank(v) {
@@ -32,10 +34,12 @@ export function femaleVoices() {
   return voices().filter((v) => !isMale(v)).sort((a, b) => rank(a) - rank(b) || (/enhanced|premium|natural/i.test(b.name) - /enhanced|premium|natural/i.test(a.name)));
 }
 export function indianVoices() { return femaleVoices(); }
-function chooseVoice() {
+function chooseVoice(force) {
   const list = femaleVoices();
-  const want = S.settings.voiceURI;
-  if (want) { const v = list.find((x) => x.voiceURI === want); if (v) return v; }
+  if (force) { const f = list.find((x) => x.voiceURI === force); if (f) return f; }
+  // the voice is chosen per device (iPhone and Mac have different voices)
+  let want = ''; try { want = localStorage.getItem('lucy.dev.voice') || ''; } catch (e) {}
+  if (want) { const v = list.find((x) => x.voiceURI === want || x.name === want); if (v) return v; }
   return list[0] || null;
 }
 // Speech that works on iPhone too: short sentence chunks (long text stalls), resume (iOS gets stuck paused),
@@ -66,10 +70,10 @@ export function speak(text, opts) {
       if (my !== job) return resolve();
       if (i >= list.length) return finish();
       const u = new SpeechSynthesisUtterance(list[i]);
-      const v = useDefault ? null : chooseVoice();
+      const v = useDefault ? null : chooseVoice(opts.voiceURI);
       if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-IN';
-      u.rate = Number(S.settings.voiceRate) || 0.95;
-      u.pitch = Number(S.settings.voicePitch) || 1;
+      u.rate = Number(S.settings.voiceRate) || 0.92;
+      u.pitch = Number(S.settings.voicePitch) || 1.03;
       u.onstart = () => { started = true; speaking = true; emit('speaking'); };
       u.onboundary = (e) => { if (!e.name || e.name === 'word') wordSubs.forEach((fn) => { try { fn(e); } catch (x) {} }); };
       u.onend = () => { i++; next(); };
@@ -130,3 +134,6 @@ export function matchScore(target, said) {
 }
 
 if ('speechSynthesis' in window) { try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => {}; } catch (e) {} }
+
+export function setDeviceVoice(uri) { try { if (uri) localStorage.setItem('lucy.dev.voice', uri); else localStorage.removeItem('lucy.dev.voice'); } catch (e) {} }
+export function deviceVoice() { try { return localStorage.getItem('lucy.dev.voice') || ''; } catch (e) { return ''; } }

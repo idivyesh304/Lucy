@@ -75,7 +75,7 @@ export function buildSchedule() {
       const day = new Date(y, m, Math.min(sd, new Date(y, m + 1, 0).getDate())).getTime();
       const total = S.employees.filter((e) => e.active !== false).reduce((a, e) => a + (Number(e.salary) || 0), 0);
       push(L.atTime(L.addDays(day, -1), 19, 0), 'Salary day tomorrow', 'Just a heads-up: ' + L.money(total) + ' for ' + S.employees.filter((e) => e.active !== false).length + ' team members.', 'salary', '#more-team');
-      push(L.atTime(day, 10, 0), 'Salary day today', 'Salaries of ' + L.money(total) + ' are due today. You can pay each team member from Lucy, Team.', 'salary', '#more-team');
+      push(L.atTime(day, 10, 0), 'Salary day today', L.MON[(new Date(day).getMonth() + 11) % 12] + ' salaries of ' + L.money(total) + ' are due today. You can pay each team member from Lucy, Team.', 'salary', '#more-team');
     }
   }
 

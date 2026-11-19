@@ -166,7 +166,7 @@ export function forLead(l) {
     ctx: { name: hiName(l.contactName, l.title), first: first(l.contactName) || honor(l.title), business: l.name, what: svc, amount: money(l.dealMonthly || l.dealOnce), date: dstr(t), time: L.fmtTime(t) } };
 }
 export function forEmployee(e) {
-  const mk = L.dayKey(Date.now()).slice(0, 7);
+  const n = new Date(), mk = L.dayKey(new Date(n.getFullYear(), n.getMonth() - 1, 15).getTime()).slice(0, 7); // salary is for last month
   return { cats: ['salary', 'birthday', 'festival', 'meeting', 'reminder'], pick: 'salary:salary-credited', to: e.name, phone: e.phone || '', bank: '',
     ctx: { name: first(e.name), first: first(e.name), business: 'DZYN LAB', amount: money(e.salary), month: MONTHS[Number(mk.slice(5, 7)) - 1], what: 'this week\'s work', date: dstr(L.addDays(L.startOfDay(Date.now()), 1)), time: '11:00 AM' } };
 }

@@ -285,14 +285,23 @@ export function growthPlan() {
     clientsPerEditor: (team.find((m) => /editor/i.test(m.role)) || {}).need ? planClients / team.find((m) => /editor/i.test(m.role)).need : null };
 }
 
-// Employees and payroll
+// Employees and payroll.
+// Salary is paid in arrears: a month's salary is paid on the salary day of the NEXT month
+// (October's salary on 10 November). offset 0 = the cycle paid this month, 1 = the one paid next month.
+const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+export function salaryCycle(offset) {
+  const d = new Date(), sd = Number(S.settings.salaryDay) || 1;
+  const pay = new Date(d.getFullYear(), d.getMonth() + (offset || 0), 1), work = new Date(pay.getFullYear(), pay.getMonth() - 1, 15);
+  const payDay = new Date(pay.getFullYear(), pay.getMonth(), Math.min(sd, new Date(pay.getFullYear(), pay.getMonth() + 1, 0).getDate())).getTime();
+  return { month: monthKey(work.getTime()), name: FULL_MONTHS[work.getMonth()], payDay: payDay, workEnd: new Date(work.getFullYear(), work.getMonth() + 1, 0).getTime() };
+}
 export function payroll() {
-  const mk = monthKey(Date.now());
+  const cyc = salaryCycle(0), mk = cyc.month;
   const list = S.employees.filter((e) => e.active !== false);
   const total = list.reduce((a, e) => a + (Number(e.salary) || 0), 0);
   const paidAmount = list.reduce((a, e) => a + Math.min(Number(e.salary) || 0, salaryPaidOf(e, mk)), 0);
   const full = list.filter((e) => salaryPaidOf(e, mk) >= (Number(e.salary) || 0) && salaryPaidOf(e, mk) > 0);
-  return { list: list, total: total, paidCount: full.length, paidAmount: paidAmount, due: list.filter((e) => salaryPaidOf(e, mk) < (Number(e.salary) || 0)), month: mk };
+  return { list: list, total: total, paidCount: full.length, paidAmount: paidAmount, due: list.filter((e) => salaryPaidOf(e, mk) < (Number(e.salary) || 0)), month: mk, monthName: cyc.name, payDay: cyc.payDay };
 }
 
 // Monthly clients: on each renewal date, add that month's amount to receivables (once per cycle).

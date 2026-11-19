@@ -276,10 +276,10 @@ document.addEventListener('change', (ev) => { if (ev.target && ['sp-d', 'sp-m', 
 document.addEventListener('input', (ev) => { if (!ev.target) return; if (ev.target.id === 'sp-wish') ev.target.dataset.auto = '0'; if (ev.target.id === 'sp-name' || ev.target.id === 'sp-name2') spRedraft(); });
 const upiLink = (e, amt, note) => 'upi://pay?pa=' + String(e.upi).trim() + '&pn=' + encodeURIComponent(e.name) + '&am=' + Number(amt).toFixed(2) + '&cu=INR&tn=' + encodeURIComponent(note);
 function renderTeam() {
-  const pr = B.payroll(), mon = L.MON[new Date().getMonth()];
+  const pr = B.payroll(), mon = pr.monthName;
   let h = topbar('Team', { back: 'More' });
   h += '<div class="stats">' + stat('Team', pr.list.length + ' people', S.growth.team.reduce((a, m) => a + Number(m.need || 0), 0) + ' planned') + stat('Monthly payroll', short(pr.total), 'salary day ' + (S.settings.salaryDay || 1)) +
-    stat('Paid in ' + mon, pr.paidCount + ' / ' + pr.list.length, short(pr.paidAmount)) + stat('Still to pay', short(pr.total - pr.paidAmount), pr.due.length + ' people') + '</div>';
+    stat(mon + ' salary paid', pr.paidCount + ' / ' + pr.list.length, short(pr.paidAmount)) + stat('Still to pay', short(pr.total - pr.paidAmount), pr.due.length + ' people') + '</div>';
   const roles = S.growth.team.map((m) => m.role).concat([...new Set(S.employees.map((e) => e.role))].filter((r) => !S.growth.team.some((m) => m.role.toLowerCase() === String(r).toLowerCase())));
   roles.forEach((r) => {
     const list = S.employees.filter((e) => !e.past && String(e.role).toLowerCase() === String(r).toLowerCase());
@@ -382,13 +382,16 @@ function allDues() {
     if (p.status === 'pending') (p.type === 'in' ? dIn : dOut).push({ kind: p.clientId || p.auto ? (p.type === 'in' ? 'client' : 'pay') : 'pay', party: p.party, sub: (p.note || '') + (B.paidOf(p) ? (p.note ? ' · ' : '') + 'part ' + money(B.paidOf(p)) + ' of ' + money(p.amount) + ' done' : ''), amount: B.leftOf(p), due: p.due, a: 'settle', id: p.id });
     else if (inMonth(p.settledAt)) done.push({ dir: p.type, kind: 'pay', party: p.party, amount: Number(p.amount), at: p.settledAt });
   });
-  const sd = Number(S.settings.salaryDay) || 1, y = new Date(now).getFullYear(), m = new Date(now).getMonth();
-  const salDue = new Date(y, m, Math.min(sd, new Date(y, m + 1, 0).getDate())).getTime();
-  S.employees.filter((e) => e.active !== false && Number(e.salary) > 0).forEach((e) => {
-    if (e.joined && new Date(e.joined + 'T00:00').getTime() > salDue) return; // joined after this month's salary day
-    const paid = B.salaryPaidOf(e, mk), left = Math.max(0, Number(e.salary) - paid);
-    if (left > 0) dOut.push({ kind: 'salary', party: e.name, sub: 'Salary ' + L.MON[m] + (paid ? ' · part ' + money(paid) + ' paid' : '') + ' · ' + esc(e.role || ''), amount: left, due: salDue, a: 'emp-paid', id: e.id });
-    else done.push({ dir: 'out', kind: 'salary', party: e.name, amount: paid, at: now });
+  // salaries are paid in arrears: this month's payday covers last month, next month's payday covers this month
+  [0, 1].forEach((off) => {
+    const cyc = B.salaryCycle(off);
+    if (cyc.payDay > horizon) return;
+    S.employees.filter((e) => e.active !== false && !e.past && Number(e.salary) > 0).forEach((e) => {
+      if (e.joined && new Date(e.joined + 'T00:00').getTime() > cyc.workEnd) return; // joined after that month
+      const paid = B.salaryPaidOf(e, cyc.month), left = Math.max(0, Number(e.salary) - paid);
+      if (left > 0) dOut.push({ kind: 'salary', party: e.name, sub: cyc.name + ' salary' + (paid ? ' · part ' + money(paid) + ' paid' : '') + ' · ' + esc(e.role || ''), amount: left, due: cyc.payDay, a: 'emp-paid', id: e.id });
+      else if (off === 0) { const ps = ((e.paid || {})[cyc.month] || {}).parts || []; done.push({ dir: 'out', kind: 'salary', party: e.name, amount: paid, at: ps.length ? ps[ps.length - 1].at : now }); }
+    });
   });
   B.officeMonth().rows.forEach((r) => {
     const o = r.o; if (o.active === false || !Number(o.amount)) return;
@@ -978,15 +981,17 @@ function settleGo(id) {
   if (p.type === 'in') { celebrate('coins'); toast(rest ? 'Received ' + money(amt) + ' · ' + money(rest) + ' still to come' : 'Fully received: ' + money(p.amount)); V.speak('That is lovely, ' + nm() + '. ' + money(amt) + ' received.'); }
   else { celebrate('small'); toast(rest ? 'Paid ' + money(amt) + ' · ' + money(rest) + ' left' : 'Fully paid'); }
 }
+// which salary a payment goes to: the one due this month, or next month's once this one is fully paid
+function salCycle(e) { const c0 = B.salaryCycle(0); return B.salaryPaidOf(e, c0.month) >= (Number(e.salary) || 0) && Number(e.salary) > 0 ? B.salaryCycle(1) : c0; }
 function salarySheet(e) {
-  const mk = B.payroll().month, sal = Number(e.salary) || 0, done = B.salaryPaidOf(e, mk), left = Math.max(0, sal - done);
+  const cyc = salCycle(e), mk = cyc.month, sal = Number(e.salary) || 0, done = B.salaryPaidOf(e, mk), left = Math.max(0, sal - done);
   const rec = e.paid && e.paid[mk] && typeof e.paid[mk] === 'object' ? e.paid[mk].parts || [] : [];
-  openSheet('<div class="eyebrow">Salary · ' + L.MON[new Date().getMonth()] + '</div><h3 class="mt">Pay ' + esc(e.name) + '</h3>' +
-    '<div class="stats">' + stat('Salary', money(sal), '') + stat('Paid this month', money(done), '') + stat('Remaining', '<span class="gold">' + money(left) + '</span>', '') + '</div>' +
+  openSheet('<div class="eyebrow">' + cyc.name + ' salary · due ' + L.fmtDate(cyc.payDay) + '</div><h3 class="mt">Pay ' + esc(e.name) + '</h3>' +
+    '<div class="stats">' + stat('Salary', money(sal), '') + stat('Paid', money(done), '') + stat('Remaining', '<span class="gold">' + money(left) + '</span>', '') + '</div>' +
     (left > 0 ? amtChooser(left) + (e.upi ? '<a class="btn ghost block" id="upi-btn" href="#" data-a="upi-salary" data-id="' + e.id + '">' + icon('wallet', 15) + 'Open UPI app with this amount</a>' : '') +
-      '<button class="btn block" id="amt-go" data-verb="Confirm salary paid" data-a="salary-go" data-id="' + e.id + '">Confirm salary paid ' + money(left) + '</button>' : '<div class="panel gold">Full salary paid for this month.</div>') +
+      '<button class="btn block" id="amt-go" data-verb="Confirm salary paid" data-a="salary-go" data-id="' + e.id + '">Confirm salary paid ' + money(left) + '</button>' : '<div class="panel gold">Full ' + cyc.name + ' salary paid.</div>') +
     partsList(rec, 'sal:' + e.id));
-  $('#sheet').dataset.left = left;
+  $('#sheet').dataset.left = left; $('#sheet').dataset.mk = mk;
 }
 function settle(id) {
   const p = payById(id); if (!p || p.status !== 'pending') return;
@@ -1284,7 +1289,7 @@ document.addEventListener('click', async (ev) => {
     case 'office-off': { const o = S.office.find((x) => x.id === el.dataset.id); o.active = o.active === false; save(); closeSheet(); render(); break; }
     case 'amt-opt': { document.querySelectorAll('#amt-opt button').forEach((b) => b.classList.toggle('on', b === el)); $('#amt-opt').dataset.v = v; const c = $('#amt-custom'); c.hidden = v !== 'custom'; if (v === 'custom') c.focus(); updateAmtView(Number($('#sheet').dataset.left)); break; }
     case 'salary-go': {
-      const e = S.employees.find((x) => x.id === id), mk = B.payroll().month, left = Number($('#sheet').dataset.left), amt = chosenAmt(left);
+      const e = S.employees.find((x) => x.id === id), mk = $('#sheet').dataset.mk || B.payroll().month, left = Number($('#sheet').dataset.left), amt = chosenAmt(left);
       if (!amt || amt <= 0) { toast('Enter the amount'); break; }
       e.paid = e.paid || {};
       if (!e.paid[mk] || typeof e.paid[mk] !== 'object') e.paid[mk] = { parts: [] };
@@ -1305,7 +1310,7 @@ document.addEventListener('click', async (ev) => {
       const [kind, pid] = el.dataset.k.split(':'), i = Number(el.dataset.i);
       if (!confirm('Remove this entry?')) break;
       if (kind === 'pay') { const p = payById(Number(pid)); p.parts.splice(i, 1); if (B.leftOf(p) > 0) { p.status = 'pending'; p.settledAt = 0; } save(); settleSheet(p); }
-      else { const e = S.employees.find((x) => x.id === Number(pid)), mk = B.payroll().month; e.paid[mk].parts.splice(i, 1); if (!e.paid[mk].parts.length) delete e.paid[mk]; save(); salarySheet(e); }
+      else { const e = S.employees.find((x) => x.id === Number(pid)), mk = $('#sheet').dataset.mk || B.payroll().month; e.paid[mk].parts.splice(i, 1); if (!e.paid[mk].parts.length) delete e.paid[mk]; save(); salarySheet(e); }
       render(); break;
     }
     case 'del-pay': toPast('payments', id); closeSheet(); render(); break;

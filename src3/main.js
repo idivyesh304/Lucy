@@ -463,17 +463,29 @@ function renderMoney() {
   } else if (s === 'cash') {
     const t = segOf('cashdir', 'in'), D = allDues();
     const tot = (arr) => arr.reduce((a, x) => a + x.amount, 0);
-    h += '<div class="stats">' + stat('To receive', short(tot(D.in)), D.in.length + (D.in.length === 1 ? ' item' : ' items')) + stat('To pay', short(tot(D.out)), D.out.length + (D.out.length === 1 ? ' item' : ' items')) + '</div>';
+    const doneIn = D.done.filter((x) => x.dir === 'in'), doneOut = D.done.filter((x) => x.dir === 'out'), monName = L.MON[new Date().getMonth()];
+    h += '<div class="stats">' + stat('Received in ' + monName, '<span class="good">' + short(tot(doneIn)) + '</span>', doneIn.length + ' payments') + stat('To receive', short(tot(D.in)), D.in.length + (D.in.length === 1 ? ' item' : ' items')) +
+      stat('Paid in ' + monName, short(tot(doneOut)), doneOut.length + ' payments') + stat('To pay', short(tot(D.out)), D.out.length + (D.out.length === 1 ? ' item' : ' items')) + '</div>';
     h += seg('cashdir', [['in', 'To receive'], ['out', 'To pay']], t);
     const list = D[t];
+    const done = t === 'in' ? doneIn : doneOut;
+    if (done.length) h += '<h2>' + (t === 'in' ? 'Received' : 'Paid') + ' in ' + monName + ' · ' + money(tot(done)) + '</h2>' + listOf(done.map(doneRow));
+    h += '<h2>' + (t === 'in' ? 'Still to receive' : 'Still to pay') + '</h2>';
     if (t === 'out' && list.length) {
       const by = {}; list.forEach((x) => { by[x.kind] = (by[x.kind] || 0) + x.amount; });
       h += '<div class="chips-sum">' + Object.keys(by).map((k) => '<span class="chip">' + esc(DUE_KIND[k].label) + ' ' + short(by[k]) + '</span>').join('') + '</div>';
     }
     h += listOf(list.map(dueRow), t === 'in' ? 'Nobody owes you anything right now.' : 'Nothing to pay right now.');
     h += '<div class="hint" style="margin:6px 2px 14px">' + (t === 'in' ? 'Includes client renewals and every amount added in Clients or here with +.' : 'Includes salaries, office bills, EMIs, friendly loans and bills added here with +.') + '</div>';
-    const done = D.done.filter((x) => x.dir === t);
-    if (done.length) h += '<h2>Done this month</h2>' + listOf(done.map(doneRow));
+    if (t === 'in') {
+      // money received in the last few months, so past payments are always easy to find
+      for (let back = 1; back <= 3; back++) {
+        const d0 = new Date(new Date().getFullYear(), new Date().getMonth() - back, 1), d1 = new Date(d0.getFullYear(), d0.getMonth() + 1, 1);
+        const rows = [];
+        S.payments.filter((p) => p.type === 'in').forEach((p) => B.partsOf(p).forEach((x) => { if (x.at >= d0.getTime() && x.at < d1.getTime()) rows.push({ dir: 'in', kind: p.clientId ? 'client' : 'pay', party: p.party, amount: Number(x.amt || 0), at: x.at }); }));
+        if (rows.length) h += '<h2>Received in ' + L.MON[d0.getMonth()] + ' · ' + money(tot(rows)) + '</h2>' + listOf(rows.sort((a, b) => b.at - a.at).map(doneRow));
+      }
+    }
   } else if (s === 'loans') {
     const st = B.loanStats();
     h += '<div class="stats">' + stat('Monthly EMIs', short(st.monthly), st.open + ' open') + stat('Outstanding', short(st.outstanding), st.freeAt ? 'Debt-free by ' + L.MON[new Date(st.freeAt).getMonth()] + ' ' + new Date(st.freeAt).getFullYear() : 'Add EMIs left to see') + '</div>';

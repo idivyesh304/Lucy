@@ -4,12 +4,11 @@ import * as L from '../src/logic.js';
 
 export const SPECIAL_TYPES = [['Birthday', 'gift'], ['Anniversary', 'heart'], ['Other', 'star']];
 
-// all special days, including your own birthday and anniversary from your profile
+// all special days, including your own birthday from your profile
 export function allSpecial() {
   const out = S.specialDays.slice();
   const p = S.profile || {};
   if (p.dob) out.push({ id: 'me-dob', name: 'Your', self: true, type: 'Birthday', date: p.dob.slice(5), year: Number(p.dob.slice(0, 4)) || 0 });
-  if (p.anniversary) out.push({ id: 'me-ann', name: 'Your', self: true, type: 'Anniversary', date: p.anniversary.slice(5), year: Number(p.anniversary.slice(0, 4)) || 0, relation: p.spouse || '' });
   return out;
 }
 // next date (local midnight) this special day happens, today included

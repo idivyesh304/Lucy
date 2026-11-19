@@ -260,7 +260,7 @@ export function parseActions(text) {
 
 function profileLine() {
   const p = S.profile || {};
-  return [p.fullName, p.role && p.company ? p.role + ', ' + p.company : '', p.city, p.dob ? 'born ' + p.dob : '', p.anniversary ? 'married ' + p.anniversary + (p.spouse ? ' to ' + p.spouse : '') : '', p.about].filter(Boolean).join('; ');
+  return [p.fullName, p.role && p.company ? p.role + ', ' + p.company : '', p.city, p.dob ? 'born ' + p.dob : '', p.about].filter(Boolean).join('; ');
 }
 
 // Growth plan: client tiers (by retainer) and the team needed to deliver them.

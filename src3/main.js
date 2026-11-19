@@ -210,7 +210,7 @@ function renderSpecial() {
   const all = SP.upcoming();
   let h = '<div class="panel gold"><div class="row"><div class="badge">' + icon('gift', 20) + '</div><div class="grow"><b>Never miss a special day</b><div class="sub">Lucy reminds you 7 days before, the evening before, and on the day.</div></div></div>' +
     '<div class="actions"><button class="btn small" data-a="new-sp" data-v="Birthday">' + icon('cake', 15) + 'Add birthday</button><button class="btn small line" data-a="new-sp" data-v="Anniversary">' + icon('heart', 15) + 'Add anniversary</button></div></div>';
-  if (!S.profile.dob) h += '<button class="panel" style="width:100%;text-align:left" data-a="sub-profile"><div class="row"><div class="badge">' + icon('user', 18) + '</div><div class="grow"><b>Add your own birthday and anniversary</b><div class="sub">In your profile. Lucy will celebrate with you.</div></div>' + icon('right', 18) + '</div></button>';
+  if (!S.profile.dob) h += '<button class="panel" style="width:100%;text-align:left" data-a="sub-profile"><div class="row"><div class="badge">' + icon('user', 18) + '</div><div class="grow"><b>Add your own birthday</b><div class="sub">In your profile. Lucy will celebrate with you.</div></div>' + icon('right', 18) + '</div></button>';
   const soon = all.filter((x) => SP.daysUntil(x.at) <= 30), later = all.filter((x) => SP.daysUntil(x.at) > 30);
   if (soon.length) h += '<h2>Next 30 days</h2>' + listOf(soon.map(spRow));
   if (later.length) h += '<h2>Later this year</h2>' + listOf(later.map(spRow));
@@ -320,8 +320,8 @@ function renderProfile() {
     '<div class="grow"><div class="pf-name">' + esc(p.fullName || nm()) + '</div><div class="sub">' + esc([p.role, p.company].filter(Boolean).join(' · ')) + '</div>' +
     (p.dob ? '<div class="sub gold mt" style="margin-top:6px">' + icon('cake', 13) + ' ' + L.fmtDate(SP.nextOccurrence({ date: p.dob.slice(5) })) + '</div>' : '') + '</div></div>' +
     '<h2>Personal</h2>' + f('fullName', 'Full name') + f('nickname', 'What Lucy calls you') +
-    '<div class="grid2"><div>' + f('dob', 'Birthday', 'date') + '</div><div>' + f('anniversary', 'Wedding anniversary', 'date') + '</div></div>' +
-    f('spouse', 'Spouse') + '<div class="grid2"><div>' + f('phone', 'Phone', 'tel') + '</div><div>' + f('altPhone', 'Other phone', 'tel') + '</div></div>' + f('email', 'Email', 'email') +
+    f('dob', 'Birthday', 'date') +
+    '<div class="grid2"><div>' + f('phone', 'Phone', 'tel') + '</div><div>' + f('altPhone', 'Other phone', 'tel') + '</div></div>' + f('email', 'Email', 'email') +
     f('city', 'City') + f('address', 'Home address') + '<div class="grid2"><div>' + f('bloodGroup', 'Blood group') + '</div><div>' + f('emergencyPhone', 'Emergency phone', 'tel') + '</div></div>' + f('emergencyName', 'Emergency contact name') +
     '<h2>Work</h2>' + f('company', 'Company') + f('role', 'Role') + f('website', 'Website') + f('officeAddress', 'Office address') +
     '<h2>Social</h2>' + f('instagram', 'Instagram', 'text', '@handle') + f('linkedin', 'LinkedIn') + f('youtube', 'YouTube') +

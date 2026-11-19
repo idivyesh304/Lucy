@@ -290,8 +290,8 @@ export function growthPlan() {
 // Salary is paid in arrears: a month's salary is paid on the salary day of the NEXT month
 // (October's salary on 10 November). offset 0 = the cycle paid this month, 1 = the one paid next month.
 const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-export function salaryCycle(offset) {
-  const d = new Date(), sd = Number(S.settings.salaryDay) || 1;
+export function salaryCycle(offset, e) {
+  const d = new Date(), sd = Number(e && e.payDay) || Number(S.settings.salaryDay) || 1; // some people are paid on their own day
   const pay = new Date(d.getFullYear(), d.getMonth() + (offset || 0), 1), work = new Date(pay.getFullYear(), pay.getMonth() - 1, 15);
   const payDay = new Date(pay.getFullYear(), pay.getMonth(), Math.min(sd, new Date(pay.getFullYear(), pay.getMonth() + 1, 0).getDate())).getTime();
   return { month: monthKey(work.getTime()), name: FULL_MONTHS[work.getMonth()], payDay: payDay, workEnd: new Date(work.getFullYear(), work.getMonth() + 1, 0).getTime() };
@@ -324,6 +324,31 @@ export function billClients() {
       c.nextDate = new Date(ny, nm, Math.min(day, new Date(ny, nm + 1, 0).getDate())).getTime();
       changed = true;
     }
+  });
+  if (billGst()) changed = true;
+  return changed;
+}
+
+// GST payable (GSTR-3B): GST on every GST bill raised in a month is paid by the GST day (20th) of the next month.
+// Lucy keeps one "GST payment" per month in To pay, and keeps its amount in step with the bills of that month.
+export function gstMonths() {
+  const by = {};
+  S.payments.filter((p) => p.type === 'in' && Number(p.gstRate) > 0 && p.due).forEach((p) => {
+    const mk = monthKey(p.due), base = Number(p.base) || Math.round(Number(p.amount) / (1 + p.gstRate / 100));
+    by[mk] = (by[mk] || 0) + (Number(p.amount) - base);
+  });
+  return by;
+}
+export const gstDueOf = (mk) => { const y = Number(mk.slice(0, 4)), m = Number(mk.slice(5, 7)); return new Date(y, m, Math.min(Number(S.settings.gstDay) || 20, 28)).getTime(); };
+const MONTHS_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+export const gstLabel = (mk) => MONTHS_FULL[Number(mk.slice(5, 7)) - 1] + ' ' + mk.slice(0, 4);
+export function billGst() {
+  let changed = false;
+  const from = S.settings.gstFrom || '2026-10', by = gstMonths();
+  Object.keys(by).filter((mk) => mk >= from && by[mk] > 0).forEach((mk) => {
+    const key = 'gst:' + mk, amt = Math.round(by[mk]), p = S.payments.find((x) => x.cycle === key);
+    if (!p) { S.payments.push({ id: nid(), type: 'out', party: 'GST payment (GSTR-3B)', amount: amt, due: gstDueOf(mk), note: 'GST on ' + gstLabel(mk) + ' bills', status: 'pending', auto: true, gst: true, cycle: key, created: Date.now() }); changed = true; }
+    else if (p.status === 'pending' && !(p.parts || []).length && p.amount !== amt) { p.amount = amt; changed = true; }
   });
   return changed;
 }

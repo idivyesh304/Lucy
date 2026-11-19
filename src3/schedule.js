@@ -67,15 +67,19 @@ export function buildSchedule() {
     }
   });
 
-  // salary day
-  if (S.employees.some((e) => e.active !== false)) {
-    const sd = Number(st.salaryDay) || 1;
+  // salary days (most of the team on the company day, a few people on their own day)
+  const team = S.employees.filter((e) => e.active !== false && !e.past && Number(e.salary) > 0);
+  if (team.length) {
+    const days = {};
+    team.forEach((e) => { const d = Number(e.payDay) || Number(st.salaryDay) || 1; (days[d] = days[d] || []).push(e); });
     for (let mo = 0; mo < 2; mo++) {
       const base = new Date(now); const y = base.getFullYear(), m = base.getMonth() + mo;
-      const day = new Date(y, m, Math.min(sd, new Date(y, m + 1, 0).getDate())).getTime();
-      const total = S.employees.filter((e) => e.active !== false).reduce((a, e) => a + (Number(e.salary) || 0), 0);
-      push(L.atTime(L.addDays(day, -1), 19, 0), 'Salary day tomorrow', 'Just a heads-up: ' + L.money(total) + ' for ' + S.employees.filter((e) => e.active !== false).length + ' team members.', 'salary', '#more-team');
-      push(L.atTime(day, 10, 0), 'Salary day today', L.MON[(new Date(day).getMonth() + 11) % 12] + ' salaries of ' + L.money(total) + ' are due today. You can pay each team member from Lucy, Team.', 'salary', '#more-team');
+      Object.keys(days).forEach((sd) => {
+        const list = days[sd], day = new Date(y, m, Math.min(Number(sd), new Date(y, m + 1, 0).getDate())).getTime();
+        const total = list.reduce((a, e) => a + (Number(e.salary) || 0), 0), who = list.length === 1 ? list[0].name + '\'s salary' : list.length + ' salaries';
+        push(L.atTime(L.addDays(day, -1), 19, 0), 'Salary day tomorrow', 'Just a heads-up: ' + who + ' of ' + L.money(total) + ' tomorrow.', 'salary', '#more-team');
+        push(L.atTime(day, 10, 0), 'Salary day today', L.MON[(new Date(day).getMonth() + 11) % 12] + ' ' + who + ' of ' + L.money(total) + ' due today. You can pay from Lucy, Team.', 'salary', '#more-team');
+      });
     }
   }
 

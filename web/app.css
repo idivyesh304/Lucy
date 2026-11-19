@@ -519,3 +519,15 @@ h1 b { background: linear-gradient(100deg, #FFF1CF 0%, #D8B56A 35%, #F3D9A0 55%,
 .panel.alert { border-color: rgba(255,107,107,.55); box-shadow: 0 0 0 1px rgba(255,107,107,.18) inset; }
 .wa-ico { color: #25D366; } .wa-link { color: #25D366 !important; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; margin-top: 4px; }
 .vbar { position: fixed; left: 12px; right: 12px; bottom: calc(92px + env(safe-area-inset-bottom)); z-index: 30; margin: 0; box-shadow: 0 12px 40px rgba(0,0,0,.55); max-width: 640px; margin-left: auto; margin-right: auto; }
+/* due rows: amount, Remind and Receive stacked so they never overlap */
+.due-row .grow { min-width: 0; }
+.due-row .right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; margin-left: 10px; }
+.due-row .right .link { padding: 3px 0; font-size: 13px; line-height: 1.2; white-space: nowrap; margin-top: 0; }
+/* settlement plan */
+.st-day { margin: 14px 0 6px; display: flex; justify-content: space-between; align-items: baseline; }
+.st-day b { font-size: 14px; letter-spacing: .02em; }
+.st-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid rgba(255,255,255,.06); }
+.st-row:first-child { border-top: 0; }
+.st-row .grow { min-width: 0; }
+.st-tag { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: rgba(255,255,255,.08); white-space: nowrap; }
+.st-tag.ok { color: var(--good); } .st-tag.late { color: var(--warn); } .st-tag.bad { color: var(--bad); }

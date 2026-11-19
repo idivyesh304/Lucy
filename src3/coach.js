@@ -83,10 +83,10 @@ function money_(r) {
   });
   const sd = Number(S.settings.salaryDay) || 1;
   S.employees.filter((e) => !e.past && e.active !== false && Number(e.salary) > 0).forEach((e) => {
-    if (sd > today) return; due++;
+    if ((Number(e.payDay) || sd) > today) return; due++;
     const pm = mk(new Date(new Date(now).getFullYear(), new Date(now).getMonth() - 1, 15).getTime()); // salary is paid for last month
     const parts = ((e.paid && e.paid[pm]) || {}).parts || [];
-    const paidBy = parts.filter((x) => mk(x.at) === m && new Date(x.at).getDate() <= sd + 2).reduce((a, x) => a + Number(x.amt || 0), 0);
+    const paidBy = parts.filter((x) => mk(x.at) === m && new Date(x.at).getDate() <= (Number(e.payDay) || sd) + 2).reduce((a, x) => a + Number(x.amt || 0), 0);
     if (paidBy >= Number(e.salary)) onTime++; else lateList.push('Salary: ' + e.name);
   });
   const payLate = S.payments.filter((p) => p.type === 'out' && p.status === 'pending' && p.due < L.startOfDay(now));

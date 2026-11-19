@@ -10,6 +10,7 @@ import { startNeural, startTilt, countUp } from './fx.js';
 import * as SP from './special.js';
 import * as MG from './magnet.js';
 import * as CO from './coach.js';
+import * as WA from './wa.js';
 import { celebrate, setTapPoint } from './celebrate.js';
 import { $, esc, hm, toTime, fromInputs, fmtHM, money, short, toast, openSheet, closeSheet, sheetOpen, listOf, seg, sw, catIcon, catStyle, ring, chart, imageToDataUrl, icon, L, C } from './ui.js';
 
@@ -105,6 +106,7 @@ function renderHome() {
   h += '<h2>Top 5 <span class="sub" style="letter-spacing:0;text-transform:none">picked by Lucy</span></h2>';
   h += top.length ? '<div class="list">' + top.map((x, i) => topRow(x, i)).join('') + '</div>' : '<div class="panel empty">Nothing urgent. Your Top 5 fills itself from reminders, payments and lead follow-ups.</div>';
 
+  h += waHomeCard();
   h += moneyMovesPanel(false);
   h += coachHomeCard();
   h += '<h2>Revenue mission<button class="link" data-a="tab" data-v="money">Open</button></h2>';
@@ -202,7 +204,7 @@ function spRow(x) {
   const when = d === 0 ? '<span class="gold">Today</span>' : d === 1 ? 'Tomorrow' : 'In ' + d + ' days';
   const ic = sd.type === 'Birthday' ? 'cake' : sd.type === 'Anniversary' ? 'heart' : 'star';
   return '<div class="item sp-item ' + (d <= 1 ? 'soon' : '') + '"' + (sd.self ? ' data-a="sub-profile"' : ' data-a="edit-sp" data-id="' + sd.id + '"') + '><div class="badge" style="--c:' + (sd.type === 'Anniversary' ? '#F08BC4' : sd.type === 'Birthday' ? 'var(--gold)' : 'var(--cyan)') + '">' + icon(ic, 18) + '</div>' +
-    '<div class="grow"><div class="t">' + esc(SP.specialTitle(sd, x.at)) + '</div><div class="m">' + L.fmtDate(x.at) + (sd.relation ? ' · ' + esc(sd.relation) : '') + '</div></div><div class="right sp-when">' + when + '</div></div>';
+    '<div class="grow"><div class="t">' + esc(SP.specialTitle(sd, x.at)) + '</div><div class="m">' + L.fmtDate(x.at) + (sd.relation ? ' · ' + esc(sd.relation) : '') + '</div></div><div class="right sp-when">' + when + (!sd.self && d <= 1 ? '<button class="link wa-link" data-a="wa-sp" data-id="' + sd.id + '">' + icon('chat', 13) + ' Wish</button>' : '') + '</div></div>';
 }
 function renderSpecial() {
   const all = SP.upcoming();
@@ -281,6 +283,7 @@ function renderProfile() {
     f('spouse', 'Spouse') + '<div class="grid2"><div>' + f('phone', 'Phone', 'tel') + '</div><div>' + f('altPhone', 'Other phone', 'tel') + '</div></div>' + f('email', 'Email', 'email') +
     f('city', 'City') + f('address', 'Home address') + '<div class="grid2"><div>' + f('bloodGroup', 'Blood group') + '</div><div>' + f('emergencyPhone', 'Emergency phone', 'tel') + '</div></div>' + f('emergencyName', 'Emergency contact name') +
     '<h2>Work</h2>' + f('company', 'Company') + f('role', 'Role') + f('website', 'Website') + f('officeAddress', 'Office address') +
+    '<h2>Payment details for WhatsApp reminders</h2>' + f('upi', 'UPI ID clients should pay to') + f('bank', 'Bank details (optional, one line)') +
     '<h2>Social</h2>' + f('instagram', 'Instagram', 'text', '@handle') + f('linkedin', 'LinkedIn') + f('youtube', 'YouTube') +
     '<h2>About me</h2><textarea data-prof="about" placeholder="Anything Lucy should know about you: goals, habits, what motivates you">' + esc(p.about || '') + '</textarea>' +
     '<div class="hint">Saved automatically and synced to all your devices. Lucy uses your profile to personalise her help.</div>';
@@ -335,7 +338,7 @@ function dueRow(x) {
   const inn = x.kind === 'client' || (x.kind === 'pay' && x.a === 'settle' && (payById(x.id) || {}).type === 'in');
   return '<div class="item due-row"><div class="badge" style="--c:' + (inn ? 'var(--good)' : x.kind === 'salary' ? '#9FE7FF' : x.kind === 'office' ? 'var(--gold)' : 'var(--warn)') + '">' + icon(k.icon, 18) + '</div>' +
     '<div class="grow" data-a="' + x.a + '"' + (x.sid ? ' data-id="' + esc(x.sid) + '"' : ' data-id="' + x.id + '"') + '><div class="t">' + esc(x.party) + ' <span class="kind">' + esc(k.one) + '</span></div><div class="m ' + (late ? 'late' : '') + '">' + (late ? 'Overdue · ' : today ? 'Today · ' : 'Due ') + (x.due ? L.fmtDate(x.due) : '') + (x.sub ? ' · ' + esc(x.sub) : '') + '</div></div>' +
-    '<div class="right"><div class="amount ' + (inn ? 'in' : 'out') + '">' + money(x.amount) + '</div><button class="link" data-a="' + x.a + '"' + (x.sid ? ' data-id="' + esc(x.sid) + '"' : ' data-id="' + x.id + '"') + '>' + (inn ? 'Receive' : 'Pay') + '</button></div></div>';
+    '<div class="right"><div class="amount ' + (inn ? 'in' : 'out') + '">' + money(x.amount) + '</div>' + (inn && payById(x.id) ? '<button class="link wa-link" data-a="wa-pay" data-id="' + x.id + '">' + icon('chat', 13) + ' Remind</button>' : '') + '<button class="link" data-a="' + x.a + '"' + (x.sid ? ' data-id="' + esc(x.sid) + '"' : ' data-id="' + x.id + '"') + '>' + (inn ? 'Receive' : 'Pay') + '</button></div></div>';
 }
 function doneRow(x) {
   const k = DUE_KIND[x.kind] || DUE_KIND.pay;
@@ -786,6 +789,7 @@ function reminderSheet(r, preset) {
     '<label>Client</label><select id="f-client"><option value="">None</option>' + S.clients.map((c) => '<option value="' + c.id + '" ' + (c.id === base.clientId ? 'selected' : '') + '>' + esc(clientName(c)) + '</option>').join('') + '</select>' +
     '<button class="btn block" data-a="save-rem" data-id="' + (r ? r.id : '') + '">' + (r ? 'Save' : 'Add reminder') + '</button>' +
     (r && r.status === 'pending' ? '<div class="actions"><button class="btn small ghost" data-a="done" data-id="' + r.id + '">Done</button><button class="btn small ghost" data-a="snooze" data-id="' + r.id + '" data-v="60">Snooze 1 hour</button><button class="btn small ghost" data-a="tomorrow" data-id="' + r.id + '">Move to tomorrow</button></div>' : '') +
+    (r ? '<button class="btn ghost block" data-a="wa-rem" data-id="' + r.id + '">' + icon('chat', 15) + 'Send as WhatsApp message</button>' : '') +
     (r ? '<button class="btn danger block" data-a="del-rem" data-id="' + r.id + '">Move to Past</button>' : ''));
 }
 function smartFill() {
@@ -1303,6 +1307,13 @@ document.addEventListener('click', async (ev) => {
     case 'open-lead': go('more', 'leads', id); break;
     case 'lead-filter': view.leadFilter = v; render(); break;
     case 'rep-period': view.repPeriod = v; render(); break;
+    case 'wa-pay': { const p = payById(id); if (p) waSheet(Object.assign(WA.paymentMessages(p), { kind: 'pay', ref: p.id, title: 'Payment reminder' })); break; }
+    case 'wa-renew': { const c = clientById(id); if (c) waSheet(Object.assign(WA.renewalMessages(c), { kind: 'renew', ref: c.id + ':' + L.dayKey(c.nextDate), title: 'Renewal reminder' })); break; }
+    case 'wa-sp': { const sd = S.specialDays.find((x) => x.id === id); if (sd) waSheet(Object.assign(WA.wishMessages(sd), { kind: 'wish', ref: sd.id + ':' + new Date().getFullYear(), title: sd.type + ' wish', spId: sd.id })); break; }
+    case 'wa-lead': { const l = leadById(id); if (l) waSheet(Object.assign(WA.leadMessages(l), { kind: 'lead', ref: l.id, title: 'Follow-up', leadId: l.id })); break; }
+    case 'wa-rem': { const r = S.reminders.find((x) => x.id === id); if (r) { closeSheet(); setTimeout(() => waSheet(Object.assign(WA.reminderMessages(r), { kind: 'rem', ref: r.id, title: 'Reminder message', remId: r.id })), 250); } break; }
+    case 'wa-tone': { const vs = window.__waVariants || []; const x = vs[Number(v)]; if (x) { $('#wa-text').value = x.text; } $$('#wa-tones .chip').forEach((c2) => c2.classList.toggle('on', c2 === el)); waRefresh(); break; }
+    case 'wa-copy': { try { navigator.clipboard.writeText($('#wa-text').value); toast('Copied'); } catch (e) { toast('Could not copy'); } break; }
     case 'mm-done': { const k = B.today(); S.moneyMoves[k] = S.moneyMoves[k] || {}; if (S.moneyMoves[k][v]) delete S.moneyMoves[k][v]; else { S.moneyMoves[k][v] = { at: Date.now() }; logEvent('mission', { task: 'Money move: ' + v, cat: 'Money' }); const n = Object.keys(S.moneyMoves[k]).length; if (n === 5) celebrate('big', { title: 'All 5 money moves done', sub: 'This is how money comes, ' + nm() + '. Same again tomorrow.' }); else celebrate('small'); } save(); render(); break; }
     case 'mm-go': { const hsh = el.dataset.v; if (hsh) { history.replaceState(null, '', location.pathname + hsh); openHash(); render(); } break; }
     case 'co-chip': { const t = $('#co-a-' + el.dataset.i); if (t) { t.value = t.value && !t.value.includes(v) ? t.value + '. ' + v : (t.value || v); } $$('[data-a="co-chip"][data-i="' + el.dataset.i + '"]').forEach((x) => x.classList.toggle('on', x === el)); break; }
@@ -1547,6 +1558,7 @@ function openHash() {
   } else if (h === '#plan' || h === '#money' || h === '#ascend' || h === '#home') { view.tab = h.slice(1); }
   else if (h === '#money-loans') { view.tab = 'money'; view.seg.money = 'loans'; }
   else if (h === '#more-team') { view.tab = 'more'; view.sub = 'team'; }
+  else if (/^#wa-(pay|sp|renew|lead)-/.test(h)) { const mm = h.match(/^#wa-(pay|sp|renew|lead)-(.+)$/); view.tab = 'home'; view.skipOpening = true; setTimeout(() => { const el = document.createElement('button'); el.dataset.a = 'wa-' + mm[1]; el.dataset.id = mm[2]; el.hidden = true; document.body.appendChild(el); el.click(); el.remove(); }, 600); }
   else if (h === '#more-clients') { view.tab = 'more'; view.sub = 'clients'; view.id = null; }
   else if (h === '#more-reports') { view.tab = 'more'; view.sub = 'reports'; view.seg.rep = 'ask'; }
   else if (h === '#more-leads') { view.tab = 'more'; view.sub = 'leads'; view.id = null; }
@@ -1582,7 +1594,7 @@ async function newVersionReady() {
     S.onboarded = true; save({ local: true });
     openSheet('<div style="text-align:center"><div style="width:120px;height:160px;margin:0 auto">' + avatar('big') + '</div><h3 style="font-size:22px;margin-top:10px">I am Lucy.</h3><div class="sub">Your assistant, your coach and your founder partner. I will keep you focused on what matters and remind you who you are becoming.</div></div>' +
       '<label>What should I call you?</label><input data-set="name" value="' + esc(S.settings.name) + '"><button class="btn block" data-a="close">Begin</button>');
-  } else showOpening();
+  } else if (!view.skipOpening) showOpening();
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState === 'visible') {
       if (await newVersionReady()) return;
@@ -1680,7 +1692,7 @@ function renderLead(l) {
   const web = (v) => !v ? '' : /^https?:/i.test(v) ? v : 'https://' + v;
   const ig = l.instagram ? (/^https?:/i.test(l.instagram) ? l.instagram : 'https://instagram.com/' + l.instagram.replace(/^@/, '')) : '';
   let h = topbar(esc(l.name), { back: 'Leads', extra: '<button class="iconbtn" data-a="lead-edit" data-id="' + l.id + '" aria-label="Edit">' + icon('edit', 18) + '</button>' });
-  h += '<div class="actions" style="margin-top:0">' + btn(ph && 'tel:' + telOf(ph), 'phone', 'Call') + btn(wa && 'https://wa.me/' + waOf(wa), 'chat', 'WhatsApp') + btn(l.email && 'mailto:' + l.email, 'mail', 'Email') + btn(web(l.website), 'globe', 'Website') + btn(ig, 'camera', 'Instagram') + btn(l.mapLink, 'pin', 'Map') + '</div>';
+  h += '<div class="actions" style="margin-top:0">' + btn(ph && 'tel:' + telOf(ph), 'phone', 'Call') + (wa ? '<button class="btn small ghost" data-a="wa-lead" data-id="' + l.id + '">' + icon('chat', 15) + 'WhatsApp</button>' : '') + btn(l.email && 'mailto:' + l.email, 'mail', 'Email') + btn(web(l.website), 'globe', 'Website') + btn(ig, 'camera', 'Instagram') + btn(l.mapLink, 'pin', 'Map') + '</div>';
   // stage
   h += '<div class="panel gold mt"><div class="row"><div class="grow"><div class="eyebrow">Stage</div><div style="font-weight:600;font-size:18px;margin-top:4px">' + esc(l.status) + (l.temp ? ' <span class="sub" style="color:' + tempColor[l.temp] + '">· ' + esc(l.temp) + '</span>' : '') + '</div><div class="sub">' + leadProb(l) + '% likely' + (l.closeBy ? ' · expected close ' + L.fmtDate(l.closeBy) : '') + '</div></div>' +
     '<div class="right"><div class="eyebrow">Deal value</div><div class="num" style="font-size:20px;font-weight:600;margin-top:4px">' + (Number(l.dealMonthly) ? money(l.dealMonthly) + '<span class="sub">/mo</span>' : Number(l.dealOnce) ? money(l.dealOnce) : '–') + '</div>' + (Number(l.dealMonthly) && Number(l.dealOnce) ? '<div class="sub">+ ' + money(l.dealOnce) + ' one time</div>' : '') + '</div></div>' +
@@ -1959,4 +1971,70 @@ function moneyMovesPanel(full) {
     return '<div class="item ' + (m.done ? 'done' : '') + '" style="align-items:flex-start"><button class="check ' + (m.done ? 'on' : '') + '" data-a="mm-done" data-v="' + m.key + '">' + (m.done ? icon('check', 16) : '') + '</button><div class="grow"><div class="eyebrow">' + esc(m.cat) + (m.amt ? ' · ' + short(m.amt) : '') + '</div><div class="t">' + esc(m.title) + '</div><div class="m">' + esc(m.why) + (m.more ? ' · ' + esc(m.more) : '') + '</div>' +
       (a ? '<div class="m" style="margin-top:6px;font-style:italic;color:var(--gold)">"' + esc(a.text) + '"</div>' : '') + '</div>' + (m.hash ? '<button class="iconbtn" data-a="mm-go" data-v="' + m.hash + '" aria-label="Open">' + icon('right', 16) + '</button>' : '') + '</div>'; }).join('') + '</div>';
   return h;
+}
+
+/* ---------------- WhatsApp: Lucy writes, you tap Send ---------------- */
+function waSheet(m) {
+  window.__waVariants = m.variants; window.__waMeta = m;
+  const v = m.variants[m.pick || 0];
+  const sent = WA.sentRecently(m.kind, m.ref, 3);
+  openSheet('<div class="eyebrow">WhatsApp · ' + esc(m.title || 'Message') + '</div><h3 class="mt">' + esc(m.to || 'Who should get this?') + '</h3>' +
+    (sent ? '<div class="sub" style="color:var(--gold)">You already sent this in the last 3 days.</div>' : '') +
+    '<label>WhatsApp number</label><input id="wa-phone" type="tel" value="' + esc(m.phone || '') + '" placeholder="+91 98xxxxxxxx">' +
+    '<label>Tone</label><div class="chips" id="wa-tones">' + m.variants.map((x, i) => '<button class="chip' + (i === (m.pick || 0) ? ' on' : '') + '" data-a="wa-tone" data-v="' + i + '">' + esc(x.label) + '</button>').join('') + '</div>' +
+    '<label>Message (you can edit it)</label><textarea id="wa-text" style="min-height:190px;font-size:15px;line-height:1.45">' + esc(v.text) + '</textarea>' +
+    '<a id="wa-go" class="btn block" href="#" target="_blank" rel="noopener" style="background:#25D366;color:#04130A;border-color:#25D366">' + icon('chat', 16) + 'Open WhatsApp and send</a>' +
+    '<button class="btn ghost block" data-a="wa-copy">Copy message</button>' +
+    '<div class="hint">WhatsApp opens with this message ready. You press Send. It goes from your own number.</div>');
+  waRefresh();
+}
+function waRefresh() {
+  const a = $('#wa-go'); if (!a) return;
+  const ph = $('#wa-phone').value, ok = WA.validPhone(ph);
+  a.href = ok ? WA.waUrl(ph, $('#wa-text').value) : '#';
+  a.style.opacity = ok ? '1' : '.45';
+}
+document.addEventListener('input', (ev) => { if (ev.target && (ev.target.id === 'wa-phone' || ev.target.id === 'wa-text')) waRefresh(); });
+document.addEventListener('click', (ev) => {
+  const a = ev.target.closest && ev.target.closest('#wa-go'); if (!a) return;
+  const m = window.__waMeta || {}, ph = $('#wa-phone').value.trim();
+  if (!WA.validPhone(ph)) { ev.preventDefault(); toast('Add a valid WhatsApp number first'); return; }
+  // remember the number where it belongs, so next time it is filled in
+  if (m.kind === 'wish' && m.spId) { const sd = S.specialDays.find((x) => x.id === m.spId); if (sd && !sd.phone) sd.phone = ph; }
+  if (m.kind === 'lead' && m.leadId) { const l = leadById(m.leadId); if (l && !l.phone && !l.whatsapp) l.phone = ph; }
+  if (m.kind === 'rem' && m.remId) { const r = S.reminders.find((x) => x.id === m.remId); if (r) { r.waPhone = ph; r.waTo = m.to || ''; } }
+  if (m.kind === 'pay') { const p = payById(m.ref); const c = p && p.clientId ? clientById(p.clientId) : null; if (c && !c.phone) c.phone = ph; else if (p && !c && !p.phone) p.phone = ph; }
+  S.waLog = S.waLog || [];
+  S.waLog.push({ id: nid(), at: Date.now(), kind: m.kind, ref: m.ref, to: m.to || '', phone: ph });
+  if (m.kind === 'pay') { const p = payById(m.ref); if (p) p.lastNudge = Date.now(); }
+  if (m.kind === 'lead' && m.leadId) { const l = leadById(m.leadId); if (l) { (l.activity = l.activity || []).push({ id: nid(), at: Date.now(), type: 'WhatsApp', outcome: 'Message sent', text: $('#wa-text').value.slice(0, 300) }); l.lastContact = Date.now(); } }
+  save(); setTimeout(() => { closeSheet(); render(); toast('Sent from your WhatsApp. Lucy noted it.'); }, 400);
+});
+// What to send today: wishes, payments to chase, renewals, lead follow-ups
+function waQueue() {
+  const now = Date.now(), d0 = L.startOfDay(now), out = [];
+  S.specialDays.forEach((sd) => {
+    const [mm, dd] = String(sd.date || '').split('-').map(Number); if (!mm || !dd) return;
+    const at = new Date(new Date(now).getFullYear(), mm - 1, dd).getTime();
+    if (L.dayKey(at) === L.dayKey(now) && !WA.sentRecently('wish', sd.id + ':' + new Date().getFullYear(), 300)) out.push({ a: 'wa-sp', id: sd.id, t: sd.type + ' wish: ' + sd.name, m: (sd.relation ? sd.relation + ' · ' : '') + 'today', pr: 0 });
+  });
+  S.payments.filter((p) => p.type === 'in' && p.status === 'pending' && p.due < L.addDays(d0, 2)).forEach((p) => {
+    if (WA.sentRecently('pay', p.id, 3)) return;
+    const late = Math.round((d0 - L.startOfDay(p.due)) / L.DAY);
+    out.push({ a: 'wa-pay', id: p.id, t: 'Payment reminder: ' + p.party, m: money(Math.max(0, Number(p.amount) - B.paidOf(p))) + ' · ' + (late > 0 ? late + ' days late' : late === 0 ? 'due today' : 'due tomorrow'), pr: late > 0 ? 1 : 2 });
+  });
+  S.clients.filter((c) => !c.past && c.active !== false && c.billing !== 'once' && c.nextDate && c.nextDate >= d0 && c.nextDate < L.addDays(d0, 4)).forEach((c) => {
+    if (S.payments.some((p) => p.clientId === c.id && p.status === 'pending')) return;
+    if (WA.sentRecently('renew', c.id + ':' + L.dayKey(c.nextDate), 10)) return;
+    out.push({ a: 'wa-renew', id: c.id, t: 'Renewal heads-up: ' + clientName(c), m: 'renews ' + L.fmtDate(c.nextDate), pr: 3 });
+  });
+  S.leads.filter((l) => !['Won', 'Lost'].includes(l.status) && l.followUp && l.followUp < L.addDays(d0, 1) && (l.phone || l.whatsapp)).forEach((l) => {
+    if (WA.sentRecently('lead', l.id, 1)) return;
+    out.push({ a: 'wa-lead', id: l.id, t: 'Follow up: ' + l.name, m: l.nextAction || 'follow-up due', pr: 4 });
+  });
+  return out.sort((a, b2) => a.pr - b2.pr);
+}
+function waHomeCard() {
+  const q = waQueue(); if (!q.length) return '';
+  return '<h2>WhatsApp to send · ' + q.length + '</h2><div class="list">' + q.slice(0, 5).map((x) => '<div class="item"><div class="badge" style="--c:#25D366">' + icon('chat', 18) + '</div><div class="grow"><div class="t">' + esc(x.t) + '</div><div class="m">' + esc(x.m) + '</div></div><button class="btn small" data-a="' + x.a + '" data-id="' + x.id + '">Send</button></div>').join('') + '</div>';
 }

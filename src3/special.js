@@ -51,7 +51,7 @@ export function specialSchedule(push, nm) {
       }
       if (sd.remind7 !== false) push(L.atTime(L.addDays(at, -7), 10, 0), 'In 7 days: ' + title, 'Plan a wish or a gift now so you are not rushing later.', tag, '#plan-special');
       push(L.atTime(L.addDays(at, -1), 20, 0), 'Tomorrow: ' + title, 'Keep your wish ready, ' + nm + '.' + (sd.relation ? ' (' + sd.relation + ')' : ''), tag, '#plan-special');
-      push(L.atTime(at, 9, 0), 'Today: ' + title, (sd.phone ? 'Call ' + sd.name + ' now. ' : 'Wish ' + sd.name + ' today. ') + 'A small gesture is remembered for years.', tag, '#plan-special');
+      push(L.atTime(at, 9, 0), 'Today: ' + title, 'Your WhatsApp wish for ' + sd.name + ' is written. Tap to send it.', tag, '#wa-sp-' + sd.id);
     });
   });
 }

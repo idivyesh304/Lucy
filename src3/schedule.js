@@ -122,7 +122,7 @@ export function buildSchedule() {
     if (before >= from) push(before, 'Tomorrow: ' + verb, p.note || 'Heads-up from Lucy', 'pay-' + p.id, '#money');
     for (let i = 0; i < 4; i++) {
       const t = L.atTime(L.addDays(p.due, i), 10, 0);
-      if (t >= from) push(t, (i ? 'Overdue ' + i + 'd: ' : 'Today: ') + verb, p.note || (p.type === 'in' ? 'Time to follow up.' : 'Do not let it slip.'), 'pay-' + p.id, '#money');
+      if (t >= from) push(t, (i ? 'Overdue ' + i + 'd: ' : 'Today: ') + verb, p.type === 'in' ? 'Tap to send the WhatsApp reminder Lucy wrote.' : (p.note || 'Do not let it slip.'), 'pay-' + p.id, p.type === 'in' ? '#wa-pay-' + p.id : '#money');
     }
   });
 

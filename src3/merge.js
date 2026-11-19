@@ -1,6 +1,6 @@
 export const TRACK = ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'office', 'coach', 'books', 'media'];
 // Merging two copies of Lucy's data. Shared by the app and the helper, so both merge the same way.
-const ARR_KEYS = ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'office', 'archive', 'coach', 'books', 'media', 'chat', 'log'];
+const ARR_KEYS = ['clients', 'payments', 'reminders', 'loans', 'expenses', 'employees', 'specialDays', 'dreams', 'leads', 'ideas', 'notes', 'shopping', 'learning', 'office', 'archive', 'coach', 'books', 'media', 'waLog', 'chat', 'log'];
 const MAP_KEYS = ['journal', 'manifest', 'routineLog', 'mission', 'celebrated'];
 export function records(d) {
   if (!d || typeof d !== 'object') return 0;

@@ -320,6 +320,7 @@ function renderProfile() {
     '<div class="profile-head panel gold"><label class="pf-photo">' + (p.photo ? '<img src="' + p.photo + '" alt="">' : icon('user', 40)) + '<input type="file" accept="image/*" id="pf-photo" hidden><span>' + icon('camera', 14) + '</span></label>' +
     '<div class="grow"><div class="pf-name">' + esc(p.fullName || nm()) + '</div><div class="sub">' + esc([p.role, p.company].filter(Boolean).join(' · ')) + '</div>' +
     (p.dob ? '<div class="sub gold mt" style="margin-top:6px">' + icon('cake', 13) + ' ' + L.fmtDate(SP.nextOccurrence({ date: p.dob.slice(5) })) + '</div>' : '') + '</div></div>' +
+    '<button class="panel" style="width:100%;text-align:left" data-a="v-paste"><div class="row"><div class="badge">' + icon('copy', 18) + '</div><div class="grow"><b>Paste details</b><div class="sub">Paste a note with your details (for example the message you sent Claude) and Lucy fills the right fields.</div></div>' + icon('right', 18) + '</div></button>' +
     '<div class="hint" style="margin-bottom:6px">Tick any details, then copy them or send them on WhatsApp in one go. Private numbers stay hidden until you tap them.</div>';
   VT.SECTIONS.forEach((sec) => {
     const filled = sec.fields.filter((f) => p[f[0]]);
@@ -1391,6 +1392,15 @@ document.addEventListener('click', async (ev) => {
     case 'v-all': { const sec = VT.SECTIONS.find((x) => x.id === v); const ks = sec.fields.map((f) => f[0]).filter((k) => S.profile[k]); const all = ks.every((k) => vsel.has(k)); ks.forEach((k) => all ? vsel.delete(k) : vsel.add(k)); render(); break; }
     case 'v-clear': vsel.clear(); render(); break;
     case 'v-edit': vaultSheet(v); break;
+    case 'v-paste': openSheet('<h3>Paste details</h3><div class="sub">Paste any note written as "label - value", one per line. Section headings like "company bank details" tell Lucy which account a line belongs to.</div><textarea id="v-in" style="min-height:220px;font-size:14px" placeholder="aadhar card number - ...\npan card number - ...\n\ncompany bank details\naccount number - ..."></textarea><button class="btn block" data-a="v-parse">Find my details</button>'); break;
+    case 'v-parse': {
+      const found = VT.parseText($('#v-in').value), keys = Object.keys(found).filter((k) => found[k] && !String(S.profile[k] || '').trim());
+      if (!keys.length) { toast('Nothing new to add. Everything in this note is already in your profile, or use one "label - value" per line.'); break; }
+      window.__vFound = {}; keys.forEach((k) => { window.__vFound[k] = found[k]; });
+      openSheet('<h3>Lucy found ' + keys.length + ' details</h3><div class="sub">Check them, then save. Numbers are shown with only the last 4 digits.</div><div class="list mt">' + keys.map((k) => { const f = VT.fieldOf(k), pr = VT.problem(k, found[k]); return '<div class="item"><div class="grow"><div class="m">' + esc(f.section.title) + ' · ' + esc(f.label) + '</div><div class="t">' + esc(f.secret ? VT.masked(k, found[k]) : VT.display(k, found[k])) + '</div>' + (pr ? '<div class="m bad">' + esc(pr) + '</div>' : '') + '</div></div>'; }).join('') + '</div><button class="btn block" data-a="v-import">Save these ' + keys.length + ' details</button>');
+      break;
+    }
+    case 'v-import': { const f = window.__vFound || {}; Object.keys(f).forEach((k) => { if (f[k]) S.profile[k] = f[k]; }); window.__vFound = null; save(); closeSheet(); render(); toast('Saved to your profile'); break; }
     case 'v-save': vaultSave(v); break;
     case 'v-copy': { try { await navigator.clipboard.writeText(VT.display(v, S.profile[v])); toast(VT.fieldOf(v).label + ' copied'); } catch (e) { toast('Could not copy'); } break; }
     case 'v-copysel': { const t = VT.shareText([...vsel], { maskAadhaar: !$('#v-mask') || $('#v-mask').checked }); try { await navigator.clipboard.writeText(t); toast('Copied ' + vsel.size + ' details'); } catch (e) { toast('Could not copy'); } break; }

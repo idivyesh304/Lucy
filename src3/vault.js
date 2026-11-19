@@ -84,3 +84,34 @@ export function shareText(keys, opts) {
   });
   return out.join('\n').trim();
 }
+
+// Paste a block of "label - value" lines (like a WhatsApp note) and Lucy fills the matching fields.
+// Section headings in the text ("company bank details", "account details") decide which account a line belongs to.
+const ALIAS = {
+  firstname: 'firstName', name: 'firstName', middelname: 'middleName', middlename: 'middleName', surname: 'surname', lastname: 'surname', petname: 'petName', shortname: 'nickname',
+  birthday: 'dob', dateofbirth: 'dob', dob: 'dob', personalcontact: 'phonePersonal', workcontact: 'phone', personalemail: 'emailPersonal',
+  aadharcardnumber: 'aadhaar', aadhaarcardnumber: 'aadhaar', aadharnumber: 'aadhaar', aadhaarnumber: 'aadhaar', aadhar: 'aadhaar', aadhaar: 'aadhaar',
+  pancardnumber: 'pan', voteridnumber: 'voterId', voterid: 'voterId', passportnumber: 'passport', passport: 'passport',
+  drivinglicencenumber: 'drivingLicence', drivinglicensenumber: 'drivingLicence', drivinglicence: 'drivingLicence', eshramcardnumber: 'eShram', eshram: 'eShram',
+  gstnumber: 'gst', gst: 'gst', gstin: 'gst', cinnumber: 'cin', cin: 'cin', tannumber: 'tan', tan: 'tan', bloodgroup: 'bloodGroup'
+};
+const BANK = { bankname: 'Bank', accountholdername: 'Holder', accountnumber: 'Acc', accountno: 'Acc', accounttype: 'Type', ifsc: 'Ifsc', ifsccode: 'Ifsc', ifsccoad: 'Ifsc', upiid: 'Upi', upi: 'Upi', crnnumber: 'Crn', crn: 'Crn', branchname: 'Branch', bankaddress: 'Address', branchaddress: 'Address' };
+export function parseText(text) {
+  const out = {}; let ctx = '';
+  String(text || '').split(/\r?\n/).forEach((raw) => {
+    const line = raw.trim(); if (!line) return;
+    const m = line.match(/^(.+?)\s*[-:–—]\s+(.+)$/) || line.match(/^(.+?)\s*[:–—]\s*(.+)$/);
+    const head = (m ? '' : line).toLowerCase();
+    if (head) {
+      if (/company.*bank/.test(head)) ctx = 'cbank'; else if (/bank|acc?out|account/.test(head)) ctx = 'pbank';
+      else if (/company/.test(head)) ctx = 'company'; else if (/gov|ids?\b/.test(head)) ctx = 'ids'; else if (/medical/.test(head)) ctx = 'medical'; else if (/email/.test(head)) ctx = ctx === 'company' ? 'company' : ctx;
+      return;
+    }
+    const label = m[1].toLowerCase().replace(/[^a-z]/g, ''), value = m[2].trim();
+    if (BANK[label] && (ctx === 'pbank' || ctx === 'cbank')) { const k = (ctx === 'cbank' ? 'cb' : 'pb') + BANK[label]; if (fieldOf(k)) out[k] = clean(k, value); return; }
+    if (label === 'pannumber' || label === 'pan') { const k = ctx === 'company' || ctx === 'cbank' ? 'companyPan' : 'pan'; out[k] = clean(k, value); return; }
+    const k = ALIAS[label];
+    if (k && k !== 'dob') out[k] = clean(k, value);
+  });
+  return out;
+}

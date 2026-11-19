@@ -291,18 +291,25 @@ export function growthPlan() {
 // (October's salary on 10 November). offset 0 = the cycle paid this month, 1 = the one paid next month.
 const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 export function salaryCycle(offset, e) {
-  const d = new Date(), sd = Number(e && e.payDay) || Number(S.settings.salaryDay) || 1; // some people are paid on their own day
+  const d = new Date(), own = Number(e && e.payDay), sd = own || Number(S.settings.salaryDay) || 1;
   const pay = new Date(d.getFullYear(), d.getMonth() + (offset || 0), 1), work = new Date(pay.getFullYear(), pay.getMonth() - 1, 15);
-  const payDay = new Date(pay.getFullYear(), pay.getMonth(), Math.min(sd, new Date(pay.getFullYear(), pay.getMonth() + 1, 0).getDate())).getTime();
+  const at = (y, m) => new Date(y, m, Math.min(sd, new Date(y, m + 1, 0).getDate())).getTime();
+  const payDay = at(pay.getFullYear(), pay.getMonth());
+  if (own) {
+    // people with their own salary day are paid for the month that ends on that day (21 Oct to 20 Nov is paid on 21 Nov)
+    const from = at(pay.getFullYear(), pay.getMonth() - 1), to = payDay - 86400000, sh = (t) => new Date(t).getDate() + ' ' + FULL_MONTHS[new Date(t).getMonth()].slice(0, 3);
+    return { month: monthKey(payDay), name: sh(from) + ' to ' + sh(to), payDay: payDay, workEnd: to };
+  }
   return { month: monthKey(work.getTime()), name: FULL_MONTHS[work.getMonth()], payDay: payDay, workEnd: new Date(work.getFullYear(), work.getMonth() + 1, 0).getTime() };
 }
 export function payroll() {
   const cyc = salaryCycle(0), mk = cyc.month;
   const list = S.employees.filter((e) => e.active !== false);
   const total = list.reduce((a, e) => a + (Number(e.salary) || 0), 0);
-  const paidAmount = list.reduce((a, e) => a + Math.min(Number(e.salary) || 0, salaryPaidOf(e, mk)), 0);
-  const full = list.filter((e) => salaryPaidOf(e, mk) >= (Number(e.salary) || 0) && salaryPaidOf(e, mk) > 0);
-  return { list: list, total: total, paidCount: full.length, paidAmount: paidAmount, due: list.filter((e) => salaryPaidOf(e, mk) < (Number(e.salary) || 0)), month: mk, monthName: cyc.name, payDay: cyc.payDay };
+  const pm = (e) => (e.payDay ? salaryCycle(0, e).month : mk); // each person's current salary
+  const paidAmount = list.reduce((a, e) => a + Math.min(Number(e.salary) || 0, salaryPaidOf(e, pm(e))), 0);
+  const full = list.filter((e) => salaryPaidOf(e, pm(e)) >= (Number(e.salary) || 0) && salaryPaidOf(e, pm(e)) > 0);
+  return { list: list, total: total, paidCount: full.length, paidAmount: paidAmount, due: list.filter((e) => salaryPaidOf(e, pm(e)) < (Number(e.salary) || 0)), month: mk, monthName: cyc.name, payDay: cyc.payDay };
 }
 
 // Monthly clients: on each renewal date, add that month's amount to receivables (once per cycle).

@@ -287,7 +287,7 @@ function renderTeam() {
   const pr = B.payroll(), mon = pr.monthName;
   let h = topbar('Team', { back: 'More' });
   h += '<div class="stats">' + stat('Team', pr.list.length + ' people', S.growth.team.reduce((a, m) => a + Number(m.need || 0), 0) + ' planned') + stat('Monthly payroll', short(pr.total), 'salary day ' + (S.settings.salaryDay || 1)) +
-    stat(mon + ' salary paid', pr.paidCount + ' / ' + pr.list.length, short(pr.paidAmount)) + stat('Still to pay', short(pr.total - pr.paidAmount), pr.due.length + ' people') + '</div>';
+    stat('Salaries paid', pr.paidCount + ' / ' + pr.list.length, short(pr.paidAmount)) + stat('Still to pay', short(pr.total - pr.paidAmount), pr.due.length + ' people') + '</div>';
   const roles = S.growth.team.map((m) => m.role).concat([...new Set(S.employees.map((e) => e.role))].filter((r) => !S.growth.team.some((m) => m.role.toLowerCase() === String(r).toLowerCase())));
   roles.forEach((r) => {
     const list = S.employees.filter((e) => !e.past && String(e.role).toLowerCase() === String(r).toLowerCase());
@@ -299,14 +299,14 @@ function renderTeam() {
   return h;
 }
 function empRow(e) {
-  const mk = B.payroll().month, paidAmt = B.salaryPaidOf(e, mk), sal = Number(e.salary) || 0;
+  const mk = B.salaryCycle(0, e).month, paidAmt = B.salaryPaidOf(e, mk), sal = Number(e.salary) || 0;
   return '<div class="item' + (e.active === false ? ' off' : '') + '" data-a="edit-emp" data-id="' + e.id + '"><div class="pf-mini" style="width:40px;height:40px">' + (e.photo ? '<img src="' + e.photo + '" alt="">' : '<span class="num" style="font-size:15px">' + esc((e.name || '?').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()) + '</span>') + '</div>' +
     '<div class="grow"><div class="t">' + esc(e.name) + '</div><div class="m">' + esc([e.phone, e.upi].filter(Boolean).join(' · ')) + '</div></div>' +
     '<div class="right"><div class="amount out">' + money(e.salary || 0) + '</div><div class="m" style="font-size:12px;margin-top:2px">' + (e.active === false ? 'Inactive' : paidAmt >= sal && paidAmt > 0 ? '<span class="good">Paid</span>' : paidAmt > 0 ? '<span class="gold">Part ' + money(paidAmt) + '</span>' : '<span class="warn">Due</span>') + '</div></div></div>';
 }
 function empSheet(e, role) {
   e = e || { name: '', role: role || (S.growth.team[0] || {}).role || '', phone: '', upi: '', salary: '', joined: '', active: true, note: '' };
-  const mk = B.payroll().month, paid = e.id ? B.salaryPaidOf(e, mk) : 0;
+  const mk = e.id ? B.salaryCycle(0, e).month : B.payroll().month, paid = e.id ? B.salaryPaidOf(e, mk) : 0;
   const tel = String(e.phone || '').replace(/[^\d+]/g, ''), wa = tel.startsWith('+') ? tel.slice(1) : (tel.length === 10 ? '91' + tel : tel);
   const roles = S.growth.team.map((m) => m.role);
   openSheet('<h3>' + (e.id ? esc(e.name) : 'New team member') + '</h3>' +
@@ -2320,9 +2320,8 @@ function waQueue() {
     if (WA.sentRecently('rem', r.id, 1)) return;
     out.push({ a: 'wa-rem', id: r.id, t: 'Message: ' + r.task, m: L.fmtWhen(r.due), pr: 5 });
   });
-  const mk = B.payroll().month;
   S.employees.filter((e) => e.active !== false && !e.past && e.phone).forEach((e) => {
-    const parts = ((e.paid || {})[mk] || {}).parts || [];
+    const mk = B.salaryCycle(0, e).month, parts = ((e.paid || {})[mk] || {}).parts || [];
     const last = parts.length ? parts[parts.length - 1].at : 0;
     if (last && now - last < 2 * L.DAY && !WA.sentRecently('emp', e.id, 2)) out.push({ a: 'wa-emp', id: e.id, t: 'Tell ' + e.name + ' salary is credited', m: money(B.salaryPaidOf(e, mk)) + ' paid', pr: 6 });
   });

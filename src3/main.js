@@ -26,7 +26,7 @@ const alertStart = B.alertStart;
 const segOf = (k, d) => view.seg[k] || d;
 
 onSave(() => { H.queueDriveSave(); H.queueSchedule(buildSchedule); });
-V.onVoiceState((s) => { setAvatarState(s); const el = $('.lucy-state'); if (el) el.textContent = stateLabel(s); const c = $('.lucy-state-chip'); if (c) c.textContent = stateLabel(s).toUpperCase(); });
+V.onVoiceState((s) => { if (s === 'nosound') { toast(/iPhone|iPad/.test(navigator.userAgent) ? 'No sound? Turn off Silent mode on your iPhone (the switch on the side) and turn the volume up.' : 'No sound. Check your volume.'); s = 'idle'; } setAvatarState(s); const el = $('.lucy-state'); if (el) el.textContent = stateLabel(s); const c = $('.lucy-state-chip'); if (c) c.textContent = stateLabel(s).toUpperCase(); });
 function stateLabel(s) { return s === 'speaking' ? 'Speaking' : s === 'listening' ? 'Listening' : s === 'thinking' ? 'Thinking' : 'Online'; }
 
 /* =============================== navigation =============================== */
@@ -1123,7 +1123,7 @@ document.addEventListener('click', async (ev) => {
     case 'open-connections': go('more', 'connections'); refreshStatus(); break;
     case 'settings-routine': go('more', 'settings'); setTimeout(() => { const r = $('#routine-settings'); if (r) r.scrollIntoView(); }, 50); break;
     // home
-    case 'speak-brief': { const b = B.briefing(); V.speak(b.greeting + '. ' + b.lines.join(' '), { force: true }); break; }
+    case 'speak-brief': { if (V.isSpeaking()) { V.stopSpeaking(); break; } const b = B.briefing(); el.classList.add('on'); V.speak(b.greeting + '. ' + b.lines.join(' '), { force: true }).then(() => el.classList.remove('on')); break; }
     case 'ai-brief': go('lucy'); ask(QUICK[0][2], 'brief'); break;
     case 'nbm-go': if (v === 'more-leads') go('more', 'leads'); else go(v); break;
     case 'mission': {

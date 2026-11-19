@@ -38,25 +38,60 @@ function chooseVoice() {
   if (want) { const v = list.find((x) => x.voiceURI === want); if (v) return v; }
   return list[0] || null;
 }
+// Speech that works on iPhone too: short sentence chunks (long text stalls), resume (iOS gets stuck paused),
+// a small gap after cancel (iOS drops speech started right after cancel), and a retry with the
+// default voice if the chosen one never starts (some iPhone voices fail silently).
+let job = 0;
+export const lastIssue = { silent: false };
+function chunks(t) {
+  const parts = String(t).match(/[^.!?]+[.!?]*\s*/g) || [String(t)];
+  const out = []; let cur = '';
+  parts.forEach((p) => { if ((cur + p).length > 180 && cur) { out.push(cur.trim()); cur = p; } else cur += p; });
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
 export function speak(text, opts) {
   opts = opts || {};
   if (!('speechSynthesis' in window) || !text) return Promise.resolve();
   if (!opts.force && !S.settings.speak) return Promise.resolve();
+  const clean = String(text).replace(/```[\s\S]*?```/g, '').replace(/[*_#>`]/g, '').replace(/₹\s?/g, 'rupees ').replace(/\s+/g, ' ').trim().slice(0, 2500);
+  const my = ++job;
+  const busy = speechSynthesis.speaking || speechSynthesis.pending;
+  if (busy) { try { speechSynthesis.cancel(); } catch (e) {} }
   return new Promise((resolve) => {
-    try { speechSynthesis.cancel(); } catch (e) {}
-    const clean = String(text).replace(/```[\s\S]*?```/g, '').replace(/[*_#>`]/g, '').replace(/₹\s?/g, 'rupees ').replace(/\s+/g, ' ').trim().slice(0, 1500);
-    const u = new SpeechSynthesisUtterance(clean);
-    const v = chooseVoice();
-    if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-IN';
-    u.rate = Number(S.settings.voiceRate) || 0.95;
-    u.pitch = Number(S.settings.voicePitch) || 1;
-    u.onstart = () => { speaking = true; emit('speaking'); };
-    u.onboundary = (e) => { if (!e.name || e.name === 'word') wordSubs.forEach((fn) => { try { fn(e); } catch (x) {} }); };
-    u.onend = u.onerror = () => { speaking = false; emit('idle'); resolve(); };
-    speechSynthesis.speak(u);
+    const list = chunks(clean);
+    let started = false, useDefault = false, i = 0;
+    const finish = () => { if (my !== job) return; speaking = false; emit('idle'); resolve(); };
+    const next = () => {
+      if (my !== job) return resolve();
+      if (i >= list.length) return finish();
+      const u = new SpeechSynthesisUtterance(list[i]);
+      const v = useDefault ? null : chooseVoice();
+      if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-IN';
+      u.rate = Number(S.settings.voiceRate) || 0.95;
+      u.pitch = Number(S.settings.voicePitch) || 1;
+      u.onstart = () => { started = true; speaking = true; emit('speaking'); };
+      u.onboundary = (e) => { if (!e.name || e.name === 'word') wordSubs.forEach((fn) => { try { fn(e); } catch (x) {} }); };
+      u.onend = () => { i++; next(); };
+      u.onerror = (e) => { if (e && (e.error === 'interrupted' || e.error === 'canceled')) return finish(); i++; next(); };
+      try { speechSynthesis.resume(); } catch (e) {}
+      speechSynthesis.speak(u);
+    };
+    const go = () => {
+      next();
+      // watchdog: if nothing started, retry once with the phone's default voice
+      setTimeout(() => {
+        if (my !== job || started) return;
+        try { speechSynthesis.cancel(); } catch (e) {}
+        useDefault = true; i = 0;
+        setTimeout(() => { if (my === job) next(); }, 120);
+        setTimeout(() => { if (my === job && !started) { lastIssue.silent = true; emit('nosound'); finish(); } }, 2500);
+      }, 1600);
+    };
+    if (busy) setTimeout(go, 150); else go();
   });
 }
-export function stopSpeaking() { try { speechSynthesis.cancel(); } catch (e) {} speaking = false; emit('idle'); }
+export function stopSpeaking() { job++; try { speechSynthesis.cancel(); } catch (e) {} speaking = false; emit('idle'); }
 export function isSpeaking() { return speaking; }
 
 export function canListen() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }

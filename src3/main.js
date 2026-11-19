@@ -11,6 +11,7 @@ import * as SP from './special.js';
 import * as MG from './magnet.js';
 import * as CO from './coach.js';
 import * as WA from './wa.js';
+import * as VT from './vault.js';
 import { celebrate, setTapPoint } from './celebrate.js';
 import { $, esc, hm, toTime, fromInputs, fmtHM, money, short, toast, openSheet, closeSheet, sheetOpen, listOf, seg, sw, catIcon, catStyle, ring, chart, imageToDataUrl, icon, L, C } from './ui.js';
 
@@ -312,21 +313,53 @@ function empSheet(e, role) {
     '<div class="row mt"><input type="checkbox" id="em-active" ' + (e.active === false ? '' : 'checked') + '><span>Currently working</span></div>' +
     '<button class="btn block" data-a="save-emp" data-id="' + (e.id || '') + '">Save</button>' + (e.id ? (e.past ? '<button class="btn block" data-a="past-emp-back" data-id="' + e.id + '">Bring back to team</button>' : '<button class="btn ghost block" data-a="del-emp" data-id="' + e.id + '">Move to Past team</button>') : ''));
 }
+const vsel = new Set(), vshow = new Set();
 function renderProfile() {
   const p = S.profile;
-  const f = (k, l, type, ph) => '<label>' + l + '</label><input data-prof="' + k + '" type="' + (type || 'text') + '" value="' + esc(p[k] || '') + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '>';
-  return topbar('My profile', { back: 'More' }) +
+  let h = topbar('My profile', { back: 'More', eyebrow: 'Your details · tap to copy or send' }) +
     '<div class="profile-head panel gold"><label class="pf-photo">' + (p.photo ? '<img src="' + p.photo + '" alt="">' : icon('user', 40)) + '<input type="file" accept="image/*" id="pf-photo" hidden><span>' + icon('camera', 14) + '</span></label>' +
     '<div class="grow"><div class="pf-name">' + esc(p.fullName || nm()) + '</div><div class="sub">' + esc([p.role, p.company].filter(Boolean).join(' · ')) + '</div>' +
     (p.dob ? '<div class="sub gold mt" style="margin-top:6px">' + icon('cake', 13) + ' ' + L.fmtDate(SP.nextOccurrence({ date: p.dob.slice(5) })) + '</div>' : '') + '</div></div>' +
-    '<h2>Personal</h2>' + f('fullName', 'Full name') + f('nickname', 'What Lucy calls you') +
-    f('dob', 'Birthday', 'date') +
-    '<div class="grid2"><div>' + f('phone', 'Phone', 'tel') + '</div><div>' + f('altPhone', 'Other phone', 'tel') + '</div></div>' + f('email', 'Email', 'email') +
-    f('city', 'City') + f('address', 'Home address') + '<div class="grid2"><div>' + f('bloodGroup', 'Blood group') + '</div><div>' + f('emergencyPhone', 'Emergency phone', 'tel') + '</div></div>' + f('emergencyName', 'Emergency contact name') +
-    '<h2>Work</h2>' + f('company', 'Company') + f('role', 'Role') + f('website', 'Website') + f('officeAddress', 'Office address') +
-    '<h2>Social</h2>' + f('instagram', 'Instagram', 'text', '@handle') + f('linkedin', 'LinkedIn') + f('youtube', 'YouTube') +
-    '<h2>About me</h2><textarea data-prof="about" placeholder="Anything Lucy should know about you: goals, habits, what motivates you">' + esc(p.about || '') + '</textarea>' +
-    '<div class="hint">Saved automatically and synced to all your devices. Lucy uses your profile to personalise her help.</div>';
+    '<div class="hint" style="margin-bottom:6px">Tick any details, then copy them or send them on WhatsApp in one go. Private numbers stay hidden until you tap them.</div>';
+  VT.SECTIONS.forEach((sec) => {
+    const filled = sec.fields.filter((f) => p[f[0]]);
+    const allOn = filled.length && filled.every((f) => vsel.has(f[0]));
+    h += '<h2>' + esc(sec.title) + '<span class="row" style="gap:12px">' + (filled.length ? '<button class="link" data-a="v-all" data-v="' + sec.id + '">' + (allOn ? 'Clear' : 'Select all') + '</button>' : '') + '<button class="link" data-a="v-edit" data-v="' + sec.id + '">Edit</button></span></h2><div class="list">' +
+      sec.fields.map((f) => {
+        const k = f[0], v = p[k], secret = !!f[3];
+        if (!v) return '<div class="item" data-a="v-edit" data-v="' + sec.id + '" style="opacity:.55"><div class="grow"><div class="m">' + esc(f[1]) + '</div><div class="t" style="font-weight:400">Tap Edit to add</div></div></div>';
+        const shown = !secret || vshow.has(k), txt = shown ? VT.display(k, v) : VT.masked(k, v);
+        return '<div class="item"><button class="check' + (vsel.has(k) ? ' on' : '') + '" data-a="v-pick" data-v="' + k + '">' + (vsel.has(k) ? icon('check', 16) : '') + '</button>' +
+          '<div class="grow"' + (secret ? ' data-a="v-show" data-v="' + k + '"' : '') + '><div class="m">' + esc(f[1]) + (secret ? ' · ' + (shown ? 'tap to hide' : 'tap to show') : '') + '</div><div class="t" style="white-space:pre-wrap;font-weight:500">' + esc(txt) + '</div></div>' +
+          '<button class="iconbtn" data-a="v-copy" data-v="' + k + '" aria-label="Copy">' + icon('copy', 16) + '</button></div>';
+      }).join('') + '</div>';
+  });
+  h += '<h2>About me</h2><textarea data-prof="about" placeholder="Anything Lucy should know about you: goals, habits, what motivates you">' + esc(p.about || '') + '</textarea>' +
+    '<div class="hint">Saved and synced to all your devices, and protected by your Lucy passkey.</div><div style="height:' + (vsel.size ? 150 : 0) + 'px"></div>';
+  if (vsel.size) h += '<div class="vbar panel gold"><div class="row"><b class="grow">' + vsel.size + ' selected</b><button class="link" data-a="v-clear">Clear</button></div>' +
+    (vsel.has('aadhaar') ? '<label class="row" style="gap:8px;margin:6px 0 0;text-transform:none;letter-spacing:0"><input type="checkbox" id="v-mask" ' + (view.vMask === false ? '' : 'checked') + '> Share Aadhaar as last 4 digits only</label>' : '') +
+    '<div class="actions" style="margin-top:8px"><button class="btn small" data-a="v-copysel">' + icon('copy', 15) + 'Copy</button><button class="btn small" data-a="v-wa" style="background:#25D366;color:#04130A;border-color:#25D366">' + icon('chat', 15) + 'WhatsApp</button></div></div>';
+  return h;
+}
+function vaultSheet(secId) {
+  const sec = VT.SECTIONS.find((x) => x.id === secId); if (!sec) return;
+  const p = S.profile;
+  openSheet('<h3>' + esc(sec.title) + '</h3>' + sec.fields.map((f) => {
+    const k = f[0], kind = f[2] || 'text', v = p[k] || '';
+    const type = kind === 'date' ? 'date' : kind === 'phone' ? 'tel' : kind === 'email' ? 'email' : 'text';
+    const im = ['aadhaar', 'eshram', 'acc', 'digits'].includes(kind) ? ' inputmode="numeric"' : '';
+    const caps = ['pan', 'voter', 'passport', 'tan', 'ifsc', 'gst', 'cin', 'dl'].includes(kind) ? ' autocapitalize="characters" style="text-transform:uppercase"' : kind === 'email' || kind === 'upi' ? ' autocapitalize="off"' : '';
+    return '<label>' + esc(f[1]) + '</label>' + (kind === 'long' ? '<textarea data-vk="' + k + '" style="min-height:70px">' + esc(v) + '</textarea>' : '<input data-vk="' + k + '" type="' + type + '" value="' + esc(v) + '"' + im + caps + ' autocorrect="off">');
+  }).join('') + '<button class="btn block" data-a="v-save" data-v="' + sec.id + '">Save</button>');
+}
+function vaultSave(secId) {
+  const p = S.profile, issues = [];
+  $$('[data-vk]').forEach((inp) => { const k = inp.dataset.vk, v = VT.clean(k, inp.value); inp.value = v; const pr = VT.problem(k, v); if (pr) issues.push(pr); });
+  if (issues.length && !window.__vForce) { window.__vForce = true; toast(issues[0] + ' Tap Save again to keep it anyway.'); setTimeout(() => { window.__vForce = false; }, 6000); return; }
+  window.__vForce = false;
+  $$('[data-vk]').forEach((inp) => { p[inp.dataset.vk] = inp.value; });
+  p.fullName = [p.firstName, p.middleName, p.surname].filter(Boolean).join(' ') || p.fullName;
+  save(); closeSheet(); render(); toast('Saved');
 }
 function remRow(r, timeOnly) {
   const now = Date.now(), t = alertStart(r);
@@ -1353,6 +1386,15 @@ document.addEventListener('click', async (ev) => {
     case 'open-lead': go('more', 'leads', id); break;
     case 'lead-filter': view.leadFilter = v; render(); break;
     case 'rep-period': view.repPeriod = v; render(); break;
+    case 'v-pick': if (vsel.has(v)) vsel.delete(v); else vsel.add(v); render(); break;
+    case 'v-show': if (vshow.has(v)) vshow.delete(v); else vshow.add(v); render(); break;
+    case 'v-all': { const sec = VT.SECTIONS.find((x) => x.id === v); const ks = sec.fields.map((f) => f[0]).filter((k) => S.profile[k]); const all = ks.every((k) => vsel.has(k)); ks.forEach((k) => all ? vsel.delete(k) : vsel.add(k)); render(); break; }
+    case 'v-clear': vsel.clear(); render(); break;
+    case 'v-edit': vaultSheet(v); break;
+    case 'v-save': vaultSave(v); break;
+    case 'v-copy': { try { await navigator.clipboard.writeText(VT.display(v, S.profile[v])); toast(VT.fieldOf(v).label + ' copied'); } catch (e) { toast('Could not copy'); } break; }
+    case 'v-copysel': { const t = VT.shareText([...vsel], { maskAadhaar: !$('#v-mask') || $('#v-mask').checked }); try { await navigator.clipboard.writeText(t); toast('Copied ' + vsel.size + ' details'); } catch (e) { toast('Could not copy'); } break; }
+    case 'v-wa': { const t = VT.shareText([...vsel], { maskAadhaar: !$('#v-mask') || $('#v-mask').checked }); waSheet({ plain: true, ownText: t, cats: ['reminder'], to: 'Share my details', phone: '', kind: 'details', ref: 'details', title: 'My details' }); break; }
     case 'wa-pay': { const p = payById(id); if (p) waSheet(Object.assign(WA.forPayment(p), { kind: 'pay', ref: p.id, title: 'Payment', payId: p.id })); break; }
     case 'wa-renew': { const c = clientById(id); if (c) waSheet(Object.assign(WA.forClient(c), { kind: 'renew', ref: c.id + ':' + L.dayKey(c.nextDate), title: 'Renewal', clientId: c.id })); break; }
     case 'wa-client': { const c = clientById(id); if (c) waSheet(Object.assign(WA.forClient(c), { kind: 'client', ref: c.id, title: clientName(c), clientId: c.id, pick: el.dataset.v || 'renewal:friendly' })); break; }
@@ -2043,14 +2085,14 @@ function waSheet(m) {
   const tl = (m.ownText ? [{ id: 'own-text', cat: m.cats[0], label: 'Your message', text: m.ownText }] : []).concat(m.cats.reduce((a, c) => a.concat(WA.templates(c)), []));
   m.tpl = (tl.find((t) => t.id === m.pick) || tl[0] || {}).id;
   m.cat = (tl.find((t) => t.id === m.tpl) || {}).cat || m.cats[0];
-  const sent = WA.sentRecently(m.kind, m.ref, 3);
+  const sent = !m.plain && WA.sentRecently(m.kind, m.ref, 3);
   openSheet('<div class="eyebrow">WhatsApp · ' + esc(m.title || 'Message') + '</div><h3 class="mt">' + esc(m.to || 'Who should get this?') + '</h3>' +
     (sent ? '<div class="sub" style="color:var(--gold)">You already sent this in the last 3 days.</div>' : '') +
     (m.recipients ? '<label>Send to</label><div class="chips">' + m.recipients.map((r, i) => '<button class="chip' + (i === 0 ? ' on' : '') + '" data-a="wa-to" data-v="' + esc(r.phone) + '">' + esc(r.label) + '</button>').join('') + '</div>' : '') +
     '<label>WhatsApp number</label><input id="wa-phone" type="tel" value="' + esc(m.phone || '') + '" placeholder="+91 98xxxxxxxx">' +
-    (m.cats.length > 1 ? '<label>Type</label><div class="hscroll" id="wa-cats">' + m.cats.filter((c) => WA.templates(c).length).map((c) => '<button class="chip' + (c === m.cat ? ' on' : '') + '" data-a="wa-cat" data-v="' + c + '">' + esc((WA.CATS.find((x) => x[0] === c) || [c, c])[1]) + '</button>').join('') + '</div>' : '') +
-    '<label>Template</label><div class="chips" id="wa-tpls"></div>' +
-    '<div id="wa-bankrow"><label>Payment details to include</label><div class="chips" id="wa-banks">' + WA.banks().map((b) => '<button class="chip" data-a="wa-bank" data-v="' + b.id + '">' + esc(b.label.split(' ')[0] === 'DZYN' ? 'DZYN LAB' : b.label.split(' ')[0]) + '</button>').join('') + '<button class="chip" data-a="wa-bank" data-v="">None</button></div></div>' +
+    (m.plain ? '' : m.cats.length > 1 ? '<label>Type</label><div class="hscroll" id="wa-cats">' + m.cats.filter((c) => WA.templates(c).length).map((c) => '<button class="chip' + (c === m.cat ? ' on' : '') + '" data-a="wa-cat" data-v="' + c + '">' + esc((WA.CATS.find((x) => x[0] === c) || [c, c])[1]) + '</button>').join('') + '</div>' : '') +
+    (m.plain ? '' : '<label>Template</label><div class="chips" id="wa-tpls"></div>') +
+    (m.plain ? '' : '<div id="wa-bankrow"><label>Payment details to include</label><div class="chips" id="wa-banks">' + WA.banks().map((b) => '<button class="chip" data-a="wa-bank" data-v="' + b.id + '">' + esc(b.label.split(' ')[0] === 'DZYN' ? 'DZYN LAB' : b.label.split(' ')[0]) + '</button>').join('') + '<button class="chip" data-a="wa-bank" data-v="">None</button></div></div>') +
     '<label>Message (edit anything before sending)</label><textarea id="wa-text" style="min-height:200px;font-size:15px;line-height:1.45"></textarea>' +
     '<a id="wa-go" class="btn block" href="#" target="_blank" rel="noopener" style="background:#25D366;color:#04130A;border-color:#25D366">' + icon('chat', 16) + 'Open WhatsApp and send</a>' +
     '<button class="btn ghost block" data-a="wa-copy">Copy message</button>' +
@@ -2059,6 +2101,7 @@ function waSheet(m) {
 }
 function waFill(keepText) {
   const m = window.__waMeta; if (!m) return;
+  if (m.plain) { $('#wa-text').value = m.ownText; waRefresh(); return; }
   const tl = (m.ownText && m.cat === m.cats[0] ? [{ id: 'own-text', cat: m.cat, label: 'Your message', text: m.ownText }] : []).concat(WA.templates(m.cat));
   if (!tl.some((t) => t.id === m.tpl)) m.tpl = (tl[0] || {}).id;
   $('#wa-tpls').innerHTML = tl.map((t) => '<button class="chip' + (t.id === m.tpl ? ' on' : '') + '" data-a="wa-tpl" data-v="' + esc(t.id) + '">' + esc(t.label) + '</button>').join('');

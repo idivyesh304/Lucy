@@ -518,3 +518,4 @@ h1 b { background: linear-gradient(100deg, #FFF1CF 0%, #D8B56A 35%, #F3D9A0 55%,
 .chips-sum { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 12px; } .chips-sum .chip { font-size: 11.5px; }
 .panel.alert { border-color: rgba(255,107,107,.55); box-shadow: 0 0 0 1px rgba(255,107,107,.18) inset; }
 .wa-ico { color: #25D366; } .wa-link { color: #25D366 !important; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; margin-top: 4px; }
+.vbar { position: fixed; left: 12px; right: 12px; bottom: calc(92px + env(safe-area-inset-bottom)); z-index: 30; margin: 0; box-shadow: 0 12px 40px rgba(0,0,0,.55); max-width: 640px; margin-left: auto; margin-right: auto; }

@@ -88,7 +88,14 @@ export const DEFAULT_BANKS = [
   { id: 'divyesh', label: 'Divyesh Umesh Panchal', holder: 'Divyesh Umesh Panchal', bank: '', acc: '', ifsc: '', branch: '', upi: '' },
   { id: 'devanshi', label: 'Devanshi Kansara', holder: 'Devanshi Kansara', bank: '', acc: '', ifsc: '', branch: '', upi: '' }
 ];
-export function banks() { return (S.banks && S.banks.length ? S.banks : DEFAULT_BANKS); }
+export function banks() {
+  const list = (S.banks && S.banks.length ? S.banks : DEFAULT_BANKS).map((b) => Object.assign({}, b));
+  const p = S.profile || {};
+  // your profile already holds the company and personal accounts; use them where the WhatsApp copy is empty
+  const from = { dzyn: { holder: p.cbHolder, bank: p.cbBank, acc: p.cbAcc, ifsc: p.cbIfsc, branch: p.cbBranch, upi: p.cbUpi }, divyesh: { holder: p.pbHolder, bank: p.pbBank, acc: p.pbAcc, ifsc: p.pbIfsc, upi: p.pbUpi } };
+  list.forEach((b) => { const f = from[b.id]; if (f) Object.keys(f).forEach((k) => { if (!String(b[k] || '').trim() && f[k]) b[k] = f[k]; }); });
+  return list;
+}
 export function bankText(id) {
   const b = banks().find((x) => x.id === id);
   if (!b) return '';

@@ -50,7 +50,6 @@ export const api = {
   unsubscribe: (endpoint) => call('/unsubscribe', { body: { endpoint: endpoint } }),
   schedule: (items) => call('/schedule', { body: { items: items } }),
   testPush: () => call('/test-push', { body: {} }),
-  ai: (payload) => call('/ai', { body: payload }),
   oauthLink: () => call('/oauth/link', { body: {} }),
   driveLoad: () => call('/drive/load', { body: {} }),
   driveSave: (text, force) => callRaw('/drive/save', text, force),

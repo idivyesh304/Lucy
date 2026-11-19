@@ -18,7 +18,7 @@ export function defaults() {
       briefTime: '08:30', journalTime: '22:00', reviewDay: 0, reviewTime: '19:00',
       inspireOn: true, inspireStart: 10, inspireEnd: 20,
       speak: true, voiceURI: '', voiceRate: 0.95, voicePitch: 1.0, autoSpeakReplies: true,
-      provider: 'claude', salaryDay: 1, nagCount: 2, nagMin: 15, avatarImg: '',
+      salaryDay: 1, nagCount: 2, nagMin: 15, avatarImg: '',
       business: { minRetainer: 25000, minMargin: 35, maxDiscount: 10, minMonths: 3, paymentTerms: '50% advance, balance before delivery. Retainers billed monthly in advance.',
         costs: { reel: 0, post: 0, shoot: 0, ads: 0, website: 0 } },
       hunter: { industries: 'Jewellery brands, jewellers, cosmetic and dental clinics, doctors, fashion and lifestyle brands', city: 'Ahmedabad', minBudget: 30000,
@@ -85,6 +85,9 @@ export function migrate(d) {
   // Home expenses: the standard home bills, added once
   if (!Array.isArray(out.office)) out.office = [];
   if (!(out.settings || {}).homeSeeded) { HOME_PRESET.forEach(([cat, name, variable]) => { if (!out.office.some((o) => o.home && o.cat === cat)) out.office.push({ id: 'hm-' + cat.toLowerCase().replace(/[^a-z]+/g, '-'), cat: cat, name: name, amount: 0, dueDay: 5, variable: !!variable, paid: {}, note: '', home: true }); }); if (out.settings) out.settings.homeSeeded = true; }
+  // Nov 2026: Divyesh paused journal, manifestation, affirmations and the money mission (kept, can be turned back on in Settings)
+  if (!out.settings.pausedV1) { out.settings.paused = Object.assign({ journal: true, manifest: true, affirm: true, mission: true }, out.settings.paused || {}); out.settings.pausedV1 = true; }
+  if (!out.settings.paused) out.settings.paused = {};
   if (!out.growth || !Array.isArray(out.growth.tiers)) out.growth = defaults().growth;
   if (!out.growthAI) { if (!out.growth.team.some((m) => /ai artist/i.test(m.role))) out.growth.team.push({ role: 'AI artist', need: 1, have: 0, salary: 0 }); out.growthAI = true; }
   // Nov 2026: Divyesh set his monthly target to Rs 15 lakh (was Rs 25 lakh)

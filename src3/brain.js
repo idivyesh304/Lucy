@@ -5,6 +5,7 @@ import * as L from '../src/logic.js';
 import * as C from './content.js';
 import { S, nid } from './store.js';
 import { liveParts } from './merge.js';
+export const paused = (k) => !!((S.settings && S.settings.paused) || {})[k];
 
 export const alertStart = (r) => Math.max(r.due, r.snoozeUntil || 0);
 export const today = () => L.dayKey(Date.now());
@@ -33,7 +34,7 @@ export function topFive() {
     if (!ld.followUp || ['Won', 'Lost'].includes(ld.status)) return;
     const t = L.atTime(ld.followUp, 11, 0);
     if (t >= end2) return;
-    items.push({ kind: 'lead', id: ld.id, score: t < end ? 680 : 90, t: t, tomorrow: t >= end });
+    if (false) items.push({ kind: 'lead', id: ld.id, score: t < end ? 680 : 90, t: t, tomorrow: t >= end });
   });
   items.sort((a, b) => b.score - a.score || a.t - b.t);
   return items.slice(0, 5);
@@ -219,54 +220,7 @@ function nextDue(l) {
 }
 export { nextDue };
 
-/* ---------------- AI context ---------------- */
-export function aiSystem(mode) {
-  const st = S.settings, now = Date.now(), rev = revenue(), ls = loanStats(), b = briefing();
-  const top = topFive().map((x) => '- ' + itemTitle(x) + (x.tomorrow ? ' (tomorrow)' : '')).join('\n') || '- nothing urgent';
-  const mission = ensureMission().map((m) => '- [' + (m.done ? 'x' : ' ') + '] ' + m.text).join('\n');
-  const leads = S.leads.filter((l) => !['Won', 'Lost'].includes(l.status)).slice(0, 25).map((l) => '- ' + l.name + ' (' + [l.industry || '?', l.area || l.city, l.status, l.temp, l.contactName ? 'contact ' + l.contactName + (l.designation ? ', ' + l.designation : '') : '', Number(l.dealMonthly) ? 'deal Rs ' + l.dealMonthly + '/month' : '', Number(l.dealOnce) ? 'one-time Rs ' + l.dealOnce : '', (l.services || []).length ? 'needs ' + l.services.join('/') : '', l.followUp ? 'follow-up ' + new Date(l.followUp).toDateString() : '', l.nextAction ? 'next: ' + l.nextAction : '', l.pain ? 'pain: ' + l.pain : ''].filter(Boolean).join(', ') + ')').join('\n') || '- none';
-  const clients = S.clients.slice(0, 25).map((c) => '- ' + (c.company || c.firstName) + (c.businessType ? ' (' + c.businessType + ')' : '') + (Number(c.retainer) ? ', retainer ' + L.money(c.retainer) : '') + (c.active === false ? ', inactive' : '')).join('\n') || '- none added';
-  const dreams = S.dreams.map((d) => '- ' + d.title + (d.target ? ' (' + L.money(d.target) + ')' : '') + (d.targetDate ? ' by ' + L.fmtDate(d.targetDate) : '')).join('\n') || '- none added';
-  const bz = st.business;
-  let s = 'You are LUCY, the personal AI assistant and founder partner of ' + st.name + ' (Divyesh Umesh Panchal), founder of DZYN LAB PRIVATE LIMITED, a creative, content production, branding and digital marketing company in Ahmedabad, India. He is also a cinematographer who wants to become one of Bollywood\'s most successful film directors.\n' +
-    'Personality: a warm, polite and gentle personal assistant, never a boss. Always reply in clear, simple English only, never Hinglish, Hindi or Gujarati, even if he writes in them. Suggest, never order: use phrases like "you might like to", "would you like me to", "whenever you are ready". Be honest and kind, calm and respectful. Keep replies short and helpful unless he asks for detail. No emojis.\n' +
-    'Rules: never invent numbers, clients, contacts or facts. Use only the data below or clearly label something as an estimate or assumption. If information is missing, say what is missing. Motivation must always lead to a concrete next action.\n\n' +
-    'Now: ' + new Date(now).toString().slice(0, 21) + ' (Asia/Kolkata).\n' +
-    'Profile: ' + profileLine() + '\n' +
-    'Growth plan: ' + (function () { const g = growthPlan(); return g.rows.map((r) => r.count + ' ' + r.name + ' clients at ' + L.money(r.price) + ' (have ' + r.have + ')').join('; ') + ' = ' + L.money(g.planRevenue) + '/month from ' + g.planClients + ' clients. Team plan: ' + g.team.map((m) => m.need + ' ' + m.role + ' (hired ' + m.have + ')').join(', ') + '.'; })() + '\n' +
-    'Upcoming special days (next 30 days):\n' + (upcomingSpecial(30).map((x) => '- ' + specialTitle(x.sd, x.at) + ' on ' + L.fmtDate(x.at)).join('\n') || '- none') + '\n' +
-    'Vision:\n' + (st.vision || []).map((v) => '- ' + v).join('\n') + '\n' +
-    'Revenue mission this month: target ' + L.money(rev.target) + ', collected ' + L.money(rev.collected) + ', outstanding receivables ' + L.money(rev.outstanding) + ', monthly recurring (retainers) ' + L.money(rev.mrr) + ' from ' + rev.activeClients + ' clients, expenses logged ' + L.money(rev.expenses) + '.\n' +
-    'Loans: ' + ls.open + ' open, monthly EMIs ' + L.money(ls.monthly) + ', outstanding ' + L.money(ls.outstanding) + '.\n' +
-    'Today\'s briefing: ' + b.lines.join(' ') + '\n' +
-    'Top 5:\n' + top + '\nToday\'s mission:\n' + mission + '\n' +
-    'Clients:\n' + clients + '\nOpen leads:\n' + leads + '\nDreams:\n' + dreams + '\n' +
-    'His own answers to your coaching questions (hold him to these, quote them back when the same problem repeats, be direct):\n' + ((S.coach || []).filter((x) => x.a && x.a !== '(skipped)').slice(-15).map((x) => '- ' + new Date(x.at).toDateString() + ': ' + x.q + ' -> "' + x.a + '"').join('\n') || '- none yet') + '\n' +
-    'Books: ' + ((S.books || []).map((b) => b.title + ' (' + b.status + ')').join(', ') || 'none') + '\n' +
-    'Pricing rules: minimum retainer ' + L.money(bz.minRetainer) + ', minimum margin ' + bz.minMargin + '%, maximum discount ' + bz.maxDiscount + '%, minimum contract ' + bz.minMonths + ' months, payment terms: ' + bz.paymentTerms + '. Known costs per unit: reel ' + (bz.costs.reel || 'unknown') + ', post ' + (bz.costs.post || 'unknown') + ', shoot day ' + (bz.costs.shoot || 'unknown') + ', ads management ' + (bz.costs.ads || 'unknown') + ', website ' + (bz.costs.website || 'unknown') + '.\n\n' +
-    'ACTIONS: when it would help, you may propose actions for him to approve. Put them at the very end in a fenced block exactly like:\n```actions\n[{"type":"reminder","text":"Call Kliya Cafe tomorrow at 11am"},{"type":"idea","text":"..."},{"type":"note","title":"...","body":"..."},{"type":"lead","name":"...","industry":"...","city":"...","website":"...","phone":"...","email":"...","instagram":"...","score":82,"reason":"...","service":"...","price":"...","source":"https://..."}]\n```\nFor reminders, write the text with the day and time in natural words. Only propose actions that are clearly useful. Never put contact details in a lead unless they appeared in a source you actually found.';
-  if (mode === 'hunter') {
-    const h = st.hunter;
-    s += '\n\nHUNTER MODE: use web search to find real businesses that could become DZYN LAB clients. Target industries: ' + h.industries + '. Location: ' + h.city + '. Minimum likely monthly budget: ' + L.money(h.minBudget) + '. Services we sell: ' + h.services + '.\n' +
-      'Find 5 to 8 qualified prospects. For each: business name, industry, city, website, public phone or email ONLY if shown on a source page, Instagram handle if found, why they need us, recommended service, a score out of 100 with a one-line reason (service fit, budget signals, marketing gaps, growth signals), and the source URL. Say clearly which details are verified from sources and which are your estimates. Then output them in the actions block as type "lead".';
-  }
-  if (mode === 'pricing') s += '\n\nPRICING MODE: recommend a monthly retainer using the pricing rules and known costs above. Give: recommended retainer, minimum acceptable, premium option, deliverables, estimated cost and margin only if costs are known (otherwise say which costs are missing), contract duration, payment terms, extra charges, and a short explanation. Say clearly if the client is not financially attractive.';
-  return s;
-}
-export function parseActions(text) {
-  const m = String(text || '').match(/```actions\s*([\s\S]*?)```/);
-  if (!m) return { text: text, actions: [] };
-  let actions = [];
-  try { actions = JSON.parse(m[1].trim()); } catch (e) { actions = []; }
-  return { text: text.replace(m[0], '').trim(), actions: Array.isArray(actions) ? actions.slice(0, 12) : [] };
-}
 
-function profileLine() {
-  const p = S.profile || {};
-  return [p.fullName, p.role && p.company ? p.role + ', ' + p.company : '', p.city, p.dob ? 'born ' + p.dob : '', p.about].filter(Boolean).join('; ');
-}
-
-// Growth plan: client tiers (by retainer) and the team needed to deliver them.
 export function growthPlan() {
   const g = S.growth, tiers = g.tiers.slice().sort((a, b) => b.price - a.price);
   const active = S.clients.filter((c) => c.active !== false && Number(c.retainer) > 0);

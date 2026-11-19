@@ -13,7 +13,10 @@ const alertStart = (r) => Math.max(r.due, r.snoozeUntil || 0);
 export function buildSchedule() {
   const st = S.settings, now = Date.now(), horizon = L.addDays(now, 7), nm = st.name || 'Divyesh';
   const out = [];
-  const push = (at, title, body, tag, url) => { if (at > now + 30000 && at <= horizon) out.push({ at: at, title: title, body: body || '', tag: tag || '', url: url || '' }); };
+  const P = (S.settings && S.settings.paused) || {};
+  // paused sections (journal, manifestation, affirmations) and removed ones (coach, leads) send nothing
+  const off = (tag) => (P.journal && tag === 'journal') || (P.manifest && tag === 'ritual') || (P.manifest && P.affirm && tag === 'inspire') || tag === 'coach' || tag === 'read' || /^lead-/.test(tag || '');
+  const push = (at, title, body, tag, url) => { if (off(tag)) return; if (at > now + 30000 && at <= horizon) out.push({ at: at, title: title, body: body || '', tag: tag || '', url: url || '' }); };
   const client = (id) => S.clients.find((c) => c.id === id);
 
   // reminders (+ follow-ups until done)
@@ -42,7 +45,7 @@ export function buildSchedule() {
   for (let d = 0; d < 7; d++) {
     const day = L.addDays(L.startOfDay(now), d);
     const mv = MG.moneyMoves()[0];
-    push(L.atTime(day, 10, 5), 'Money moves for today', (d === 0 && mv ? 'Suggested first step: ' + mv.title + '. ' : 'Collect, close, upsell, referral and outreach. ') + 'Three small steps today would be wonderful.', 'money-moves', '#ascend-manifest');
+    push(L.atTime(day, 10, 5), 'Money moves for today', (d === 0 && mv ? 'Suggested first step: ' + mv.title + '. ' : 'Collect, close, upsell, referral and outreach. ') + 'Three small steps today would be wonderful.', 'money-moves', '#home');
   }
 
   // coach: evening reading nudge and the nightly check-in

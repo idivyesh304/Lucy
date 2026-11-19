@@ -263,9 +263,11 @@ function findAnywhere(s) {
   const timeRe = /(?:^|\s)(?:at\s+|@\s*|by\s+)?(\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm|a\.m\.|p\.m\.)(?![a-z])|\d{1,2}[:.]\d{2}(?!\d)|\d{1,2} ?baje\b)/i;
   const dayRe = /(?:^|\s)(day after tomorrow|parso|parson|today|aaj|tonight|tomorrow|tomorow|tmrw|tmr|kal|(?:on |this |next )?(?:sun|sunday|mon|monday|tue|tues|tuesday|wed|wednesday|thu|thur|thurs|thursday|fri|friday|sat|saturday)|(?:on )?\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)(?=\s|$|,)/i;
   let rest = s, t = null;
-  const tm = s.match(timeRe);
+  let tm = s.match(timeRe), at = false;
+  // "at 12" / "at 5" with no am or pm
+  if (!tm) { tm = s.match(/(?:^|\s)(?:at|@)\s*(\d{1,2})(?![\d:.])(?!\s*(?:am|pm|a\.m\.|p\.m\.|baje|days?|hours?|hrs?|mins?|minutes?|pm|%))\b/i); at = !!tm; }
   if (tm) {
-    t = takeTime(tm[1]);
+    t = at ? takeTime('at ' + tm[1]) : takeTime(tm[1]);
     if (!t) return null;
     rest = cut(s, tm.index, tm[0].length);
   }
@@ -283,7 +285,11 @@ function findAnywhere(s) {
 function cut(s, i, len) { return (s.slice(0, i) + ' ' + s.slice(i + len)).replace(/\s+/g, ' ').trim(); }
 
 function takeTime(str) {
+  const said = /^(at|@)\s+/i.test(str);
   str = str.replace(/^(at|@|by)\s+/i, '');
+  // "at 12" / "at 5": a bare hour after "at" (1-7 means afternoon or evening, 8-11 morning, 12 noon)
+  const bare = said && str.match(/^(\d{1,2})(?![\d:.]|\s*(am|pm|a\.m\.|p\.m\.|baje))\b\s*,?\s*(.*)$/i);
+  if (bare) { let h = +bare[1]; if (h >= 1 && h <= 12) { if (h <= 7) h += 12; return { h: h, min: 0, rest: bare[3] }; } }
   let m = str.match(/^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)(?![a-z])\s*,?\s*(.*)$/i);
   if (m) {
     let h = +m[1];

@@ -101,32 +101,34 @@ function renderHome() {
   h += '<div class="panel gold hero brief fade-in"><div class="row" style="justify-content:space-between;margin-bottom:10px"><div class="eyebrow">Morning intelligence</div>' +
     '<button class="iconbtn" data-a="speak-brief" aria-label="Hear briefing">' + icon('volume', 18) + '</button></div>' +
     b.lines.map((l) => '<p>' + esc(l) + '</p>').join('') +
-    (H.ready() ? '<div class="actions"><button class="btn small line" data-a="ai-brief">' + icon('spark', 16) + 'Deeper briefing</button></div>' : '') + '</div>';
+    '' + '</div>';
 
-  h += '<div class="panel"><div class="nbm"><div class="badge">' + icon('compass', 22) + '</div><div class="grow"><div class="eyebrow">Next best move</div>' +
-    '<div style="font-size:16.5px;font-weight:600;margin:6px 0 4px">' + esc(nbm.text) + '</div><div class="sub">' + esc(nbm.why) + '</div>' +
-    '<div class="actions"><button class="btn small" data-a="nbm-go" data-v="' + nbm.go + '">Do it now</button></div></div></div></div>';
-
-  const mDone = mission.filter((m) => m.done).length;
-  h += '<h2>Today\'s mission <span class="num gold">' + mDone + '/3</span></h2><div class="list mission">' + mission.map((m, i) =>
-    '<div class="item ' + (m.done ? 'done' : '') + '"><span class="rank">0' + (i + 1) + '</span><div class="grow t">' + esc(m.text) + '</div>' +
-    '<button class="check ' + (m.done ? 'on' : '') + '" data-a="mission" data-i="' + i + '">' + (m.done ? icon('check', 16) : '') + '</button></div>').join('') + '</div>';
-
-  h += '<h2>Top 5 <span class="sub" style="letter-spacing:0;text-transform:none">picked by Lucy</span></h2>';
-  h += top.length ? '<div class="list">' + top.map((x, i) => topRow(x, i)).join('') + '</div>' : '<div class="panel empty">Nothing urgent. Your Top 5 fills itself from reminders, payments and lead follow-ups.</div>';
+  // Today, in five clear lists (overdue items stay on top until they are done)
+  const todays = S.reminders.filter((r) => r.status === 'pending' && Math.max(r.due, r.snoozeUntil || 0) < d1).sort((a, b2) => a.due - b2.due);
+  const isFollow = (r) => r.cat === 'Follow-up' || r.cat === 'Client' || /follow.?up|payment follow/i.test(r.task);
+  const isMeet = (r) => !isFollow(r) && (r.cat === 'Meeting' || /\bmeet(ing)?\b|video call|zoom/i.test(r.task));
+  const isWork = (r) => !isFollow(r) && !isMeet(r) && r.cat === 'Work';
+  const work = todays.filter(isWork), follow = todays.filter(isFollow), meet = todays.filter(isMeet), rems = todays.filter((r) => !isWork(r) && !isFollow(r) && !isMeet(r));
+  const recv = allDues().in.filter((x) => x.due < d1);
+  const sec = (title, ic, list, rows, empty, add) => '<h2>' + icon(ic, 16) + ' ' + title + ' <span class="num gold">' + list.length + '</span>' + (add ? '<button class="link" data-a="new-rem-cat" data-v="' + add + '">Add</button>' : '') + '</h2>' +
+    (list.length ? listOf(rows) : '<div class="panel empty" style="padding:12px 16px">' + empty + '</div>');
+  h += sec('Today\'s work', 'briefcase', work, work.map((r) => remRow(r)), 'No work tasks for today.', 'Work');
+  h += sec('Today\'s reminders', 'bell', rems, rems.map((r) => remRow(r)), 'No other reminders today.', 'Personal');
+  h += sec('Today\'s follow-ups', 'chat', follow, follow.map((r) => remRow(r)), 'No follow-ups today.', 'Follow-up');
+  h += sec('Today\'s meetings', 'calendar', meet, meet.map((r) => remRow(r)), 'No meetings today.', 'Meeting');
+  h += sec('Today\'s receivable payments', 'coins', recv, recv.map((x) => dueRow(x)), 'Nothing to collect today.', '');
 
   h += waHomeCard();
-  h += moneyMovesPanel(false);
-  h += coachHomeCard();
-  h += '<h2>Revenue mission<button class="link" data-a="tab" data-v="money">Open</button></h2>';
+  if (!B.paused('mission')) h += moneyMovesPanel(false);
+  if (!B.paused('mission')) { h += '<h2>Revenue mission<button class="link" data-a="tab" data-v="money">Open</button></h2>';
   h += '<div class="panel"><div class="row" style="gap:16px">' + ring(rev.pct, '<span data-count="' + Math.round(rev.pct * 100) + '" data-fmt="pct">' + Math.round(rev.pct * 100) + '%</span>', 'of target') +
     '<div class="grow"><div class="sub">Collected this month</div><div class="num" style="font-size:24px;font-weight:600">' + short(rev.collected) + '</div>' +
     '<div class="sub">Target ' + short(rev.target) + ' · gap ' + short(rev.gap) + '</div>' +
-    (rev.outstanding ? '<div class="sub mt" style="margin-top:6px"><span class="gold">' + short(rev.outstanding) + '</span> waiting to be collected</div>' : '') + '</div></div></div>';
+    (rev.outstanding ? '<div class="sub mt" style="margin-top:6px"><span class="gold">' + short(rev.outstanding) + '</span> waiting to be collected</div>' : '') + '</div></div></div>'; }
 
   const dues = allDues(), soonCut = L.addDays(d0, 4);
   const soonIn = dues.in.filter((x) => x.due < soonCut), soonOut = dues.out.filter((x) => x.due < soonCut);
-  if (soonIn.length || soonOut.length) h += '<h2>Money due soon<button class="link" data-a="seg-go" data-tab="money" data-k="money" data-v="cash">In &amp; out</button></h2>' + listOf(soonIn.concat(soonOut).sort((a, b2) => a.due - b2.due).slice(0, 5).map(dueRow));
+  if (soonOut.length) h += '<h2>Payments due soon<button class="link" data-a="seg-go" data-tab="money" data-k="money" data-v="cash">In &amp; out</button></h2>' + listOf(soonOut.sort((a, b2) => a.due - b2.due).slice(0, 5).map(dueRow));
   const spSoon = SP.upcoming(14);
   if (spSoon.length) h += '<h2>Special days<button class="link" data-a="seg-go" data-tab="plan" data-k="plan" data-v="special">All</button></h2>' + listOf(spSoon.slice(0, 3).map(spRow));
   if (false) {
@@ -145,7 +147,7 @@ function renderHome() {
   if (dream) h += '<h2>Your dream<button class="link" data-a="seg-go" data-tab="ascend" data-k="ascend" data-v="dreams">All dreams</button></h2>' + dreamCard(dream);
   else h += '<h2>Your dream</h2><button class="panel" style="width:100%;text-align:left" data-a="seg-go" data-tab="ascend" data-k="ascend" data-v="dreams"><div class="row"><div class="badge">' + icon('star', 18) + '</div><div class="grow"><b>Add your first dream</b><div class="sub">Car, home, watch, office, your first film. See it every day.</div></div>' + icon('right', 18) + '</div></button>';
 
-  if (evening) h += '<h2>Evening review</h2><button class="panel gold" style="width:100%;text-align:left" data-a="evening"><div class="row"><div class="badge">' + icon('moon', 18) + '</div><div class="grow"><b>Close your day</b><div class="sub">What you finished, what moves to tomorrow, and your journal.</div></div>' + icon('right', 18) + '</div></button>';
+  if (evening && !B.paused('journal')) h += '<h2>Evening review</h2><button class="panel gold" style="width:100%;text-align:left" data-a="evening"><div class="row"><div class="badge">' + icon('moon', 18) + '</div><div class="grow"><b>Close your day</b><div class="sub">What you finished, what moves to tomorrow, and your journal.</div></div>' + icon('right', 18) + '</div></button>';
   return h;
 }
 function banners() {
@@ -592,8 +594,8 @@ function payRow(p) {
     '<div class="right"><div class="amount ' + p.type + '">' + money(p.status === 'pending' ? left : p.amount) + '</div>' + (p.status === 'pending' ? '<button class="link" data-a="settle" data-id="' + p.id + '">' + (p.type === 'in' ? 'Receive' : 'Pay') + '</button>' : '') + '</div></div>';
 }
 function renderMoney() {
-  const s0 = segOf('money', 'cash'), s = ['cash', 'office', 'home', 'loans', 'mission'].includes(s0) ? s0 : 'cash';
-  let h = topbar('Money', { eyebrow: 'Money magnet' }) + seg('money', [['cash', 'In & out'], ['office', 'Office'], ['home', 'Home'], ['loans', 'EMIs'], ['mission', 'Mission']], s);
+  const s0 = segOf('money', 'cash'), s = ['cash', 'office', 'home', 'loans'].concat(B.paused('mission') ? [] : ['mission']).includes(s0) ? s0 : 'cash';
+  let h = topbar('Money', { eyebrow: 'Money magnet' }) + seg('money', [['cash', 'In & out'], ['office', 'Office'], ['home', 'Home'], ['loans', 'EMIs'], ['mission', 'Mission']].filter((x) => x[0] !== 'mission' || !B.paused('mission')), s);
   if (s === 'mission') {
     const r = B.revenue();
     h += '<div class="panel gold hero"><div class="eyebrow">Revenue mission · ' + L.MON[new Date().getMonth()] + '</div>' +
@@ -660,9 +662,10 @@ function loanRow(l, ic) {
 
 /* =============================== ASCEND =============================== */
 function renderAscend() {
-  let s = segOf('ascend', 'manifest');
-  if (s === 'founder') s = view.seg.ascend = 'manifest';
-  let h = topbar('Ascend', { eyebrow: 'Mindset · dreams · discipline' }) + seg('ascend', [['manifest', 'Manifest'], ['affirm', 'Affirm'], ['dreams', 'Dreams'], ['journal', 'Journal']], s);
+  const tabs = [['manifest', 'Manifest'], ['affirm', 'Affirm'], ['dreams', 'Dreams'], ['journal', 'Journal']].filter((x) => !B.paused(x[0]));
+  let s = segOf('ascend', 'dreams');
+  if (!tabs.some((x) => x[0] === s)) s = view.seg.ascend = 'dreams';
+  let h = topbar('Ascend', { eyebrow: 'Dreams' }) + (tabs.length > 1 ? seg('ascend', tabs, s) : '');
   if (s === 'manifest') {
     h += renderManifest();
   } else if (s === 'affirm') {
@@ -743,28 +746,25 @@ function dreamCard(d) {
 }
 
 /* =============================== LUCY =============================== */
+// Lucy answers from your own data on this phone (no Claude or ChatGPT)
 const QUICK = [
-  ['brief', 'Brief me', 'Give me my briefing for today: priorities, money, follow-ups and the three actions that matter most.'],
-  ['next', 'Next best move', 'What is my next best move right now, and why? Keep it short.'],
-  ['hunter', 'Find clients', 'Find new potential clients for DZYN LAB using my Hunter profile.'],
-  ['pricing', 'Price a client', 'Help me price a new client. Ask me what you need to know about their requirements.'],
-  ['plan90', '90-day plan', 'Break my monthly revenue goal into a realistic 90-day plan with weekly actions.'],
-  ['content', 'Content ideas', 'Give me 5 strong reel ideas for DZYN LAB\'s own Instagram this week, with hooks.'],
-  ['director', 'Director mindset', 'I want to become a successful Bollywood director. Give me one practical step for this week that fits around running DZYN LAB.']
+  ['brief', 'Brief me', 'Brief me'],
+  ['today', 'Today', 'What is on today?'],
+  ['collect', 'Who to collect', 'Who do I collect from?'],
+  ['pay', 'What to pay', 'What do I pay next?'],
+  ['salary', 'Salaries', 'Salary status'],
+  ['emi', 'EMIs and GST', 'EMIs and GST due']
 ];
 function renderLucy() {
-  const prov = S.settings.provider === 'chatgpt' ? 'chatgpt' : 'claude';
   let h = '<div class="topbar"><div><div class="eyebrow">Lucy</div></div><div class="row" style="gap:8px"><button class="iconbtn" data-a="toggle-speak" aria-label="Voice">' + icon(S.settings.speak ? 'volume' : 'stop', 18) + '</button><button class="iconbtn" data-a="tab" data-v="more">' + icon('grid', 19) + '</button></div></div>';
   const holo = !S.settings.avatarImg;
   const st0 = V.isSpeaking() ? 'speaking' : view.chatBusy ? 'thinking' : 'idle';
   h += '<div class="lucy-stage ' + (holo ? 'holo' : '') + '"><div class="hud-rings"><i></i><i></i><i></i><span class="hud-tick t1"></span><span class="hud-tick t2"></span></div>' +
     (holo ? '<div class="lucy-holo"><img class="holo-fallback" src="lucy.jpg" alt="Lucy"></div><div class="holo-floor"></div>' : avatar('big')) + '<div class="fade"></div>' +
     '<div class="hud-corner tl"></div><div class="hud-corner tr"></div><div class="hud-corner bl"></div><div class="hud-corner br"></div>' +
-    '<div class="hud-read l"><b>LUCY</b><span>v3 · neural</span></div><div class="hud-read r"><b class="lucy-state-chip">' + stateLabel(st0).toUpperCase() + '</b><span>' + (S.settings.provider === 'chatgpt' ? 'ChatGPT' : 'Claude') + ' link</span></div></div>' +
+    '<div class="hud-read l"><b>LUCY</b><span>v3 · neural</span></div><div class="hud-read r"><b class="lucy-state-chip">' + stateLabel(st0).toUpperCase() + '</b><span>on this phone</span></div></div>' +
     '<div class="lucy-wave">' + Array.from({ length: 29 }, (_, i) => '<i style="--i:' + i + '"></i>').join('') + '</div><div class="lucy-state">' + stateLabel(st0) + '</div>';
-  h += '<div class="seg" style="margin-top:14px"><button class="' + (prov === 'claude' ? 'on' : '') + '" data-a="provider" data-v="claude">Claude</button><button class="' + (prov === 'chatgpt' ? 'on' : '') + '" data-a="provider" data-v="chatgpt">ChatGPT</button></div>';
-  if (!H.ready()) h += '<button class="panel" style="width:100%;text-align:left" data-a="open-connections"><div class="row"><div class="badge">' + icon('key', 18) + '</div><div class="grow"><b>Connect Lucy\'s brain</b><div class="sub">Lucy can already speak and coach you. Add your Claude and ChatGPT keys so she can think, research and write for you.</div></div></div></button>';
-  h += '<div class="hscroll">' + QUICK.map((q) => '<button class="chip" data-a="quick" data-v="' + q[0] + '">' + icon(q[0] === 'hunter' ? 'search' : q[0] === 'pricing' ? 'coins' : 'spark', 14) + q[1] + '</button>').join('') + '</div>';
+  h += '<div class="hscroll">' + QUICK.map((q) => '<button class="chip" data-a="quick" data-v="' + q[0] + '">' + icon({ brief: 'sun', today: 'calendar', collect: 'coins', pay: 'wallet', salary: 'users', emi: 'bank' }[q[0]] || 'spark', 14) + q[1] + '</button>').join('') + '</div>';
   h += '<div class="chat">' + (S.chat.length ? S.chat.slice(-30).map(msgHtml).join('') : '<div class="msg lucy"><div class="who"><span>Lucy</span></div>Hi ' + esc(nm()) + '. I am here. Ask me anything, or tap a suggestion above. I can plan your day, find clients, price work, and push you towards your dreams.</div>') +
     (view.chatBusy ? '<div class="msg lucy"><div class="typing"><i></i><i></i><i></i></div></div>' : '') + '<div id="chat-end"></div></div>';
   h += '<div class="composer"><button class="iconbtn mic" data-a="mic" aria-label="Speak">' + icon('mic', 20) + '</button><textarea id="ask" rows="1" placeholder="Talk to Lucy…" enterkeyhint="send"></textarea><button class="iconbtn send" data-a="send" aria-label="Send">' + icon('send', 19) + '</button></div>';
@@ -773,7 +773,7 @@ function renderLucy() {
 function msgHtml(m, i) {
   const idx = S.chat.length - Math.min(30, S.chat.length) + i;
   if (m.role === 'user') return '<div class="msg me">' + esc(m.content) + '</div>';
-  return '<div class="msg lucy"><div class="who"><span>Lucy' + (m.provider ? ' · ' + (m.provider === 'chatgpt' ? 'ChatGPT' : 'Claude') : '') + '</span><button data-a="say" data-i="' + idx + '">' + icon('volume', 14) + '</button></div>' + esc(m.content) +
+  return '<div class="msg lucy"><div class="who"><span>Lucy</span><button data-a="say" data-i="' + idx + '">' + icon('volume', 14) + '</button></div>' + esc(m.content) +
     (m.sources && m.sources.length ? '<div class="src">' + m.sources.slice(0, 6).map((s) => '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.title || s.url) + '</a>').join('') + '</div>' : '') +
     (m.actions || []).map((a, j) => '<div class="act-card"><div class="badge" style="width:30px;height:30px">' + icon({ reminder: 'bell', lead: 'target', idea: 'bulb', note: 'note' }[a.type] || 'spark', 15) + '</div><div class="grow t">' + esc(actionLabel(a)) + '</div>' +
       (a.status ? '<span class="gold" style="font-size:12px">' + (a.status === 'done' ? 'Added' : 'Skipped') + '</span>' : '<button class="btn small" data-a="act-ok" data-i="' + idx + '" data-j="' + j + '">Approve</button><button class="btn small ghost" data-a="act-no" data-i="' + idx + '" data-j="' + j + '">' + icon('x', 14) + '</button>') + '</div>').join('') + '</div>';
@@ -785,26 +785,57 @@ function actionLabel(a) {
   if (a.type === 'note') return 'Note: ' + (a.title || '');
   return a.type;
 }
+// Lucy's answers come from the data in this app; nothing is sent to an AI service
+function localReply(text) {
+  const t = String(text || '').toLowerCase(), dd = (x) => L.fmtDate(x);
+  const D = allDues(42), d0 = L.startOfDay(Date.now()), d1 = L.addDays(d0, 1);
+  const line = (x) => '• ' + x.party + ': ' + money(x.amount) + (x.due ? ', ' + (x.due < d0 ? 'was due ' : 'due ') + dd(x.due) : '');
+  // reminders: "remind me to call Ravi tomorrow at 12"
+  if (/^(please )?(remind|set (a )?reminder|reminder)/.test(t)) {
+    const r = L.parseReminder(text);
+    if (r) { addReminder(r); return 'Done. I will remind you: ' + r.task + ', ' + L.fmtWhen(r.due) + '.'; }
+    setTimeout(() => reminderSheet(null, { task: text.replace(/^(please )?(remind me( to)?|set (a )?reminder( to)?|reminder:?)\s*/i, '') }), 50);
+    return 'I opened a reminder for you. Please check the date and time, then save.';
+  }
+  if (/brief|morning|summary|overview/.test(t)) { const b = B.briefing(); return [b.greeting].concat(b.lines.map((x) => typeof x === 'string' ? x : (x.text || ''))).filter(Boolean).join('\n'); }
+  if (/salar/.test(t)) {
+    const rows = S.employees.filter((e) => e.active !== false && !e.past && Number(e.salary) > 0).map((e) => {
+      const c0 = B.salaryCycle(0, e), paid = B.salaryPaidOf(e, c0.month) >= Number(e.salary), c = paid ? B.salaryCycle(1, e) : c0;
+      return { at: c.payDay, s: '• ' + e.name + ': ' + money(e.salary) + ' for ' + c.name + ', due ' + dd(c.payDay) };
+    }).sort((a, b2) => a.at - b2.at).map((x) => x.s);
+    return rows.length ? 'Next salaries:\n' + rows.join('\n') : 'No team members yet.';
+  }
+  if (/emi|loan|gst|tax/.test(t)) {
+    const emis = D.out.filter((x) => x.kind === 'emi' || x.kind === 'friend'), gst = S.payments.filter((p) => p.gst && p.status === 'pending');
+    return (emis.length ? 'EMIs and loans:\n' + emis.map(line).join('\n') : 'No EMIs due in the next 6 weeks.') + (gst.length ? '\n\nGST (GSTR-3B):\n' + gst.map((p) => '• ' + money(B.leftOf(p)) + ', ' + p.note + ', due ' + dd(p.due)).join('\n') : '');
+  }
+  if (/collect|receive|owe|incoming|money in/.test(t)) {
+    const P = settlePlan(), list = P.ins.slice().sort((a, b2) => a.day - b2.day).slice(0, 8);
+    return list.length ? 'Who pays you next:\n' + list.map((x) => '• ' + x.party + ': ' + money(x.amount) + ', ' + (x.late ? 'overdue since ' + dd(x.due) : dd(x.day)) + (x.acct ? ' (' + x.acct + ')' : '')).join('\n') + '\n\nOpen Money, In & out to see what each payment can settle.' : 'Nobody owes you anything right now.';
+  }
+  if (/pay|due|bill|expense|rent/.test(t)) {
+    const P = settlePlan(), outs = P.outs.filter((o) => !o.reserve).sort((a, b2) => a.due - b2.due).slice(0, 8);
+    return outs.length ? 'What to pay next:\n' + outs.map((o) => '• ' + o.party + ': ' + money(o.amount) + ', due ' + dd(o.due) + (o.payDay ? (o.lateDays > 0 ? ' · pay ' + dd(o.payDay) : ' · on time') : ' · not covered yet')).join('\n') : 'Nothing to pay right now.';
+  }
+  if (/today|plan|schedule|meeting|call/.test(t)) {
+    const rs = S.reminders.filter((r) => r.status === 'pending' && r.due < d1).sort((a, b2) => a.due - b2.due);
+    const ins = D.in.filter((x) => x.due < d1), outs = D.out.filter((x) => x.due < d1);
+    return (rs.length ? 'Reminders today:\n' + rs.map((r) => '• ' + r.task + ' · ' + L.fmtTime(r.due)).join('\n') : 'No reminders left today.') +
+      (ins.length ? '\n\nTo collect:\n' + ins.map(line).join('\n') : '') + (outs.length ? '\n\nTo pay:\n' + outs.map(line).join('\n') : '');
+  }
+  if (/dream|goal/.test(t)) { const ds = (S.dreams || []).filter((d) => !d.done); return ds.length ? 'Your dreams:\n' + ds.map((d) => '• ' + (d.title || '') + (d.target ? ': ' + money(d.target) : '')).join('\n') : 'No dreams added yet.'; }
+  return 'I can help with: your briefing, today\'s plan, who to collect from, what to pay next, salaries, EMIs and GST, and your dreams. You can also say "remind me to call Ravi tomorrow at 12".';
+}
 async function ask(text, mode) {
   text = String(text || '').trim();
   if (!text) return;
-  if (!H.ready()) { toast('Connect Lucy first in Settings > Connections'); go('more', 'connections'); return; }
   S.chat.push({ role: 'user', content: text, t: Date.now() });
+  let reply;
+  try { reply = localReply(text); } catch (e) { reply = 'Sorry, I could not work that out just now.'; console.error(e); }
+  S.chat.push({ role: 'assistant', content: reply, t: Date.now() });
   if (S.chat.length > 80) S.chat = S.chat.slice(-60);
-  view.chatBusy = true; save({ local: true }); render(); setAvatarState('thinking');
-  const provider = mode === 'hunter' ? 'claude' : (S.settings.provider === 'chatgpt' ? 'chatgpt' : 'claude');
-  try {
-    const history = S.chat.slice(-16).map((m) => ({ role: m.role, content: m.content }));
-    const r = await H.api.ai({ provider: provider, system: B.aiSystem(mode), messages: history, web: mode === 'hunter', maxTokens: mode === 'hunter' ? 3500 : 1600 });
-    const parsed = B.parseActions(r.text);
-    S.chat.push({ role: 'assistant', content: parsed.text || '(no answer)', provider: r.provider, sources: r.sources || [], actions: parsed.actions, t: Date.now() });
-    view.chatBusy = false; save(); render();
-    if (S.settings.autoSpeakReplies) V.speak(parsed.text);
-  } catch (e) {
-    view.chatBusy = false;
-    S.chat.push({ role: 'assistant', content: 'I could not reach my brain just now. ' + e.message, t: Date.now() });
-    save({ local: true }); render(); setAvatarState('idle');
-  }
+  save({ local: true }); render(); setAvatarState('idle');
+  if (S.settings.autoSpeakReplies) V.speak(reply.replace(/•/g, ''));
 }
 function approveAction(i, j) {
   const m = S.chat[i]; if (!m || !m.actions || !m.actions[j]) return;
@@ -832,14 +863,14 @@ function renderMore() {
     '<button class="mrow profile-row" data-a="sub" data-v="profile"><div class="pf-mini">' + (S.profile.photo ? '<img src="' + S.profile.photo + '" alt="">' : icon('user', 22)) + '</div><span class="grow"><b>' + esc(S.profile.fullName || nm()) + '</b><small>My profile · birthday, contacts, company</small></span>' + icon('right', 18, 'chev') + '</button>' +
     row('clients', 'briefcase', 'Clients', S.clients.filter((c) => !c.past).length + ' clients · retainers, notes, payments') +
     row('team', 'users', 'Team', S.employees.filter((e) => e.active !== false).length + ' people · phone, UPI, salary') +
-    row('leads', 'target', 'Leads · Hunter', openLeads + ' open leads · research and pricing') +
+    // leads removed from the menu (Nov 2026); data kept
     row('ideas', 'bulb', 'Ideas', S.ideas.length + ' ideas · company and brands') +
-    row('notes', 'note', 'Notes', S.notes.length + ' notes') +
-    row('shopping', 'cart', 'Shopping', S.shopping.filter((x) => !x.done).length + ' to buy') +
-    row('learning', 'book', 'Learning', S.learning.filter((x) => !x.done).length + ' in queue') +
+    // notes removed from the menu (Nov 2026); data kept
+    // shopping removed from the menu (Nov 2026); data kept
+    // learning removed from the menu (Nov 2026); data kept
     row('past', 'clock', 'Past', 'Old clients, past team and anything moved out · all history kept') +
     row('wa', 'chat', 'WhatsApp and bank', 'Ready messages you can edit · 3 bank accounts') +
-    row('reports', 'trend', 'Reports and coach', (() => { const n = CO.questions().length; return (n ? n + ' question' + (n > 1 ? 's' : '') + ' from Lucy · ' : '') + 'scores, books, what you watch'; })()) +
+    // reports removed from the menu (Nov 2026); data kept
     row('review', 'chart', 'Weekly review', 'Personal · company · money · ascend') +
     row('connections', 'link', 'Connections', (H.ready() ? 'Helper connected' : 'Set up notifications, Drive and AI')) +
     row('settings', 'gear', 'Settings', 'Voice, notifications, business rules') +
@@ -917,6 +948,8 @@ function renderSettings() {
   const sel = (key, opts, val) => '<select data-set="' + key + '">' + opts.map((o) => '<option value="' + o[0] + '" ' + (String(val) === String(o[0]) ? 'selected' : '') + '>' + o[1] + '</option>').join('') + '</select>';
   const vs = V.indianVoices();
   return topbar('Settings', { back: 'More' }) +
+    '<h2>Paused sections</h2><div class="panel"><div class="sub">Paused sections are hidden and send no notifications. Everything you wrote is kept. Tick to bring one back.</div>' +
+      [['journal', 'Journal'], ['manifest', 'Manifestation'], ['affirm', 'Affirmations'], ['mission', 'Money mission']].map((x) => '<label class="row mt" style="gap:8px"><input type="checkbox" data-pause="' + x[0] + '" ' + (B.paused(x[0]) ? '' : 'checked') + '> ' + x[1] + (B.paused(x[0]) ? ' <span class="sub">(paused)</span>' : '') + '</label>').join('') + '</div>' +
     '<h2>You</h2><label>Your name</label><input data-set="name" value="' + esc(st.name) + '">' +
     '<label>Monthly revenue target (₹)</label><input type="number" data-set="revenueTarget" value="' + esc(st.revenueTarget) + '">' +
     '<h2>Lucy\'s voice and look</h2><div class="panel"><div class="row"><div class="grow"><b>Lucy speaks</b><div class="sub">Reads briefings, affirmations and replies aloud</div></div>' + sw(st.speak, 'toggle', 'speak') + '</div>' +
@@ -959,9 +992,6 @@ function renderConnections() {
         '<div class="actions"><button class="btn small" data-a="push-on">' + icon('bell', 15) + (H.pushOn() ? 'Re-connect' : 'Turn on') + '</button><button class="btn small ghost" data-a="push-test">Send test</button>' + (H.pushOn() ? '<button class="btn small ghost" data-a="push-off">Turn off here</button>' : '') + '</div>' +
         (devs.length ? '<div class="hint">Notifications go to: <b>' + devs.map(esc).join(', ') + '</b></div>' : '') +
         (s ? '<div class="hint">' + s.queued + ' notifications scheduled' + (s.nextAt ? ', next ' + L.fmtWhen(s.nextAt) : '') + '</div>' : '') + '</div>';
-      h += '<h2>AI brain</h2><div class="panel"><div class="row"><span class="status-dot ' + (s && s.claude ? 'ok' : '') + '"></span><b class="grow">Claude</b><span class="sub">' + (s ? (s.claude ? s.claudeModel : 'No key') : '') + '</span></div><input id="key-claude" type="password" class="mt" placeholder="Paste Anthropic API key (sk-ant-…)"><select id="model-claude" class="mt">' + [['claude-sonnet-5-5', 'Claude Sonnet 5.5 (recommended)'], ['claude-opus-5-5', 'Claude Opus 5.5 (smartest)'], ['claude-haiku-5-5', 'Claude Haiku 5.5 (fastest)']].map((o) => '<option value="' + o[0] + '" ' + (s && s.claudeModel === o[0] ? 'selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' +
-        '<div class="row mt"><span class="status-dot ' + (s && s.chatgpt ? 'ok' : '') + '"></span><b class="grow">ChatGPT</b><span class="sub">' + (s ? (s.chatgpt ? s.openaiModel : 'No key') : '') + '</span></div><input id="key-openai" type="password" class="mt" placeholder="Paste OpenAI API key (sk-…)"><select id="model-openai" class="mt">' + [['gpt-6.1-sol', 'GPT-6.1 Sol (recommended)'], ['gpt-6-astra', 'GPT-6 Astra (most capable)'], ['gpt-6-luna', 'GPT-6 Luna (faster)']].map((o) => '<option value="' + o[0] + '" ' + (s && s.openaiModel === o[0] ? 'selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' +
-        '<button class="btn block" data-a="save-ai">Save AI settings</button><div class="hint">Keys are stored only in your private helper, never on this phone or in Google Drive. API use is billed by Anthropic and OpenAI per use.</div></div>';
       h += '<h2>Google Drive</h2><div class="panel"><div class="row"><span class="status-dot ' + (H.driveEnabled() && s && s.drive ? 'ok' : H.sync.state === 'error' ? 'err' : '') + '"></span><b class="grow">Your data in Drive</b><span class="sub">' + (H.driveEnabled() ? (H.sync.last ? 'Synced ' + L.fmtWhen(H.sync.last) : 'On') : 'Off') + '</span></div>' +
         (!s || !s.googleReady ? '<input id="g-id" class="mt" placeholder="Google OAuth Client ID"><input id="g-secret" type="password" class="mt" placeholder="Google OAuth Client secret"><button class="btn small ghost mt" data-a="save-google">Save Google details</button>' : '') +
         '<div class="actions"><button class="btn small" data-a="drive-connect">' + icon('cloud', 15) + (s && s.drive ? 'Reconnect' : 'Connect Google Drive') + '</button>' + (H.driveEnabled() ? '<button class="btn small ghost" data-a="drive-sync">Sync now</button>' : '') + '</div>' + (H.sync.error ? '<div class="hint bad">' + esc(H.sync.error) + '</div>' : '') +
@@ -1393,6 +1423,7 @@ document.addEventListener('click', async (ev) => {
     case 'del-rem': toPast('reminders', id); closeSheet(); render(); break;
     case 'snooze': { const r = remById(id); r.snoozeUntil = Date.now() + Number(v) * L.MIN; save(); closeSheet(); render(); toast('Snoozed till ' + L.fmtTime(r.snoozeUntil)); break; }
     case 'tomorrow': { const r = remById(id); const t = new Date(alertStart(r)); r.snoozeUntil = 0; r.due = L.atTime(L.addDays(L.startOfDay(Date.now()), 1), t.getHours(), t.getMinutes()); if (r.repeat) r.start = r.due; save(); closeSheet(); render(); toast('Moved to ' + L.fmtWhen(r.due)); break; }
+    case 'new-rem-cat': reminderSheet(null, { cat: v, due: L.atTime(Date.now(), new Date().getHours() + 1, 0) }); break;
     case 'new-rem-client': reminderSheet(null, { cat: 'Follow-up', clientId: id }); break;
     // money
     case 'edit-pay': paySheet(payById(id)); break;
@@ -1518,7 +1549,6 @@ document.addEventListener('click', async (ev) => {
     case 'founder-talk': closeSheet(); go('lucy'); ask(C.FOUNDER[v].title + '. Help me get moving with one concrete action.', 'coach'); break;
     case 'rate': { const k = B.today(); S.journal[k] = Object.assign(S.journal[k] || {}, { rating: Number(v) }); save(); render(); break; }
     // lucy
-    case 'provider': S.settings.provider = v; save({ local: true }); render(); break;
     case 'toggle-speak': S.settings.speak = !S.settings.speak; if (!S.settings.speak) V.stopSpeaking(); save({ local: true }); render(); break;
     case 'quick': { const q = QUICK.find((x) => x[0] === v); ask(q[2], v === 'hunter' ? 'hunter' : v === 'pricing' ? 'pricing' : v); break; }
     case 'send': { const t = $('#ask'); const text = t.value; t.value = ''; ask(text, /price|pricing|retainer|quote/i.test(text) ? 'pricing' : /find (me )?(new )?(clients|leads|prospects)|hunt/i.test(text) ? 'hunter' : 'chat'); break; }
@@ -1658,13 +1688,6 @@ document.addEventListener('click', async (ev) => {
     case 'push-on': try { await H.enablePush(); await H.api.schedule(buildSchedule()); await refreshStatus(); toast('Notifications are on'); } catch (e) { toast(e.message); } break;
     case 'push-off': try { const reg = await navigator.serviceWorker.getRegistration(); const sub = reg && await reg.pushManager.getSubscription(); if (sub) { await H.api.unsubscribe(sub.endpoint); await sub.unsubscribe(); } device.set('push', ''); await refreshStatus(); toast('Notifications off on this device'); } catch (e) { toast(e.message); } break;
     case 'push-test': try { await H.api.testPush(); toast('Sent. Check your notifications.'); } catch (e) { toast(e.message); } break;
-    case 'save-ai': {
-      const body = { claudeModel: $('#model-claude').value, openaiModel: $('#model-openai').value };
-      const k1 = $('#key-claude').value.trim(), k2 = $('#key-openai').value.trim();
-      if (k1) body.anthropicKey = k1; if (k2) body.openaiKey = k2;
-      try { connStatus = await H.api.config(body); toast('AI settings saved'); render(); } catch (e) { toast(e.message); }
-      break;
-    }
     case 'save-google': try { connStatus = await H.api.config({ googleClientId: $('#g-id').value.trim(), googleClientSecret: $('#g-secret').value.trim(), appUrl: location.origin + location.pathname }); toast('Saved'); render(); } catch (e) { toast(e.message); } break;
     case 'drive-connect': try { await H.api.config({ appUrl: location.origin + location.pathname }); const r = await H.api.oauthLink(); location.href = r.url; } catch (e) { toast(e.message); } break;
     case 'drive-sync': await H.pullFromDrive(() => render()); toast(H.sync.state === 'ok' ? 'Synced with Google Drive' : H.sync.error); render(); break;
@@ -1787,6 +1810,7 @@ document.addEventListener('change', async (ev) => {
     if (k === 'cashInHand') { S.settings.cashInHand = Number(v) || 0; save(); render(); return; }
     if (['salaryDay', 'revenueTarget', 'inspireStart', 'inspireEnd', 'nagCount', 'nagMin', 'reviewDay', 'voiceRate', 'voicePitch'].includes(k)) v = Number(v);
     S.settings[k] = v; save(); toast('Saved');
+  } else if (t.dataset.pause) { S.settings.paused = S.settings.paused || {}; S.settings.paused[t.dataset.pause] = !t.checked; save(); H.queueSchedule(buildSchedule); render();
   } else if (t.dataset.biz) { S.settings.business[t.dataset.biz] = t.type === 'number' ? Number(t.value) : t.value; save(); }
   else if (t.dataset.cost) { S.settings.business.costs[t.dataset.cost] = Number(t.value) || 0; save(); }
   else if (t.dataset.hunt) { S.settings.hunter[t.dataset.hunt] = t.type === 'number' ? Number(t.value) : t.value; save(); }

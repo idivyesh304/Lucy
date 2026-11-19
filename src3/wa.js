@@ -97,6 +97,7 @@ export function banks() {
   return list;
 }
 export function bankText(id) {
+  if (!id || id === 'none') return '';
   const b = banks().find((x) => x.id === id);
   if (!b) return '';
   const rows = [['Account name', b.holder], ['Bank', b.bank], ['A/c no', b.acc], ['IFSC', b.ifsc], ['Branch', b.branch], ['UPI', b.upi]].filter((r) => String(r[1] || '').trim());
@@ -134,7 +135,7 @@ export function forPayment(p) {
 export function forClient(c, cat) {
   const person = personOfClient(c);
   return { cats: cat ? [cat] : ['renewal', 'meeting', 'paid', 'welcome', 'proposal', 'festival', 'birthday', 'anniversary', 'reminder'], pick: cat ? null : 'renewal:friendly', to: person || c.company, phone: c.phone || c.personalPhone || '', bank: c.payTo || defaultBank(),
-    ctx: { name: hiName(person), first: first(person) || 'Sir', business: c.company || person, amount: money(c.retainer || c.amount), due: c.nextDate ? dstr(c.nextDate) : '', package: c.pkg || 'our services', what: c.pkg || 'your work', date: dstr(L.addDays(L.startOfDay(Date.now()), 1)), time: '11:00 AM' } };
+    ctx: { name: hiName(person), first: first(person) || 'Sir', business: c.company || person, amount: money(Math.round(Number(c.retainer || c.amount || 0) * (1 + (Number(c.gstRate) || 0) / 100))) + (Number(c.gstRate) ? ' (incl. ' + c.gstRate + '% GST)' : ''), due: c.nextDate ? dstr(c.nextDate) : '', package: c.pkg || 'our services', what: c.pkg || 'your work', date: dstr(L.addDays(L.startOfDay(Date.now()), 1)), time: '11:00 AM' } };
 }
 export function forSpecial(sd) {
   const rel = String(sd.relation || '').toLowerCase();

@@ -94,7 +94,9 @@ export function salaryPaidOf(e, mk) { const x = e.paid && e.paid[mk]; if (!x) re
 export function revenue() {
   const now = Date.now(), mk = monthKey(now);
   const inThisMonth = (ms) => ms && monthKey(ms) === mk;
-  const collected = S.payments.filter((p) => p.type === 'in').reduce((a, p) => a + partsOf(p).filter((x) => inThisMonth(x.at)).reduce((b, x) => b + Number(x.amt || 0), 0), 0);
+  // GST collected is not income, so revenue counts only the part before GST
+  const net = (p) => (p.gstRate ? 1 / (1 + Number(p.gstRate) / 100) : 1);
+  const collected = Math.round(S.payments.filter((p) => p.type === 'in').reduce((a, p) => a + partsOf(p).filter((x) => inThisMonth(x.at)).reduce((b, x) => b + Number(x.amt || 0), 0) * net(p), 0));
   const outstanding = S.payments.filter((p) => p.type === 'in' && p.status === 'pending').reduce((a, p) => a + leftOf(p), 0);
   const expected = S.payments.filter((p) => p.type === 'in' && p.status === 'pending' && monthKey(p.due) === mk).reduce((a, p) => a + leftOf(p), 0);
   const active = S.clients.filter((c) => c.active !== false && Number(c.retainer) > 0);
@@ -303,7 +305,8 @@ export function billClients() {
     while (c.nextDate <= soon && guard++ < 24) {
       const key = c.id + ':' + L.dayKey(c.nextDate);
       if (!S.payments.some((p) => p.cycle === key)) {
-        S.payments.push({ id: nid(), type: 'in', party: c.company || c.firstName || 'Client', amount: Number(c.retainer || c.amount), due: c.nextDate, note: (c.pkg ? c.pkg + ' · ' : '') + 'Monthly renewal', clientId: c.id, status: 'pending', created: Date.now(), auto: true, cycle: key });
+        const base = Number(c.retainer || c.amount), gst = Number(c.gstRate) || 0, mon = new Date(c.nextDate).toLocaleString('en-IN', { month: 'long' });
+        S.payments.push({ id: nid(), type: 'in', party: c.company || c.firstName || 'Client', amount: Math.round(base * (1 + gst / 100)), base: base, gstRate: gst, payTo: c.payTo || '', payMode: c.payMode || '', due: c.nextDate, note: mon + ' retainer' + (gst ? ' (' + L.money(base) + ' + ' + gst + '% GST)' : ''), clientId: c.id, status: 'pending', created: Date.now(), auto: true, cycle: key });
       }
       const d = new Date(c.nextDate), day = c.renewDay || d.getDate();
       c.renewDay = day;

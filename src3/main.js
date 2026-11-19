@@ -704,7 +704,7 @@ function renderClient(c) {
   const btn = (href, ic, l) => href ? '<a class="btn small ghost" href="' + esc(href) + '" target="_blank" rel="noopener">' + icon(ic, 15) + l + '</a>' : '';
   const rems = S.reminders.filter((r) => r.clientId === c.id && r.status === 'pending');
   const pays = S.payments.filter((p) => p.clientId === c.id);
-  const det = [['Client name', [c.firstName, c.lastName].filter(Boolean).join(' ')], ['Contact', c.phone || c.personalPhone], ['Billing', c.billing === 'once' ? 'One time · ' + money(c.amount || 0) : Number(c.retainer || c.amount) ? money(c.retainer || c.amount) + ' every month' : ''], [c.billing === 'once' ? 'Due' : 'Next renewal', c.nextDate ? L.fmtDate(c.nextDate) : '']].filter((d) => d[1]);
+  const det = [['Client name', [c.firstName, c.lastName].filter(Boolean).join(' ')], ['Contact', c.phone || c.personalPhone], ['Payment', [c.payMode, Number(c.gstRate) ? money(Math.round(Number(c.retainer || c.amount) * (1 + c.gstRate / 100))) + ' with ' + c.gstRate + '% GST' : '', c.payTo && c.payTo !== 'none' ? 'to ' + ((WA.banks().find((b) => b.id === c.payTo) || {}).label || '') : ''].filter(Boolean).join(' · ')], ['Billing', c.billing === 'once' ? 'One time · ' + money(c.amount || 0) : Number(c.retainer || c.amount) ? money(c.retainer || c.amount) + ' every month' : ''], [c.billing === 'once' ? 'Due' : 'Next renewal', c.nextDate ? L.fmtDate(c.nextDate) : '']].filter((d) => d[1]);
   return topbar(esc(clientName(c)), { back: c.past ? 'Past' : 'Clients' }) +
     (c.past ? '<div class="panel gold"><div class="row"><div class="grow"><b>Past client</b><div class="sub">Moved to Past on ' + L.fmtDate(c.past) + '. Everything below is kept.</div></div><button class="btn small" data-a="past-client-back" data-id="' + c.id + '">Bring back</button></div></div>' : '') +
     '<div class="actions" style="margin-top:0">' + btn((c.phone || c.personalPhone) && 'tel:' + tel(c.phone || c.personalPhone), 'phone', 'Call') + '<button class="btn small ghost" data-a="wa-client" data-id="' + c.id + '">' + icon('chat', 15) + 'WhatsApp</button>' + '<button class="btn small line" data-a="edit-client" data-id="' + c.id + '">' + icon('edit', 15) + 'Edit</button></div>' +
@@ -1555,7 +1555,10 @@ function clientSheet(c) {
     '<label>Client name</label><input id="c-person" value="' + esc(person) + '" placeholder="e.g. Sumit Keswani">' +
     '<label>Contact number</label><input id="c-phone" type="tel" value="' + esc(c.phone || c.personalPhone || '') + '" placeholder="+91 98xxxxxxxx">' +
     '<label>Billing</label><div class="seg" id="c-bill"><button class="' + (monthly ? 'on' : '') + '" data-a="c-bill" data-v="monthly">Every month</button><button class="' + (monthly ? '' : 'on') + '" data-a="c-bill" data-v="once">One time</button></div>' +
-    '<label>Amount (₹)</label><input id="c-amount" type="number" inputmode="numeric" value="' + esc(c.amount || c.retainer || '') + '">' +
+    '<label>Amount (₹, before GST)</label><input id="c-amount" type="number" inputmode="numeric" value="' + esc(c.amount || c.retainer || '') + '">' +
+    '<div class="row mt"><input type="checkbox" id="c-gst" ' + (Number(c.gstRate) ? 'checked' : '') + '><span>Add 18% GST (GST bill)</span></div>' +
+    '<label>Payment mode</label><select id="c-mode">' + ['Cash', 'Bank transfer / UPI', 'GST bill'].map((m) => '<option ' + (m === (c.payMode || (Number(c.gstRate) ? 'GST bill' : 'Bank transfer / UPI')) ? 'selected' : '') + '>' + m + '</option>').join('') + '</select>' +
+    '<label>Bank details in WhatsApp messages</label><select id="c-payto">' + WA.banks().map((b) => '<option value="' + b.id + '" ' + (b.id === (c.payTo || WA.defaultBank()) ? 'selected' : '') + '>' + esc(b.label) + '</option>').join('') + '<option value="none" ' + (c.payTo === 'none' ? 'selected' : '') + '>Do not include</option></select>' +
     '<div id="c-renew"' + (monthly ? '' : ' hidden') + '><label>Next renewal date</label><input id="c-date" type="date" value="' + (c.nextDate ? L.dayKey(c.nextDate) : L.dayKey(Date.now())) + '"></div>' +
     '<div class="hint" id="c-hint">' + (monthly ? 'Every month on the renewal date, Lucy adds this amount to your receivables automatically.' : 'Lucy adds this amount to your receivables once.') + '</div>' +
     '<div class="row mt"><input type="checkbox" id="c-active" ' + (c.active === false ? '' : 'checked') + '><span>Active client</span></div>' +
@@ -1568,11 +1571,11 @@ function saveClient(id) {
   const person = $('#c-person').value.trim().split(/\s+/);
   const nextDate = billing === 'monthly' ? L.startOfDay(fromInputs($('#c-date').value, '09:00')) : L.startOfDay(Date.now());
   const d = { company: name, firstName: person[0] || '', lastName: person.slice(1).join(' '), phone: $('#c-phone').value.trim(), personalPhone: $('#c-phone').value.trim(), billing: billing, amount: amount,
-    retainer: billing === 'monthly' ? amount : 0, active: $('#c-active').checked };
+    retainer: billing === 'monthly' ? amount : 0, active: $('#c-active').checked, gstRate: $('#c-gst').checked ? 18 : 0, payMode: $('#c-mode').value, payTo: $('#c-payto').value };
   let c;
   if (id) { c = clientById(id); const changedDate = billing === 'monthly' && (!c.nextDate || L.dayKey(c.nextDate) !== L.dayKey(nextDate)); Object.assign(c, d); if (changedDate) { c.nextDate = nextDate; c.renewDay = new Date(nextDate).getDate(); } }
   else { c = Object.assign({ id: nid(), notes: '', created: Date.now(), nextDate: nextDate }, d); if (billing === 'monthly') c.renewDay = new Date(nextDate).getDate(); S.clients.push(c); view.id = c.id; celebrate('small'); }
-  if (billing === 'once' && amount && !c.onceBilled) { S.payments.push({ id: nid(), type: 'in', party: name, amount: amount, due: L.startOfDay(Date.now()), note: 'One-time project', clientId: c.id, status: 'pending', created: Date.now(), auto: true }); c.onceBilled = true; }
+  if (billing === 'once' && amount && !c.onceBilled) { S.payments.push({ id: nid(), type: 'in', party: name, amount: Math.round(amount * (1 + (d.gstRate || 0) / 100)), base: amount, gstRate: d.gstRate || 0, payTo: d.payTo, payMode: d.payMode, due: L.startOfDay(Date.now()), note: 'One-time project' + (d.gstRate ? ' (' + money(amount) + ' + 18% GST)' : ''), clientId: c.id, status: 'pending', created: Date.now(), auto: true }); c.onceBilled = true; }
   B.billClients(); save(); closeSheet(); render();
 }
 function noteSheet(n) {

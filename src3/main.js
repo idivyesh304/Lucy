@@ -204,7 +204,7 @@ function spRow(x) {
   const when = d === 0 ? '<span class="gold">Today</span>' : d === 1 ? 'Tomorrow' : 'In ' + d + ' days';
   const ic = sd.type === 'Birthday' ? 'cake' : sd.type === 'Anniversary' ? 'heart' : 'star';
   return '<div class="item sp-item ' + (d <= 1 ? 'soon' : '') + '"' + (sd.self ? ' data-a="sub-profile"' : ' data-a="edit-sp" data-id="' + sd.id + '"') + '><div class="badge" style="--c:' + (sd.type === 'Anniversary' ? '#F08BC4' : sd.type === 'Birthday' ? 'var(--gold)' : 'var(--cyan)') + '">' + icon(ic, 18) + '</div>' +
-    '<div class="grow"><div class="t">' + esc(SP.specialTitle(sd, x.at)) + '</div><div class="m">' + L.fmtDate(x.at) + (sd.relation ? ' · ' + esc(sd.relation) : '') + '</div></div><div class="right sp-when">' + when + (!sd.self ? '<button class="link wa-link" data-a="wa-sp" data-id="' + sd.id + '">' + icon('chat', 13) + ' Wish</button>' : '') + '</div></div>';
+    '<div class="grow"><div class="t">' + esc(SP.specialTitle(sd, x.at)) + '</div><div class="m">' + L.fmtDate(x.at) + (sd.relation ? ' · ' + esc(sd.relation) : sd.cat ? ' · ' + esc(sd.cat) : '') + (sd.gift ? ' · Gift: ' + esc(sd.gift) : '') + '</div></div><div class="right sp-when">' + when + (!sd.self && (sd.type !== 'Other' || sd.wish) ? '<button class="link wa-link" data-a="wa-sp" data-id="' + sd.id + '">' + icon('chat', 13) + ' Wish</button>' : '') + '</div></div>';
 }
 function renderSpecial() {
   const all = SP.upcoming();
@@ -217,21 +217,62 @@ function renderSpecial() {
   if (!all.length) h += '<div class="empty">No special days yet. Add birthdays and anniversaries of family, friends and clients.</div>';
   return h;
 }
+const SP_REL = { Birthday: ['Wife', 'Husband', 'Mother', 'Father', 'Brother', 'Sister', 'Son', 'Daughter', 'Family', 'Friend', 'Client', 'Team', 'Other'], Anniversary: ['Parents', 'Brother and sister-in-law', 'Sister and brother-in-law', 'Friends', 'Client', 'Family', 'Other'] };
+const SP_OTHER_CATS = ['Indian festival', 'Gujarati festival', 'National day', 'Past event', 'Purchase day', 'Business day', 'Other'];
 function specialSheet(sd, type) {
-  sd = sd || { type: type || 'Birthday', name: '', date: '', year: 0, relation: '', phone: '', note: '', remind7: true };
-  const [mm, dd] = String(sd.date || '').split('-').map(Number);
-  openSheet('<h3>' + (sd.id ? 'Edit special day' : 'New ' + sd.type.toLowerCase()) + '</h3>' +
-    '<div class="seg" id="sp-type">' + SP.SPECIAL_TYPES.map(([t]) => '<button class="' + (t === sd.type ? 'on' : '') + '" data-a="sp-type" data-v="' + t + '">' + t + '</button>').join('') + '</div>' +
-    '<label>Whose</label><input id="sp-name" value="' + esc(sd.name) + '" placeholder="e.g. Mummy, Devanshi, Mr. Ravi">' +
-    '<div class="grid2"><div><label>Day</label><select id="sp-d">' + Array.from({ length: 31 }, (_, i) => '<option ' + (dd === i + 1 ? 'selected' : '') + '>' + (i + 1) + '</option>').join('') + '</select></div>' +
-    '<div><label>Month</label><select id="sp-m">' + L.MON.map((m, i) => '<option value="' + (i + 1) + '" ' + (mm === i + 1 ? 'selected' : '') + '>' + m + '</option>').join('') + '</select></div></div>' +
-    '<label>Year (optional, to show age or years)</label><input id="sp-y" type="number" inputmode="numeric" value="' + (sd.year || '') + '" placeholder="e.g. 1994">' +
-    '<div class="grid2"><div><label>Relation</label><input id="sp-rel" value="' + esc(sd.relation || '') + '" placeholder="Family, friend, client"></div><div><label>Phone (optional)</label><input id="sp-phone" type="tel" value="' + esc(sd.phone || '') + '"></div></div>' +
-    '<label>Gift or wish idea</label><input id="sp-note" value="' + esc(sd.note || '') + '">' +
-    '<div class="row mt"><input type="checkbox" id="sp-7" ' + (sd.remind7 === false ? '' : 'checked') + '><span>Also remind me 7 days before</span></div>' +
-    '<button class="btn block" data-a="save-sp" data-id="' + (sd.id || '') + '">Save</button>' + (sd.id ? '<button class="btn danger block" data-a="del-sp" data-id="' + sd.id + '">Move to Past</button>' : ''));
-  $('#sheet').dataset.sptype = sd.type;
+  sd = sd || { type: type || 'Birthday', name: '', date: '', year: 0, relation: '', phone: '', repeat: true };
+  const t = sd.type, [mm, dd] = String(sd.date || '').split('-').map(Number), thisYear = new Date().getFullYear();
+  const yrs = t === 'Other' ? Array.from({ length: 40 }, (_, i) => thisYear + 5 - i) : Array.from({ length: 90 }, (_, i) => thisYear - i);
+  const dateRow = '<div class="grid3" style="display:grid;grid-template-columns:1fr 1.3fr 1.2fr;gap:8px"><div><label>Date</label><select id="sp-d">' + Array.from({ length: 31 }, (_, i) => '<option ' + (dd === i + 1 ? 'selected' : '') + '>' + (i + 1) + '</option>').join('') + '</select></div>' +
+    '<div><label>Month</label><select id="sp-m">' + ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => '<option value="' + (i + 1) + '" ' + (mm === i + 1 ? 'selected' : '') + '>' + m + '</option>').join('') + '</select></div>' +
+    '<div><label>Year</label><select id="sp-y"><option value="">' + (t === 'Other' ? 'Every year' : 'Not sure') + '</option>' + yrs.map((y) => '<option ' + (Number(sd.year) === y ? 'selected' : '') + '>' + y + '</option>').join('') + '</select></div></div><div class="sub" id="sp-when" style="margin-top:6px"></div>';
+  const relSel = (list) => '<label>Relation</label><select id="sp-rel"><option value="">Choose</option>' + list.concat(sd.relation && !list.includes(sd.relation) ? [sd.relation] : []).map((r) => '<option ' + (r === sd.relation ? 'selected' : '') + '>' + esc(r) + '</option>').join('') + '</select>';
+  const draftWish = sd.wish || (t === 'Other' ? '' : spDraft(sd));
+  const remindNote = '<div class="hint">Lucy reminds you 15, 10, 7 and 3 days before, at 11:30 PM the night before, and on the day.</div>';
+  let body = '<h3>' + (sd.id ? 'Edit ' + t.toLowerCase() : 'New ' + (t === 'Other' ? 'special day' : t.toLowerCase())) + '</h3>' +
+    '<div class="seg" id="sp-type">' + SP.SPECIAL_TYPES.map(([x]) => '<button class="' + (x === t ? 'on' : '') + '" data-a="sp-type" data-v="' + x + '">' + x + '</button>').join('') + '</div>';
+  if (t === 'Birthday') body += '<label>Whose birthday</label><input id="sp-name" value="' + esc(sd.name) + '" placeholder="e.g. Devanshi, Mummy, Pratik">' + dateRow + relSel(SP_REL.Birthday) +
+    '<label>Phone</label><input id="sp-phone" type="tel" value="' + esc(sd.phone || '') + '" placeholder="+91 98xxxxxxxx">' +
+    '<label>WhatsApp message to wish</label><textarea id="sp-wish" style="min-height:110px">' + esc(draftWish) + '</textarea>' +
+    '<label>Special gift in mind</label><input id="sp-gift" value="' + esc(sd.gift || sd.note || '') + '" placeholder="e.g. Watch, cake from her favourite place">' + remindNote;
+  else if (t === 'Anniversary') body += '<div class="grid2"><div><label>First person</label><input id="sp-name" value="' + esc(sd.name) + '" placeholder="e.g. Mummy"></div><div><label>Second person</label><input id="sp-name2" value="' + esc(sd.name2 || '') + '" placeholder="e.g. Papa"></div></div>' +
+    dateRow + relSel(SP_REL.Anniversary) +
+    '<div class="grid2"><div><label>First person\'s phone</label><input id="sp-phone" type="tel" value="' + esc(sd.phone || '') + '"></div><div><label>Second person\'s phone</label><input id="sp-phone2" type="tel" value="' + esc(sd.phone2 || '') + '"></div></div>' +
+    '<label>WhatsApp message to wish</label><textarea id="sp-wish" style="min-height:110px">' + esc(draftWish) + '</textarea>' +
+    '<label>Special gift in mind</label><input id="sp-gift" value="' + esc(sd.gift || sd.note || '') + '" placeholder="e.g. Dinner booking, flowers">' + remindNote;
+  else body += '<label>What for</label><input id="sp-name" value="' + esc(sd.name) + '" placeholder="e.g. Uttarayan, Gujarat Day, bought my first camera">' +
+    '<label>Type</label><select id="sp-cat">' + SP_OTHER_CATS.map((c) => '<option ' + (c === sd.cat ? 'selected' : '') + '>' + c + '</option>').join('') + '</select>' + dateRow +
+    '<div class="hint">Pick a year only for a one-time day. Leave it on "Every year" for festivals and yearly memories.</div>' +
+    '<label>Note</label><textarea id="sp-note" style="min-height:70px" placeholder="What to do, what to remember, who to greet">' + esc(sd.note || '') + '</textarea>' +
+    '<label>WhatsApp greeting to send (optional)</label><textarea id="sp-wish" style="min-height:80px" placeholder="e.g. Happy Uttarayan to you and your family!">' + esc(sd.wish || '') + '</textarea>' + remindNote;
+  body += '<button class="btn block" data-a="save-sp" data-id="' + (sd.id || '') + '">Save</button>' + (sd.id ? '<button class="btn danger block" data-a="del-sp" data-id="' + sd.id + '">Move to Past</button>' : '');
+  openSheet(body);
+  $('#sheet').dataset.sptype = t;
+  const wt = $('#sp-wish'); if (wt && t !== 'Other') wt.dataset.auto = sd.wish ? '0' : '1';
+  spWhen();
 }
+function spWhen() {
+  const el = $('#sp-when'); if (!el) return;
+  const d = Number($('#sp-d').value), m = Number($('#sp-m').value), y = Number($('#sp-y').value) || 0;
+  const t = $('#sheet').dataset.sptype;
+  const at = SP.nextOccurrence({ date: String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'), year: y, repeat: !(t === 'Other' && y) });
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  if (new Date(2024, m - 1, d).getMonth() !== m - 1) { el.innerHTML = '<span class="bad">That date does not exist in this month.</span>'; return; }
+  el.textContent = at ? 'Next: ' + days[new Date(at).getDay()] + ', ' + new Date(at).getDate() + ' ' + L.MON[new Date(at).getMonth()] + ' ' + new Date(at).getFullYear() + (SP.daysUntil(at) === 0 ? ' (today)' : SP.daysUntil(at) === 1 ? ' (tomorrow)' : ' (in ' + SP.daysUntil(at) + ' days)') : 'This date has already passed.';
+}
+// ready-made wish that suits the relation; it updates until you edit it yourself
+function spDraft(sd) {
+  const m = WA.forSpecial(Object.assign({}, sd, { wish: '' }));
+  const tpl = WA.templates(m.cats[0]).find((x) => x.id === m.pick) || WA.templates(m.cats[0])[0] || { text: '' };
+  return WA.fill(tpl.text, sd.name ? m.ctx : Object.assign({}, m.ctx, { first: '{first}', name: '{name}' }));
+}
+function spRedraft() {
+  const wt = $('#sp-wish'); if (!wt || wt.dataset.auto !== '1') return;
+  const t = $('#sheet').dataset.sptype; if (t === 'Other') return;
+  wt.value = spDraft({ type: t, name: ($('#sp-name') || {}).value || '', name2: ($('#sp-name2') || {}).value || '', relation: ($('#sp-rel') || {}).value || '', year: 0 });
+}
+document.addEventListener('change', (ev) => { if (ev.target && ['sp-d', 'sp-m', 'sp-y'].includes(ev.target.id)) spWhen(); if (ev.target && ev.target.id === 'sp-rel') spRedraft(); });
+document.addEventListener('input', (ev) => { if (!ev.target) return; if (ev.target.id === 'sp-wish') ev.target.dataset.auto = '0'; if (ev.target.id === 'sp-name' || ev.target.id === 'sp-name2') spRedraft(); });
 const upiLink = (e, amt, note) => 'upi://pay?pa=' + String(e.upi).trim() + '&pn=' + encodeURIComponent(e.name) + '&am=' + Number(amt).toFixed(2) + '&cu=INR&tn=' + encodeURIComponent(note);
 function renderTeam() {
   const pr = B.payroll(), mon = L.MON[new Date().getMonth()];
@@ -619,7 +660,7 @@ function renderMore() {
 
 function renderClients() {
   if (view.id) return renderClient(clientById(view.id));
-  const rows = S.clients.filter((c) => !c.past).slice().sort((a, b2) => clientName(a).localeCompare(clientName(b2))).map((c) => '<div class="item" data-a="open-client" data-id="' + c.id + '"><div class="badge">' + icon('briefcase', 18) + '</div><div class="grow"><div class="t">' + esc(clientName(c)) + '</div><div class="m">' + esc([c.pkg, c.active === false ? 'Inactive' : c.billing === 'once' ? 'One time ' + money(c.amount || 0) : (Number(c.retainer) ? money(c.retainer) + '/month · renews ' + (c.nextDate ? L.fmtDate(c.nextDate) : '') : '')].filter(Boolean).join(' · ') || 'Client') + '</div></div>' + icon('right', 18) + '</div>');
+  const rows = S.clients.filter((c) => !c.past).slice().sort((a, b2) => clientName(a).localeCompare(clientName(b2))).map((c) => '<div class="item" data-a="open-client" data-id="' + c.id + '"><div class="badge">' + icon('briefcase', 18) + '</div><div class="grow"><div class="t">' + esc(clientName(c)) + '</div><div class="m">' + esc([[c.firstName, c.lastName].filter(Boolean).join(' '), c.active === false ? 'Inactive' : c.billing === 'once' ? 'One time ' + money(c.amount || 0) : (Number(c.retainer) ? money(c.retainer) + '/month · renews ' + (c.nextDate ? L.fmtDate(c.nextDate) : '') : '')].filter(Boolean).join(' · ') || 'Client') + '</div></div>' + icon('right', 18) + '</div>');
   return topbar('Clients', { back: 'More' }) + listOf(rows, 'No clients yet. Tap + to add one.');
 }
 function renderClient(c) {
@@ -630,7 +671,7 @@ function renderClient(c) {
   const btn = (href, ic, l) => href ? '<a class="btn small ghost" href="' + esc(href) + '" target="_blank" rel="noopener">' + icon(ic, 15) + l + '</a>' : '';
   const rems = S.reminders.filter((r) => r.clientId === c.id && r.status === 'pending');
   const pays = S.payments.filter((p) => p.clientId === c.id);
-  const det = [['Contact', c.phone || c.personalPhone], ['Package', c.pkg], ['Billing', c.billing === 'once' ? 'One time · ' + money(c.amount || 0) : Number(c.retainer || c.amount) ? money(c.retainer || c.amount) + ' every month' : ''], [c.billing === 'once' ? 'Due' : 'Next renewal', c.nextDate ? L.fmtDate(c.nextDate) : '']].filter((d) => d[1]);
+  const det = [['Client name', [c.firstName, c.lastName].filter(Boolean).join(' ')], ['Contact', c.phone || c.personalPhone], ['Billing', c.billing === 'once' ? 'One time · ' + money(c.amount || 0) : Number(c.retainer || c.amount) ? money(c.retainer || c.amount) + ' every month' : ''], [c.billing === 'once' ? 'Due' : 'Next renewal', c.nextDate ? L.fmtDate(c.nextDate) : '']].filter((d) => d[1]);
   return topbar(esc(clientName(c)), { back: c.past ? 'Past' : 'Clients' }) +
     (c.past ? '<div class="panel gold"><div class="row"><div class="grow"><b>Past client</b><div class="sub">Moved to Past on ' + L.fmtDate(c.past) + '. Everything below is kept.</div></div><button class="btn small" data-a="past-client-back" data-id="' + c.id + '">Bring back</button></div></div>' : '') +
     '<div class="actions" style="margin-top:0">' + btn((c.phone || c.personalPhone) && 'tel:' + tel(c.phone || c.personalPhone), 'phone', 'Call') + '<button class="btn small ghost" data-a="wa-client" data-id="' + c.id + '">' + icon('chat', 15) + 'WhatsApp</button>' + '<button class="btn small line" data-a="edit-client" data-id="' + c.id + '">' + icon('edit', 15) + 'Edit</button></div>' +
@@ -1060,7 +1101,7 @@ document.addEventListener('click', async (ev) => {
       break;
     case 'sub-profile': go('more', 'profile'); break;
     case 'c-bill': document.querySelectorAll('#c-bill button').forEach((b) => b.classList.toggle('on', b === el)); $('#sheet').dataset.bill = v;
-      $('#c-date-l').textContent = v === 'monthly' ? 'Next renewal date' : 'Payment due date';
+      $('#c-renew').hidden = v !== 'monthly';
       $('#c-hint').textContent = v === 'monthly' ? 'Every month on the renewal date, Lucy adds this amount to your receivables automatically.' : 'Lucy adds this amount to your receivables once.'; break;
     case 'e-kind': document.querySelectorAll('#e-kind button').forEach((b) => b.classList.toggle('on', b === el)); $('#sheet').dataset.kind = v; break;
     case 'fresh-start': {
@@ -1102,13 +1143,16 @@ document.addEventListener('click', async (ev) => {
     }
     case 'new-sp': specialSheet(null, v); break;
     case 'edit-sp': specialSheet(S.specialDays.find((x) => x.id === id)); break;
-    case 'sp-type': document.querySelectorAll('#sp-type button').forEach((b) => b.classList.toggle('on', b === el)); $('#sheet').dataset.sptype = v; break;
+    case 'sp-type': { const keep = { id: Number($('#sheet [data-a="save-sp"]').dataset.id) || undefined, type: v, name: ($('#sp-name') || {}).value || '', phone: ($('#sp-phone') || {}).value || '', date: String($('#sp-m').value).padStart(2, '0') + '-' + String($('#sp-d').value).padStart(2, '0'), year: Number($('#sp-y').value) || 0 }; specialSheet(keep); break; }
     case 'save-sp': {
-      const name = $('#sp-name').value.trim(); if (!name) { toast('Whose special day is it?'); break; }
-      const data = { name: name, type: $('#sheet').dataset.sptype || 'Birthday', date: String($('#sp-m').value).padStart(2, '0') + '-' + String($('#sp-d').value).padStart(2, '0'), year: Number($('#sp-y').value) || 0,
-        relation: $('#sp-rel').value.trim(), phone: $('#sp-phone').value.trim(), note: $('#sp-note').value.trim(), remind7: $('#sp-7').checked };
+      const t = $('#sheet').dataset.sptype || 'Birthday', g = (k) => { const e = $('#sp-' + k); return e ? e.value.trim() : ''; };
+      const name = g('name'); if (!name) { toast(t === 'Other' ? 'What is this day for?' : t === 'Anniversary' ? 'Add at least the first name' : 'Whose birthday is it?'); break; }
+      const d = Number(g('d')), m = Number(g('m'));
+      if (new Date(2024, m - 1, d).getMonth() !== m - 1) { toast('That date does not exist in this month'); break; }
+      for (const ph of [g('phone'), g('phone2')]) if (ph && !WA.validPhone(ph)) { toast('Please check the phone number ' + ph); return; }
+      const data = { name: name, type: t, date: String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'), year: Number(g('y')) || 0, relation: g('rel'), phone: g('phone'), name2: g('name2'), phone2: g('phone2'), wish: ($('#sp-wish') || {}).value || '', gift: g('gift'), note: t === 'Other' ? g('note') : '', cat: t === 'Other' ? g('cat') : '', repeat: !(t === 'Other' && Number(g('y'))) };
       if (id) Object.assign(S.specialDays.find((x) => x.id === id), data); else S.specialDays.push(Object.assign({ id: nid(), created: Date.now() }, data));
-      save(); closeSheet(); view.seg.plan = 'special'; render(); celebrate('small'); toast('Lucy will remind you'); break;
+      save(); closeSheet(); view.seg.plan = 'special'; render(); celebrate('small'); toast('Saved. Lucy will remind you 15, 10, 7 and 3 days before.'); break;
     }
     case 'past-back': { const e = S.archive.find((x) => String(x.id) === el.dataset.id); if (e) { const it = Object.assign({}, e.item, { id: nid() }); (S[e.kind] = S[e.kind] || []).push(it); S.archive = S.archive.filter((x) => x !== e); save(); toast('Brought back'); render(); } break; }
     case 'past-client-back': { const c = S.clients.find((x) => x.id === id); if (c) { delete c.past; c.active = true; view.fromPast = false; save(); toast(clientName(c) + ' is an active client again'); render(); } break; }
@@ -1319,6 +1363,7 @@ document.addEventListener('click', async (ev) => {
     case 'wa-cat': { const m = window.__waMeta; m.cat = v; m.tpl = null; waFill(); break; }
     case 'wa-tpl': { const m = window.__waMeta; m.tpl = v; waFill(); break; }
     case 'wa-bank': { const m = window.__waMeta; m.bank = v; waFill(); break; }
+    case 'wa-to': { $('#wa-phone').value = v; $$('[data-a="wa-to"]').forEach((c2) => c2.classList.toggle('on', c2 === el)); waRefresh(); break; }
     case 'wa-settings': view.waCat = view.waCat || 'payment'; go('more', 'wa'); break;
     case 'wa-set-cat': view.waCat = v; render(); break;
     case 'bank-save': bankSave(); break;
@@ -1453,28 +1498,30 @@ function fab() {
 function clientSheet(c) {
   c = c || {};
   const monthly = c.billing ? c.billing === 'monthly' : (c.id ? !!Number(c.retainer) : true);
+  const person = [c.firstName, c.lastName].filter(Boolean).join(' ');
   openSheet('<h3>' + (c.id ? 'Edit client' : 'New client') + '</h3>' +
-    '<label>Client name</label><input id="c-name" value="' + esc(clientName(c.id ? c : null) || '') + '" placeholder="Business or person">' +
-    '<label>Contact number</label><input id="c-phone" type="tel" value="' + esc(c.phone || c.personalPhone || '') + '" placeholder="98xxxxxxxx">' +
-    '<label>Package</label><input id="c-pkg" value="' + esc(c.pkg || '') + '" placeholder="e.g. Elevate · 8 reels + 12 posts">' +
+    '<label>Brand name</label><input id="c-name" value="' + esc(c.company || '') + '" placeholder="e.g. Filmshoppee - Car Facelift Studio">' +
+    '<label>Client name</label><input id="c-person" value="' + esc(person) + '" placeholder="e.g. Sumit Keswani">' +
+    '<label>Contact number</label><input id="c-phone" type="tel" value="' + esc(c.phone || c.personalPhone || '') + '" placeholder="+91 98xxxxxxxx">' +
     '<label>Billing</label><div class="seg" id="c-bill"><button class="' + (monthly ? 'on' : '') + '" data-a="c-bill" data-v="monthly">Every month</button><button class="' + (monthly ? '' : 'on') + '" data-a="c-bill" data-v="once">One time</button></div>' +
-    '<div class="grid2"><div><label>Amount (₹)</label><input id="c-amount" type="number" inputmode="numeric" value="' + esc(c.amount || c.retainer || '') + '"></div>' +
-    '<div><label id="c-date-l">' + (monthly ? 'Next renewal date' : 'Payment due date') + '</label><input id="c-date" type="date" value="' + (c.nextDate ? L.dayKey(c.nextDate) : L.dayKey(Date.now())) + '"></div></div>' +
+    '<label>Amount (₹)</label><input id="c-amount" type="number" inputmode="numeric" value="' + esc(c.amount || c.retainer || '') + '">' +
+    '<div id="c-renew"' + (monthly ? '' : ' hidden') + '><label>Next renewal date</label><input id="c-date" type="date" value="' + (c.nextDate ? L.dayKey(c.nextDate) : L.dayKey(Date.now())) + '"></div>' +
     '<div class="hint" id="c-hint">' + (monthly ? 'Every month on the renewal date, Lucy adds this amount to your receivables automatically.' : 'Lucy adds this amount to your receivables once.') + '</div>' +
     '<div class="row mt"><input type="checkbox" id="c-active" ' + (c.active === false ? '' : 'checked') + '><span>Active client</span></div>' +
     '<button class="btn block" data-a="save-client" data-id="' + (c.id || '') + '">Save</button>' + (c.id ? (c.past ? '' : '<button class="btn ghost block" data-a="del-client" data-id="' + c.id + '">Move to Past clients</button>') : ''));
   $('#sheet').dataset.bill = monthly ? 'monthly' : 'once';
 }
 function saveClient(id) {
-  const name = $('#c-name').value.trim(); if (!name) return toast('Add the client name');
+  const name = $('#c-name').value.trim(); if (!name) return toast('Add the brand name');
   const billing = $('#sheet').dataset.bill || 'monthly', amount = Number($('#c-amount').value) || 0;
-  const nextDate = L.startOfDay(fromInputs($('#c-date').value, '09:00'));
-  const d = { company: name, firstName: '', lastName: '', phone: $('#c-phone').value.trim(), personalPhone: $('#c-phone').value.trim(), pkg: $('#c-pkg').value.trim(), billing: billing, amount: amount,
+  const person = $('#c-person').value.trim().split(/\s+/);
+  const nextDate = billing === 'monthly' ? L.startOfDay(fromInputs($('#c-date').value, '09:00')) : L.startOfDay(Date.now());
+  const d = { company: name, firstName: person[0] || '', lastName: person.slice(1).join(' '), phone: $('#c-phone').value.trim(), personalPhone: $('#c-phone').value.trim(), billing: billing, amount: amount,
     retainer: billing === 'monthly' ? amount : 0, active: $('#c-active').checked };
   let c;
-  if (id) { c = clientById(id); const changedDate = !c.nextDate || L.dayKey(c.nextDate) !== L.dayKey(nextDate); Object.assign(c, d); if (changedDate) { c.nextDate = nextDate; c.renewDay = new Date(nextDate).getDate(); } }
-  else { c = Object.assign({ id: nid(), notes: '', created: Date.now(), nextDate: nextDate }, d); S.clients.push(c); view.id = c.id; celebrate('small'); }
-  if (billing === 'once' && amount && !c.onceBilled) { S.payments.push({ id: nid(), type: 'in', party: name, amount: amount, due: nextDate, note: c.pkg || 'One-time project', clientId: c.id, status: 'pending', created: Date.now(), auto: true }); c.onceBilled = true; }
+  if (id) { c = clientById(id); const changedDate = billing === 'monthly' && (!c.nextDate || L.dayKey(c.nextDate) !== L.dayKey(nextDate)); Object.assign(c, d); if (changedDate) { c.nextDate = nextDate; c.renewDay = new Date(nextDate).getDate(); } }
+  else { c = Object.assign({ id: nid(), notes: '', created: Date.now(), nextDate: nextDate }, d); if (billing === 'monthly') c.renewDay = new Date(nextDate).getDate(); S.clients.push(c); view.id = c.id; celebrate('small'); }
+  if (billing === 'once' && amount && !c.onceBilled) { S.payments.push({ id: nid(), type: 'in', party: name, amount: amount, due: L.startOfDay(Date.now()), note: 'One-time project', clientId: c.id, status: 'pending', created: Date.now(), auto: true }); c.onceBilled = true; }
   B.billClients(); save(); closeSheet(); render();
 }
 function noteSheet(n) {
@@ -1993,12 +2040,13 @@ function moneyMovesPanel(full) {
 /* ---------------- WhatsApp: Lucy writes, you tap Send ---------------- */
 function waSheet(m) {
   window.__waMeta = m;
-  const tl = m.cats.reduce((a, c) => a.concat(WA.templates(c)), []);
+  const tl = (m.ownText ? [{ id: 'own-text', cat: m.cats[0], label: 'Your message', text: m.ownText }] : []).concat(m.cats.reduce((a, c) => a.concat(WA.templates(c)), []));
   m.tpl = (tl.find((t) => t.id === m.pick) || tl[0] || {}).id;
   m.cat = (tl.find((t) => t.id === m.tpl) || {}).cat || m.cats[0];
   const sent = WA.sentRecently(m.kind, m.ref, 3);
   openSheet('<div class="eyebrow">WhatsApp · ' + esc(m.title || 'Message') + '</div><h3 class="mt">' + esc(m.to || 'Who should get this?') + '</h3>' +
     (sent ? '<div class="sub" style="color:var(--gold)">You already sent this in the last 3 days.</div>' : '') +
+    (m.recipients ? '<label>Send to</label><div class="chips">' + m.recipients.map((r, i) => '<button class="chip' + (i === 0 ? ' on' : '') + '" data-a="wa-to" data-v="' + esc(r.phone) + '">' + esc(r.label) + '</button>').join('') + '</div>' : '') +
     '<label>WhatsApp number</label><input id="wa-phone" type="tel" value="' + esc(m.phone || '') + '" placeholder="+91 98xxxxxxxx">' +
     (m.cats.length > 1 ? '<label>Type</label><div class="hscroll" id="wa-cats">' + m.cats.filter((c) => WA.templates(c).length).map((c) => '<button class="chip' + (c === m.cat ? ' on' : '') + '" data-a="wa-cat" data-v="' + c + '">' + esc((WA.CATS.find((x) => x[0] === c) || [c, c])[1]) + '</button>').join('') + '</div>' : '') +
     '<label>Template</label><div class="chips" id="wa-tpls"></div>' +
@@ -2011,7 +2059,7 @@ function waSheet(m) {
 }
 function waFill(keepText) {
   const m = window.__waMeta; if (!m) return;
-  const tl = WA.templates(m.cat);
+  const tl = (m.ownText && m.cat === m.cats[0] ? [{ id: 'own-text', cat: m.cat, label: 'Your message', text: m.ownText }] : []).concat(WA.templates(m.cat));
   if (!tl.some((t) => t.id === m.tpl)) m.tpl = (tl[0] || {}).id;
   $('#wa-tpls').innerHTML = tl.map((t) => '<button class="chip' + (t.id === m.tpl ? ' on' : '') + '" data-a="wa-tpl" data-v="' + esc(t.id) + '">' + esc(t.label) + '</button>').join('');
   $$('#wa-cats .chip').forEach((c) => c.classList.toggle('on', c.dataset.v === m.cat));
@@ -2052,7 +2100,7 @@ function waQueue() {
   S.specialDays.forEach((sd) => {
     const [mm, dd] = String(sd.date || '').split('-').map(Number); if (!mm || !dd) return;
     const at = new Date(new Date(now).getFullYear(), mm - 1, dd).getTime();
-    if (L.dayKey(at) === L.dayKey(now) && !WA.sentRecently('wish', sd.id + ':' + new Date().getFullYear(), 300)) out.push({ a: 'wa-sp', id: sd.id, t: sd.type + ' wish: ' + sd.name, m: (sd.relation ? sd.relation + ' · ' : '') + 'today', pr: 0 });
+    if ((sd.type !== 'Other' || sd.wish) && L.dayKey(at) === L.dayKey(now) && !WA.sentRecently('wish', sd.id + ':' + new Date().getFullYear(), 300)) out.push({ a: 'wa-sp', id: sd.id, t: sd.type + ' wish: ' + sd.name, m: (sd.relation ? sd.relation + ' · ' : '') + 'today', pr: 0 });
   });
   S.payments.filter((p) => p.type === 'in' && p.status === 'pending' && p.due < L.addDays(d0, 2)).forEach((p) => {
     if (WA.sentRecently('pay', p.id, 3)) return;

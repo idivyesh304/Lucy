@@ -32,9 +32,9 @@ export const DEFAULT_TEMPLATES = [
   T('paid', 'Thank you', 'Hi {name},\n\nWe have received {amount}. Thank you for the timely payment!\n\nExcited to keep delivering great work for {business}.\n\n{me}\n{company}'),
   T('paid', 'Hinglish', 'Hi {name}, {amount} receive ho gaya. Thank you so much!\n\n{business} ke liye aur bhi strong kaam karenge.\n\n{me}, {company}'),
   // renewals
-  T('renewal', 'Friendly', 'Hi {name},\n\nYour monthly plan with {company} ({package}) renews on {due}. The amount is {amount}.\n\n{bank}\n\nExcited for next month\'s work. Thank you for trusting us!\n\n{me}\n{company}'),
-  T('renewal', 'Hinglish', 'Hi {name},\n\nAapka {company} monthly plan ({package}) {due} ko renew ho raha hai, amount {amount}.\n\n{bank}\n\nNext month aur bhi strong karenge. Thank you!\n{me}'),
-  T('renewal', 'With results', 'Hi {name},\n\nThis month we delivered {package} for {business}. Your plan renews on {due} ({amount}).\n\nFor next month, I have a few new ideas to grow your reach further. Shall we discuss them on a quick call?\n\n{bank}\n\n{me}\n{company}'),
+  T('renewal', 'Friendly', 'Hi {name},\n\nYour monthly plan with {company} renews on {due}. The amount is {amount}.\n\n{bank}\n\nExcited for next month\'s work. Thank you for trusting us!\n\n{me}\n{company}'),
+  T('renewal', 'Hinglish', 'Hi {name},\n\nAapka {company} monthly plan {due} ko renew ho raha hai, amount {amount}.\n\n{bank}\n\nNext month aur bhi strong karenge. Thank you!\n{me}'),
+  T('renewal', 'With results', 'Hi {name},\n\nThank you for another great month with {business}. Your plan renews on {due} ({amount}).\n\nFor next month, I have a few new ideas to grow your reach further. Shall we discuss them on a quick call?\n\n{bank}\n\n{me}\n{company}'),
   // birthdays
   T('birthday', 'Team', 'Happy birthday, {first}! Thank you for everything you bring to {company}. Have a great day and an even better year ahead. Enjoy today!\n\n{me}'),
   T('birthday', 'Client', 'Dear {name},\n\nWishing you a very happy birthday! May this year bring you great health, happiness and record growth for {business}. It is a privilege to work with you.\n\n{me}\n{company}'),
@@ -62,7 +62,7 @@ export const DEFAULT_TEMPLATES = [
   T('proposal', 'Proposal sent', 'Hi {name},\n\nAs discussed, I am sharing the proposal for {business}: {what}. Investment: {amount} per month.\n\nHappy to walk you through it on a call. When suits you?\n\n{me}\n{company}'),
   T('proposal', 'Quote', 'Hi {name},\n\nHere is the quote for {what}: {amount}.\n\nTo begin, we take a 50% advance and start work within 2 working days.\n\n{bank}\n\n{me}\n{company}'),
   // welcome
-  T('welcome', 'Welcome', 'Hi {name},\n\nWelcome to {company}! Thank you for trusting us with {business}.\n\nYour plan: {package}. Our team will share the content calendar soon, and you can reach me here any time.\n\nLet us build something great together.\n{me}'),
+  T('welcome', 'Welcome', 'Hi {name},\n\nWelcome to {company}! Thank you for trusting us with {business}.\n\nOur team will share the content calendar soon, and you can reach me here any time.\n\nLet us build something great together.\n{me}'),
   // general reminders
   T('reminder', 'General', 'Hi {name}, {me} here from {company}.\n\nRegarding: {what}.\n\nPlease let me know a convenient time. Thank you!'),
   T('reminder', 'Hinglish', 'Hi {name}, {me} here, {company}.\n\n{what} ke baare mein. Aapko kab convenient rahega? Thank you!'),
@@ -133,10 +133,13 @@ export function forSpecial(sd) {
   const rel = String(sd.relation || '').toLowerCase();
   const team = /team/.test(rel), client = /client|business/.test(rel), family = /mom|mum|mother|dad|papa|father|wife|husband|brother|sister|bhai|ben|son|daughter|uncle|aunt|mama|masi|kaka|kaki|family|cousin|grand/.test(rel);
   const yrs = sd.year ? new Date().getFullYear() - Number(sd.year) : 0;
-  const cat = sd.type === 'Anniversary' ? 'anniversary' : 'birthday';
-  const pick = cat === 'anniversary' ? (client ? 'anniversary:client' : 'anniversary:warm') : team ? 'birthday:team' : client ? 'birthday:client' : family ? 'birthday:family' : 'birthday:friend';
-  return { cats: [cat, 'festival'], pick: pick, to: sd.name, phone: sd.phone || '', bank: '',
-    ctx: { name: hiName(sd.name), first: first(sd.name), business: 'your business', years: yrs > 0 && cat === 'anniversary' ? yrs + ' beautiful years together. ' : '' } };
+  const cat = sd.type === 'Anniversary' ? 'anniversary' : sd.type === 'Other' ? 'festival' : 'birthday';
+  const pick = cat === 'festival' ? 'festival:general' : cat === 'anniversary' ? (client ? 'anniversary:client' : 'anniversary:warm') : team ? 'birthday:team' : client ? 'birthday:client' : family ? 'birthday:family' : 'birthday:friend';
+  const both = sd.name2 ? first(sd.name) + ' and ' + first(sd.name2) : first(sd.name);
+  const recipients = [{ label: first(sd.name) || sd.name, phone: sd.phone || '' }].concat(sd.name2 || sd.phone2 ? [{ label: first(sd.name2) || 'Second number', phone: sd.phone2 || '' }] : []);
+  return { cats: cat === 'festival' ? ['festival'] : [cat, 'festival'], pick: sd.wish ? 'own-text' : pick, ownText: sd.wish || '', recipients: recipients.filter((r) => r.phone).length > 1 ? recipients : null,
+    to: sd.type === 'Other' ? sd.name : sd.name + (sd.name2 ? ' and ' + sd.name2 : ''), phone: sd.phone || sd.phone2 || '', bank: '',
+    ctx: { name: sd.name2 ? both : hiName(sd.name), first: both || 'there', business: 'your business', years: yrs > 0 && cat === 'anniversary' ? yrs + ' beautiful years together. ' : '' } };
 }
 export function forLead(l) {
   const svc = (l.services || []).slice(0, 2).join(' and ') || 'your marketing';

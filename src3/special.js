@@ -19,11 +19,12 @@ export function nextOccurrence(sd, now) {
   if (!m || !d) return null;
   const today = L.startOfDay(now);
   const make = (y) => { const last = new Date(y, m, 0).getDate(); return new Date(y, m - 1, Math.min(d, last)).getTime(); };
+  if (sd.type === 'Other' && sd.repeat === false && sd.year) { const t1 = make(Number(sd.year)); return t1 >= today ? t1 : null; }
   let y = new Date(now).getFullYear(), t = make(y);
   if (t < today) t = make(++y);
   return t;
 }
-export function yearsAt(sd, when) { return sd.year ? new Date(when).getFullYear() - sd.year : 0; }
+export function yearsAt(sd, when) { return sd.year && sd.type !== 'Other' ? new Date(when).getFullYear() - sd.year : 0; }
 export function daysUntil(t) { return Math.round((t - L.startOfDay(Date.now())) / L.DAY); }
 export function upcoming(limitDays) {
   const now = Date.now();
@@ -34,7 +35,7 @@ export function specialTitle(sd, at) {
   const n = yearsAt(sd, at);
   if (sd.self) return sd.type === 'Birthday' ? 'Your birthday' + (n ? ' (' + n + ')' : '') : 'Your wedding anniversary' + (n ? ' (' + ordinal(n) + ')' : '');
   if (sd.type === 'Birthday') return sd.name + '\'s birthday' + (n ? ' (turns ' + n + ')' : '');
-  if (sd.type === 'Anniversary') return sd.name + '\'s anniversary' + (n ? ' (' + ordinal(n) + ')' : '');
+  if (sd.type === 'Anniversary') return sd.name + (sd.name2 ? ' and ' + sd.name2 : '') + '\'s anniversary' + (n ? ' (' + ordinal(n) + ')' : '');
   return sd.name + (sd.label ? ' · ' + sd.label : '');
 }
 // notifications: 7 days before, the evening before, and on the day
@@ -49,9 +50,11 @@ export function specialSchedule(push, nm) {
         if (sd.type === 'Anniversary') push(L.atTime(L.addDays(at, -7), 10, 0), 'Your anniversary is in 7 days', 'Book the dinner or gift now, ' + nm + '.', tag, '#plan-special');
         return;
       }
-      if (sd.remind7 !== false) push(L.atTime(L.addDays(at, -7), 10, 0), 'In 7 days: ' + title, 'Plan a wish or a gift now so you are not rushing later.', tag, '#plan-special');
-      push(L.atTime(L.addDays(at, -1), 20, 0), 'Tomorrow: ' + title, 'Keep your wish ready, ' + nm + '.' + (sd.relation ? ' (' + sd.relation + ')' : ''), tag, '#plan-special');
-      push(L.atTime(at, 9, 0), 'Today: ' + title, 'Your WhatsApp wish for ' + sd.name + ' is written. Tap to send it.', tag, '#wa-sp-' + sd.id);
+      const gift = sd.gift ? ' Gift idea: ' + sd.gift + '.' : '';
+      const wa = sd.type !== 'Other' || sd.wish;
+      [15, 10, 7, 3].forEach((n) => push(L.atTime(L.addDays(at, -n), 10, 0), 'In ' + n + ' days: ' + title, (sd.type === 'Other' ? (sd.note || 'Coming up on ' + L.fmtDate(at) + '.') : 'On ' + L.fmtDate(at) + '.' + gift + (n >= 7 && sd.gift ? ' A good time to arrange it.' : '')), tag, '#plan-special'));
+      push(L.atTime(L.addDays(at, -1), 23, 30), 'Tomorrow: ' + title, sd.type === 'Other' ? (sd.note || 'Just a reminder for tomorrow.') : 'Your wish is ready for midnight, or for the morning.' + gift, tag, wa ? '#wa-sp-' + sd.id : '#plan-special');
+      push(L.atTime(at, 9, 0), 'Today: ' + title, wa ? 'Your WhatsApp ' + (sd.type === 'Other' ? 'greeting' : 'wish') + ' is ready. Tap to send it.' : (sd.note || 'Today is the day.'), tag, wa ? '#wa-sp-' + sd.id : '#plan-special');
     });
   });
 }

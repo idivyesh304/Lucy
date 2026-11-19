@@ -320,7 +320,6 @@ function renderProfile() {
     '<div class="profile-head panel gold"><label class="pf-photo">' + (p.photo ? '<img src="' + p.photo + '" alt="">' : icon('user', 40)) + '<input type="file" accept="image/*" id="pf-photo" hidden><span>' + icon('camera', 14) + '</span></label>' +
     '<div class="grow"><div class="pf-name">' + esc(p.fullName || nm()) + '</div><div class="sub">' + esc([p.role, p.company].filter(Boolean).join(' · ')) + '</div>' +
     (p.dob ? '<div class="sub gold mt" style="margin-top:6px">' + icon('cake', 13) + ' ' + L.fmtDate(SP.nextOccurrence({ date: p.dob.slice(5) })) + '</div>' : '') + '</div></div>' +
-    '<button class="panel" style="width:100%;text-align:left" data-a="v-paste"><div class="row"><div class="badge">' + icon('copy', 18) + '</div><div class="grow"><b>Paste details</b><div class="sub">Paste a note with your details (for example the message you sent Claude) and Lucy fills the right fields.</div></div>' + icon('right', 18) + '</div></button>' +
     '<div class="hint" style="margin-bottom:6px">Tick any details, then copy them or send them on WhatsApp in one go. Private numbers stay hidden until you tap them.</div>';
   VT.SECTIONS.forEach((sec) => {
     const filled = sec.fields.filter((f) => p[f[0]]);

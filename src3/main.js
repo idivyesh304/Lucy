@@ -497,14 +497,15 @@ function settlePlan() {
       const pay = (amt) => { bal -= amt; o.paid = (o.paid || 0) + amt; (o.parts = o.parts || []).push({ day: tt, amount: amt, by: lastIn }); if (lastIn) lastIn.funds.push({ o: o, amount: amt, part: o.parts.length }); dayOf(tt).pays.push({ o: o, amount: amt, part: o.parts.length }); };
       if (rest > bal) {
         // at most two parts: the most important waiting bill may take what is here now (at least 40 percent), the rest is paid in one go later
-        if (!waiting && !(o.parts || []).length && o.amount >= 5000 && bal >= o.amount * 0.4) { pay(Math.floor(bal / 100) * 100); }
+        const part = Math.floor(bal / 100) * 100, restLater = o.amount - part;
+        if (!waiting && !(o.parts || []).length && o.amount >= 5000 && part >= o.amount * 0.4 && restLater >= Math.max(2000, o.amount * 0.2)) { pay(part); }
         waiting += o.amount - (o.paid || 0); continue;
       }
       // a less important bill may go first only if it does not delay a more important one
       const soon = outs.filter((x) => !x.payDay && !queue.includes(x) && x.day > tt && x.day <= tt + 7 * DAY && (ST_PRI[x.kind] || 9) < (ST_PRI[o.kind] || 9)).reduce((n, x) => n + x.amount, 0);
       const hold = waiting + soon;
-      if (hold && bal - rest < hold) { const r1 = reachDay(bal - rest, hold), r0 = reachDay(bal, hold); const small = r0 === Infinity && rest <= hold * 0.1;
-        if (!small && (r1 === Infinity || r1 > r0)) { waiting += rest; continue; } }
+      if (hold && bal - rest < hold) { const r1 = reachDay(bal - rest, hold), r0 = reachDay(bal, hold);
+        if (r1 === Infinity || r1 > r0) { waiting += rest; continue; } }
       pay(rest); o.payDay = tt; o.lateDays = Math.round((tt - o.due) / DAY); o.by = lastIn; queue.splice(i, 1); i--;
     }
     if (days[tt]) days[tt].bal = bal;

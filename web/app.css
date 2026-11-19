@@ -533,3 +533,37 @@ h1 b { background: linear-gradient(100deg, #FFF1CF 0%, #D8B56A 35%, #F3D9A0 55%,
 .st-tag.ok { color: var(--good); } .st-tag.late { color: var(--warn); } .st-tag.bad { color: var(--bad); }
 .right.stack { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; margin-left: 10px; }
 .right.stack .link { padding: 3px 0; font-size: 13px; line-height: 1.2; white-space: nowrap; margin-top: 0; }
+/* Lucy day stories (Instagram style) */
+#stories { position: fixed; inset: 0; z-index: 60; background: #05060a; color: #fff; overflow: hidden; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+#stories .st-bg { position: absolute; inset: 0; animation: stZoom 9s ease-out both; }
+#stories .st-dim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.15) 40%, rgba(0,0,0,.85)); }
+@keyframes stZoom { from { transform: scale(1.06); } to { transform: scale(1); } }
+#stories .st-bars { position: absolute; top: calc(var(--top, 12px) + 8px); left: 10px; right: 10px; display: flex; gap: 4px; z-index: 3; }
+#stories .st-bars i { flex: 1; height: 3px; border-radius: 3px; background: rgba(255,255,255,.28); overflow: hidden; }
+#stories .st-bars b { display: block; height: 100%; width: 0; background: #fff; }
+#stories .st-head { position: absolute; top: calc(var(--top, 12px) + 20px); left: 12px; right: 8px; display: flex; align-items: center; gap: 8px; z-index: 4; font-size: 14px; }
+#stories .st-head .sub { opacity: .7; flex: 1; }
+#stories .st-av { width: 32px; height: 32px; border-radius: 50%; overflow: hidden; border: 2px solid var(--gold, #d4af37); display: inline-block; }
+#stories .st-av > * { width: 100%; height: 100%; }
+#stories .st-btn { background: none; border: 0; color: #fff; padding: 8px; }
+#stories .st-body { position: absolute; left: 24px; right: 24px; top: calc(var(--top, 12px) + 80px); bottom: calc(var(--bottom, 12px) + 40px); display: flex; flex-direction: column; justify-content: center; z-index: 2; animation: stIn .45s ease both; }
+@keyframes stIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+#stories .st-eyebrow { font-size: 12px; letter-spacing: .22em; text-transform: uppercase; color: var(--gold, #d4af37); margin-bottom: 14px; }
+#stories .st-big { font-size: 40px; line-height: 1.12; font-weight: 300; }
+#stories .st-big b { font-weight: 700; }
+#stories .st-title { font-size: 28px; line-height: 1.2; font-weight: 600; margin-bottom: 18px; }
+#stories .st-sub { font-size: 15px; opacity: .8; margin: 16px 0 6px; }
+#stories .st-note { font-size: 15px; opacity: .75; margin-top: 18px; line-height: 1.45; }
+#stories .st-li { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,.1); font-size: 16px; }
+#stories .st-li b { white-space: nowrap; font-weight: 600; }
+#stories .good { color: #6ee7a8; } #stories .bad { color: #ff8f8f; } #stories .warn { color: #ffd27a; }
+#stories .st-bubbles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 28px; }
+#stories .st-bubbles div { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); border-radius: 18px; padding: 14px 10px; text-align: center; }
+#stories .st-bubbles b { display: block; font-size: 20px; } #stories .st-bubbles span { font-size: 12px; opacity: .75; }
+#stories .st-bar { height: 10px; border-radius: 10px; background: rgba(255,255,255,.12); overflow: hidden; } #stories .st-bar i { display: block; height: 100%; background: linear-gradient(90deg, #d4af37, #6ee7a8); border-radius: 10px; }
+#stories .st-dream { margin-top: auto; }
+#stories .st-tap { position: absolute; top: 70px; bottom: 0; z-index: 3; } #stories .st-tap.l { left: 0; width: 32%; } #stories .st-tap.r { right: 0; width: 68%; }
+.story-cta { width: 100%; text-align: left; display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+.story-ring { width: 46px; height: 46px; border-radius: 50%; padding: 2px; background: conic-gradient(#f58529, #dd2a7b, #8134af, #515bd4, #f58529); flex-shrink: 0; overflow: hidden; }
+.story-ring > * { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 2px solid #0b0d14; }
+.hear-day { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px; font-size: 16px; font-weight: 600; margin: 6px 0 12px; }

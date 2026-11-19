@@ -98,63 +98,56 @@ function renderHome() {
   h += '<h1>' + esc(g1) + ',<br><b>' + esc(nm()) + '</b></h1>';
   h += banners();
 
-  h += '<div class="panel gold hero brief fade-in"><div class="row" style="justify-content:space-between;margin-bottom:10px"><div class="eyebrow">Morning intelligence</div>' +
-    '<button class="iconbtn" data-a="speak-brief" aria-label="Hear briefing">' + icon('volume', 18) + '</button></div>' +
-    b.lines.map((l) => '<p>' + esc(l) + '</p>').join('') +
-    '' + '</div>';
 
-  // Today, in five clear lists (overdue items stay on top until they are done)
-  const todays = S.reminders.filter((r) => r.status === 'pending' && Math.max(r.due, r.snoozeUntil || 0) < d1).sort((a, b2) => a.due - b2.due);
+  // one tap: Lucy speaks the whole day (made for driving)
+  h += '<button class="btn hear-day" data-a="st-open" data-v="voice">' + icon('volume', 20) + ' Hear my day</button>';
+  // Home: one day at a time (today plus the next 5 days), in the order Divyesh asked for
+  const k = Math.max(0, Math.min(5, Number(view.homeDay) || 0)), ds = L.addDays(d0, k), de = L.addDays(ds, 1);
+  const inDay = (t) => (k === 0 ? t < de : t >= ds && t < de); // today also holds anything overdue
+  const P = settlePlan(), dd = (t) => L.fmtDate(t);
+  const remsAll = S.reminders.filter((r) => r.status === 'pending');
   const isFollow = (r) => r.cat === 'Follow-up' || r.cat === 'Client' || /follow.?up|payment follow/i.test(r.task);
   const isMeet = (r) => !isFollow(r) && (r.cat === 'Meeting' || /\bmeet(ing)?\b|video call|zoom/i.test(r.task));
   const isWork = (r) => !isFollow(r) && !isMeet(r) && r.cat === 'Work';
-  const work = todays.filter(isWork), follow = todays.filter(isFollow), meet = todays.filter(isMeet), rems = todays.filter((r) => !isWork(r) && !isFollow(r) && !isMeet(r));
-  const recv = allDues().in.filter((x) => x.due < d1);
-  const sec = (title, ic, list, rows, empty, add) => '<h2>' + icon(ic, 16) + ' ' + title + ' <span class="num gold">' + list.length + '</span>' + (add ? '<button class="link" data-a="new-rem-cat" data-v="' + add + '">Add</button>' : '') + '</h2>' +
-    (list.length ? listOf(rows) : '<div class="panel empty" style="padding:12px 16px">' + empty + '</div>');
-  h += sec('Today\'s work', 'briefcase', work, work.map((r) => remRow(r)), 'No work tasks for today.', 'Work');
-  h += sec('Today\'s reminders', 'bell', rems, rems.map((r) => remRow(r)), 'No other reminders today.', 'Personal');
-  h += sec('Today\'s follow-ups', 'chat', follow, follow.map((r) => remRow(r)), 'No follow-ups today.', 'Follow-up');
-  h += sec('Today\'s meetings', 'calendar', meet, meet.map((r) => remRow(r)), 'No meetings today.', 'Meeting');
-  h += sec('Today\'s receivable payments', 'coins', recv, recv.map((x) => dueRow(x)), 'Nothing to collect today.', '');
-
-  h += waHomeCard();
-  if (!B.paused('mission')) h += moneyMovesPanel(false);
-  if (!B.paused('mission')) { h += '<h2>Revenue mission<button class="link" data-a="tab" data-v="money">Open</button></h2>';
-  h += '<div class="panel"><div class="row" style="gap:16px">' + ring(rev.pct, '<span data-count="' + Math.round(rev.pct * 100) + '" data-fmt="pct">' + Math.round(rev.pct * 100) + '%</span>', 'of target') +
-    '<div class="grow"><div class="sub">Collected this month</div><div class="num" style="font-size:24px;font-weight:600">' + short(rev.collected) + '</div>' +
-    '<div class="sub">Target ' + short(rev.target) + ' · gap ' + short(rev.gap) + '</div>' +
-    (rev.outstanding ? '<div class="sub mt" style="margin-top:6px"><span class="gold">' + short(rev.outstanding) + '</span> waiting to be collected</div>' : '') + '</div></div></div>'; }
-
-  const dues = allDues(), soonCut = L.addDays(d0, 4);
-  const soonIn = dues.in.filter((x) => x.due < soonCut), soonOut = dues.out.filter((x) => x.due < soonCut);
-  if (soonOut.length) h += '<h2>Payments due soon<button class="link" data-a="seg-go" data-tab="money" data-k="money" data-v="cash">In &amp; out</button></h2>' + listOf(soonOut.sort((a, b2) => a.due - b2.due).slice(0, 5).map(dueRow));
-  const spSoon = SP.upcoming(14);
-  if (spSoon.length) h += '<h2>Special days<button class="link" data-a="seg-go" data-tab="plan" data-k="plan" data-v="special">All</button></h2>' + listOf(spSoon.slice(0, 3).map(spRow));
-  if (false) {
-    h += '<h2>Money due soon</h2><div class="list">' +
-      loansSoon.slice(0, 3).map((x) => '<div class="item" data-a="open-loan" data-id="' + x.l.id + '"><div class="badge">' + icon('bank', 18) + '</div><div class="grow"><div class="t">' + esc(loanTitle(x.l)) + '</div><div class="m">' + L.fmtDate(x.due) + (x.l.debitBank ? ' · from ' + esc(x.l.debitBank) : '') + '</div></div><div class="amount out">' + money(x.l.emi || x.l.amount) + '</div></div>').join('') +
-      paysSoon.slice(0, 3).map((p) => payRow(p)).join('') + '</div>';
-  }
-
-  if (false && act.length) {
-    h += '<h2>Daily routine <span class="num gold">' + rCount + '/' + act.length + '</span></h2><div class="bar" style="margin-bottom:12px"><i style="width:' + Math.round(100 * rCount / act.length) + '%"></i></div>';
-    const chips = due.concat(next);
-    h += chips.length ? '<div class="rgrid">' + chips.map((it) => '<button class="rchip ' + (mins(it) <= tnow ? 'due' : '') + '" data-a="routine" data-k="' + it.key + '">' + icon(it.icon, 22) + '<span class="rt">' + fmtHM(it.time) + '</span><span class="rl">' + esc(it.label) + '</span></button>').join('') + '</div>'
-      : '<div class="panel empty">Routine complete for today.</div>';
-  }
-
-  if (dream) h += '<h2>Your dream<button class="link" data-a="seg-go" data-tab="ascend" data-k="ascend" data-v="dreams">All dreams</button></h2>' + dreamCard(dream);
-  else h += '<h2>Your dream</h2><button class="panel" style="width:100%;text-align:left" data-a="seg-go" data-tab="ascend" data-k="ascend" data-v="dreams"><div class="row"><div class="badge">' + icon('star', 18) + '</div><div class="grow"><b>Add your first dream</b><div class="sub">Car, home, watch, office, your first film. See it every day.</div></div>' + icon('right', 18) + '</div></button>';
-
-  if (evening && !B.paused('journal')) h += '<h2>Evening review</h2><button class="panel gold" style="width:100%;text-align:left" data-a="evening"><div class="row"><div class="badge">' + icon('moon', 18) + '</div><div class="grow"><b>Close your day</b><div class="sub">What you finished, what moves to tomorrow, and your journal.</div></div>' + icon('right', 18) + '</div></button>';
+  const countDay = (j) => { const s0 = L.addDays(d0, j), e0 = L.addDays(s0, 1), inn = (t) => (j === 0 ? t < e0 : t >= s0 && t < e0);
+    return remsAll.filter((r) => inn(Math.max(r.due, r.snoozeUntil || 0))).length + P.ins.filter((x) => inn(x.day)).length + P.outs.filter((o) => !o.reserve && inn(o.due)).length + SP.upcoming(6).filter((x) => inn(x.at)).length; };
+  h += '<div class="hscroll day-strip">' + [0, 1, 2, 3, 4, 5].map((j) => { const t = L.addDays(d0, j), n = countDay(j);
+    return '<button class="chip' + (j === k ? ' on' : '') + '" data-a="home-day" data-v="' + j + '">' + (j === 0 ? 'Today' : j === 1 ? 'Tomorrow' : L.DAYNAME[new Date(t).getDay()].slice(0, 3) + ' ' + new Date(t).getDate()) + (n ? ' <b class="gold">' + n + '</b>' : '') + '</button>'; }).join('') + '</div>';
+  const label = k === 0 ? 'Today\'s' : k === 1 ? 'Tomorrow\'s' : dd(ds) + ' ·';
+  const dayRems = remsAll.filter((r) => inDay(Math.max(r.due, r.snoozeUntil || 0))).sort((a, b2) => a.due - b2.due);
+  const work = dayRems.filter(isWork), follow = dayRems.filter(isFollow), meet = dayRems.filter(isMeet), rems = dayRems.filter((r) => !isWork(r) && !isFollow(r) && !isMeet(r));
+  const sec = (title, ic, n, body, add) => '<h2>' + icon(ic, 16) + ' ' + title + ' <span class="num gold">' + n + '</span>' + (add ? '<button class="link" data-a="new-rem-cat" data-v="' + add + '">Add</button>' : '') + '</h2>' + body;
+  const empty = (t) => '<div class="panel empty" style="padding:12px 16px">' + t + '</div>';
+  h += sec(label + ' work', 'briefcase', work.length, work.length ? listOf(work.map((r) => remRow(r))) : empty('No work tasks.'), 'Work');
+  h += sec(label + ' reminders', 'bell', rems.length, rems.length ? listOf(rems.map((r) => remRow(r))) : empty('No reminders.'), 'Personal');
+  h += sec(label + ' follow-ups', 'chat', follow.length, follow.length ? listOf(follow.map((r) => remRow(r))) : empty('No follow-ups.'), 'Follow-up');
+  h += sec(label + ' meetings', 'calendar', meet.length, meet.length ? listOf(meet.map((r) => remRow(r))) : empty('No meetings.'), 'Meeting');
+  // money coming in that day (clients pay on their due date; overdue money is collected today)
+  const recv = P.ins.filter((x) => inDay(x.day)).sort((a, b2) => (a.due || a.day) - (b2.due || b2.day));
+  h += sec(label + ' receivable payments', 'coins', recv.length, recv.length ? '<div class="list">' + recv.map((x) => '<div class="item"><div class="badge" style="--c:var(--good)">' + icon('coins', 18) + '</div><div class="grow"><div class="t">' + esc(x.party) + '</div><div class="m' + (x.late ? ' late' : '') + '">' +
+    (x.late ? 'Overdue since ' + dd(x.due) + ', collect today' : (x.pid ? 'Due ' : 'Renews ') + dd(x.day)) + (x.acct ? ' · ' + esc(x.acct) : '') + '</div></div><div class="right stack"><div class="amount in">' + money(x.amount) + '</div>' + (x.pid ? '<button class="link" data-a="settle" data-id="' + x.pid + '">Received</button>' : '') + '</div></div>').join('') + '</div>' : empty('Nothing to collect.'));
+  // WhatsApp payment reminders to send that day
+  const msgs = recv.filter((x) => x.pid || x.cid);
+  h += sec(label + ' payment reminder messages', 'chat', msgs.length, msgs.length ? '<div class="list">' + msgs.map((x) => '<div class="item"><div class="badge" style="--c:#25D366">' + icon('chat', 18) + '</div><div class="grow"><div class="t">' + esc(x.party) + '</div><div class="m">' + money(x.amount) + (x.late ? ' · overdue' : ' · due ' + dd(x.day)) + '</div></div>' +
+    '<button class="btn small" data-a="' + (x.pid ? 'wa-pay' : 'wa-renew') + '" data-id="' + (x.pid || x.cid) + '">' + icon('chat', 14) + ' Send</button></div>').join('') + '</div>' : empty('No payment messages to send.'));
+  // money going out that day, with Lucy's settlement plan
+  const outs = P.outs.filter((o) => !o.reserve && inDay(o.due)).sort((a, b2) => (ST_PRI[a.kind] || 9) - (ST_PRI[b2.kind] || 9) || a.due - b2.due);
+  h += sec(label + ' payouts', 'wallet', outs.length, outs.length ? '<div class="list">' + outs.map((o) => { const pts = o.parts || [];
+    const plan = pts.length > 1 ? 'Pay ' + money(pts[0].amount) + ' on ' + dd(pts[0].day) + ', rest on ' + dd(pts[1].day) : pts.length === 1 && !o.payDay ? 'Pay ' + money(pts[0].amount) + ' on ' + dd(pts[0].day) + ', rest when money comes' : !o.payDay ? '<span class="bad">Not enough money yet</span>' : o.lateDays > 0 ? '<span class="gold">Pay on ' + dd(o.payDay) + '</span>' : '<span class="good">Pay on time</span>';
+    return '<div class="item due-row"><div class="badge">' + icon(o.kind === 'salary' ? 'users' : o.kind === 'emi' ? 'bank' : o.kind === 'home' ? 'house' : o.kind === 'gst' ? 'doc' : o.kind === 'office' || o.kind === 'rent' ? 'building' : 'card', 18) + '</div><div class="grow"><div class="t">' + esc(o.party) + ' <span class="kind">' + (ST_LABEL[o.kind] || 'Payment') + '</span></div><div class="m' + (o.due < d0 ? ' late' : '') + '">' + (o.due < d0 ? 'Was due ' : 'Due ') + dd(o.due) + '</div><div class="m" style="font-size:12px">' + plan + '</div></div>' +
+      '<div class="right"><div class="amount out">' + money(o.amount) + '</div>' + (o.a ? '<button class="link" data-a="' + o.a + '"' + (o.sid ? ' data-id="' + esc(o.sid) + '"' : ' data-id="' + o.id + '"') + '>Pay</button>' : '') + '</div></div>'; }).join('') + '</div>' : empty('Nothing to pay.'));
+  // special days
+  const sp = SP.upcoming(6).filter((x) => inDay(x.at));
+  h += sec(label + ' special days', 'gift', sp.length, sp.length ? listOf(sp.map(spRow)) : empty('No special days.'));
+  // dream
+  if (dream) h += '<h2>' + icon('star', 16) + ' Your dream<button class="link" data-a="seg-go" data-tab="ascend" data-k="ascend" data-v="dreams">All dreams</button></h2>' + dreamCard(dream);
   return h;
 }
 function banners() {
   let h = '';
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
   if (ios && !H.isStandalone()) h += '<div class="panel gold"><div class="row"><div class="badge">' + icon('plus', 18) + '</div><div class="grow"><b>Install Lucy on your iPhone</b><div class="sub">Tap the Share button in Safari, then <b>Add to Home Screen</b>. Open Lucy from that icon for notifications.</div></div></div></div>';
-  if (!H.ready()) h += '<button class="panel" style="width:100%;text-align:left" data-a="open-connections"><div class="row"><div class="badge">' + icon('link', 18) + '</div><div class="grow"><b>Finish setup</b><div class="sub">Connect notifications, Google Drive and AI so Lucy can work fully.</div></div>' + icon('right', 18) + '</div></button>';
+  if (!H.ready()) h += '<button class="panel" style="width:100%;text-align:left" data-a="open-connections"><div class="row"><div class="badge">' + icon('link', 18) + '</div><div class="grow"><b>Finish setup</b><div class="sub">Connect notifications and Google Drive so Lucy can work fully.</div></div>' + icon('right', 18) + '</div></button>';
   if (!H.driveEnabled() && records(S)) h += '<button class="panel" style="width:100%;text-align:left;border-color:var(--bad)" data-a="open-connections"><div class="row"><div class="badge" style="--c:var(--bad)">' + icon('cloud', 18) + '</div><div class="grow"><b>Not backed up</b><div class="sub">What you enter on this ' + H.deviceName() + ' is only on this device. Tap to connect Google Drive so it is safe and syncs everywhere.</div></div>' + icon('right', 18) + '</div></button>';
   else if (H.sync.state === 'error') h += '<button class="panel" style="width:100%;text-align:left" data-a="open-connections"><div class="row"><div class="badge" style="--c:var(--bad)">' + icon('cloud', 18) + '</div><div class="grow"><b>Drive sync paused</b><div class="sub">' + esc(H.sync.error) + '</div></div></div></button>';
   return h;
@@ -481,39 +474,36 @@ function settlePlan() {
   });
   // day by day: money arrives, bills fall due, each bill is paid in full when there is enough
   let bal = opening, low = { amount: opening, day: d0 }, need = 0, run = opening;
-  const queue = [], days = {}; let lastIn = null;
+  const days = {}; let lastIn = null;
   ins.forEach((x) => { x.funds = []; }); outs.forEach((o) => { o.paid = 0; o.parts = []; });
   const dayOf = (t) => (days[t] = days[t] || { day: t, ins: [], pays: [], bal: 0 });
   // money needed to pay everything exactly on its due date
   const events = ins.map((x) => [x.day, x.amount]).concat(outs.map((o) => [o.due, -o.amount])).sort((a, b2) => a[0] - b2[0] || b2[1] - a[1]);
   events.forEach((e) => { run += e[1]; if (run < -need) need = -run; });
-  for (let t = d0; t <= horizon; t += DAY) {
-    const tt = L.startOfDay(t);
+  // Settlement, the way Divyesh wants it:
+  // - clients pay exactly on their due date (overdue money is expected today), never a day later;
+  // - whenever money comes in, it first settles the most important dues that fall before the next money arrives:
+  //   1 EMIs, loans and GST, 2 salaries (Pratik, Jay, Darshil, Ashwin, Chaitanya, Yash), 3 rent and office, 4 one-time, 5 home;
+  // - a lower item never jumps ahead of a higher one that is still short;
+  // - each bill is paid on its own due date (not earlier), in full, or at most in 2 parts.
+  const sortPri = (a, b2) => (ST_PRI[a.kind] || 9) - (ST_PRI[b2.kind] || 9) || (a.kind === 'salary' && b2.kind === 'salary' ? salRank(a.party) - salRank(b2.party) : 0) || a.due - b2.due;
+  const inDays = [...new Set(ins.map((x) => x.day))].sort((a, b2) => a - b2);
+  const points = [...new Set([d0].concat(inDays))].sort((a, b2) => a - b2);
+  points.forEach((tt, pi) => {
     ins.filter((x) => x.day === tt).forEach((x) => { bal += x.amount; dayOf(tt).ins.push(x); lastIn = x; });
-    outs.filter((o) => o.day === tt).forEach((o) => queue.push(o));
-    queue.sort((a, b2) => (ST_PRI[a.kind] || 9) - (ST_PRI[b2.kind] || 9) || (a.kind === 'salary' && b2.kind === 'salary' ? salRank(a.party) - salRank(b2.party) || a.due - b2.due : a.due - b2.due));
-    // the first day a given balance reaches a target, counting only money still to come
-    const reachDay = (start, target) => { let b2 = start; if (b2 >= target) return tt; for (const x of ins.filter((y) => y.day > tt).sort((a, c) => a.day - c.day)) { b2 += x.amount; if (b2 >= target) return x.day; } return Infinity; };
-    let waiting = 0; // amounts of more important bills that are still waiting
-    for (let i = 0; i < queue.length; i++) {
-      const o = queue[i], rest = o.amount - (o.paid || 0);
-      const pay = (amt) => { bal -= amt; o.paid = (o.paid || 0) + amt; (o.parts = o.parts || []).push({ day: tt, amount: amt, by: lastIn }); if (lastIn) lastIn.funds.push({ o: o, amount: amt, part: o.parts.length }); dayOf(tt).pays.push({ o: o, amount: amt, part: o.parts.length }); };
-      if (rest > bal) {
-        // at most two parts: the most important waiting bill may take what is here now (at least 40 percent), the rest is paid in one go later
-        const part = Math.floor(bal / 100) * 100, restLater = o.amount - part;
-        if (!waiting && !(o.parts || []).length && o.amount >= 5000 && part >= o.amount * 0.4 && restLater >= Math.max(2000, o.amount * 0.2)) { pay(part); }
-        waiting += o.amount - (o.paid || 0); continue;
-      }
-      // a less important bill may go first only if it does not delay a more important one
-      const soon = outs.filter((x) => !x.payDay && !queue.includes(x) && x.day > tt && x.day <= tt + 7 * DAY && (ST_PRI[x.kind] || 9) < (ST_PRI[o.kind] || 9)).reduce((n, x) => n + x.amount, 0);
-      const hold = waiting + soon;
-      if (hold && bal - rest < hold) { const r1 = reachDay(bal - rest, hold), r0 = reachDay(bal, hold);
-        if (r1 === Infinity || r1 > r0) { waiting += rest; continue; } }
-      pay(rest); o.payDay = tt; o.lateDays = Math.round((tt - o.due) / DAY); o.by = lastIn; queue.splice(i, 1); i--;
+    const nextIn = pi + 1 < points.length ? points[pi + 1] : horizon + DAY;
+    const cands = outs.filter((o) => !o.payDay && !o.reserve && o.due < nextIn).sort(sortPri);
+    for (const o of cands) {
+      const rest = o.amount - (o.paid || 0), when = Math.max(tt, o.due);
+      const pay = (amt) => { bal -= amt; o.paid = (o.paid || 0) + amt; o.parts.push({ day: when, amount: amt, by: lastIn }); if (lastIn) lastIn.funds.push({ o: o, amount: amt, part: o.parts.length }); dayOf(when).pays.push({ o: o, amount: amt, part: o.parts.length }); };
+      if (rest <= bal) { pay(rest); o.payDay = when; o.lateDays = Math.round((when - o.due) / DAY); o.by = lastIn; continue; }
+      // short: the most important unpaid bill may take what is here now (at least 40 percent), the rest in one go later
+      const part = Math.floor(bal / 100) * 100;
+      if (!o.parts.length && o.amount >= 5000 && part >= o.amount * 0.4 && o.amount - part >= Math.max(2000, o.amount * 0.2)) pay(part);
+      break; // nothing less important goes before this one
     }
-    if (days[tt]) days[tt].bal = bal;
-    if (bal < low.amount) low = { amount: bal, day: tt };
-  }
+  });
+  Object.values(days).sort((a, b2) => a.day - b2.day).reduce((b0, d) => { d.bal = b0 + d.ins.reduce((n, x) => n + x.amount, 0) - d.pays.reduce((n, x) => n + x.amount, 0); if (d.bal < low.amount) low = { amount: d.bal, day: d.day }; return d.bal; }, opening);
   const tot = (a) => a.reduce((n, x) => n + x.amount, 0);
   const unpaid = outs.filter((o) => !o.payDay), late = outs.filter((o) => o.payDay && o.lateDays > 0 && !o.reserve);
   return { opening: opening, ins: ins, outs: outs, inTotal: tot(ins), outTotal: tot(outs), gstIn: ins.reduce((n, x) => n + x.gst, 0), end: bal, horizon: horizon, need: need,
@@ -764,12 +754,111 @@ function renderLucy() {
     '<div class="hud-corner tl"></div><div class="hud-corner tr"></div><div class="hud-corner bl"></div><div class="hud-corner br"></div>' +
     '<div class="hud-read l"><b>LUCY</b><span>v3 · neural</span></div><div class="hud-read r"><b class="lucy-state-chip">' + stateLabel(st0).toUpperCase() + '</b><span>on this phone</span></div></div>' +
     '<div class="lucy-wave">' + Array.from({ length: 29 }, (_, i) => '<i style="--i:' + i + '"></i>').join('') + '</div><div class="lucy-state">' + stateLabel(st0) + '</div>';
+  h += '<button class="panel gold story-cta" data-a="st-open"><span class="story-ring">' + avatar('small') + '</span><span class="grow"><b>Play my day</b><div class="sub">Your day as stories: plan, money in and out, team, special days and your dream</div></span>' + icon('play', 20) + '</button>';
   h += '<div class="hscroll">' + QUICK.map((q) => '<button class="chip" data-a="quick" data-v="' + q[0] + '">' + icon({ brief: 'sun', today: 'calendar', collect: 'coins', pay: 'wallet', salary: 'users', emi: 'bank' }[q[0]] || 'spark', 14) + q[1] + '</button>').join('') + '</div>';
   h += '<div class="chat">' + (S.chat.length ? S.chat.slice(-30).map(msgHtml).join('') : '<div class="msg lucy"><div class="who"><span>Lucy</span></div>Hi ' + esc(nm()) + '. I am here. Ask me anything, or tap a suggestion above. I can plan your day, find clients, price work, and push you towards your dreams.</div>') +
     (view.chatBusy ? '<div class="msg lucy"><div class="typing"><i></i><i></i><i></i></div></div>' : '') + '<div id="chat-end"></div></div>';
   h += '<div class="composer"><button class="iconbtn mic" data-a="mic" aria-label="Speak">' + icon('mic', 20) + '</button><textarea id="ask" rows="1" placeholder="Talk to Lucy…" enterkeyhint="send"></textarea><button class="iconbtn send" data-a="send" aria-label="Send">' + icon('send', 19) + '</button></div>';
   return h;
 }
+/* ---------------- Lucy's day report, told as stories (tap right for next, left for back, hold to pause) ---------------- */
+function buildStories() {
+  const now = Date.now(), d0 = L.startOfDay(now), d1 = L.addDays(d0, 1), d6 = L.addDays(d0, 6), dd = (t) => L.fmtDate(t);
+  const P = settlePlan(), hr = new Date(now).getHours(), name = nm();
+  const greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  const rems = S.reminders.filter((r) => r.status === 'pending' && Math.max(r.due, r.snoozeUntil || 0) < d1).sort((a, b2) => a.due - b2.due);
+  const inToday = P.ins.filter((x) => x.day < d1), inWeek = P.ins.filter((x) => x.day >= d1 && x.day < d6);
+  const outToday = P.outs.filter((o) => !o.reserve && o.due < d1), outWeek = P.outs.filter((o) => !o.reserve && o.due >= d1 && o.due < d6);
+  const sum = (a) => a.reduce((n, x) => n + x.amount, 0);
+  const doneToday = S.reminders.filter((r) => r.doneAt && r.doneAt >= d0).length;
+  const gotToday = S.payments.filter((p) => p.type === 'in').reduce((n, p) => n + B.partsOf(p).filter((x) => x.at >= d0).reduce((a, x) => a + Number(x.amt || 0), 0), 0);
+  const li = (t, r, cls) => '<div class="st-li"><span>' + t + '</span>' + (r ? '<b class="' + (cls || '') + '">' + r + '</b>' : '') + '</div>';
+  const slides = [];
+  const add = (bg, eyebrow, body, say) => slides.push({ bg: bg, html: '<div class="st-eyebrow">' + eyebrow + '</div>' + body, say: say });
+  add('linear-gradient(160deg,#1b1530,#0b0d14 60%,#2a1f0c)', L.DAYNAME[new Date(now).getDay()] + ' · ' + dd(now),
+    '<div class="st-big">' + greet + ',<br><b>' + esc(name) + '</b></div><div class="st-bubbles">' +
+    '<div><b>' + rems.length + '</b><span>things today</span></div><div><b>' + short(sum(inToday)) + '</b><span>to collect</span></div><div><b>' + short(sum(outToday)) + '</b><span>to pay</span></div></div>' +
+    '<div class="st-note">Tap to see your day, ' + esc(name) + '.</div>',
+    greet + ', ' + name + '. Today you have ' + rems.length + ' things to do, ' + money(sum(inToday)) + ' to collect and ' + money(sum(outToday)) + ' to pay.');
+  if (rems.length) add('linear-gradient(160deg,#0f2a2a,#0b0d14 65%)', 'Today\'s plan',
+    '<div class="st-title">' + rems.length + ' thing' + (rems.length > 1 ? 's' : '') + ' on your list</div>' + rems.slice(0, 7).map((r) => li(esc(r.task), (r.due < d0 ? 'overdue' : L.fmtTime(r.due)), r.due < d0 ? 'bad' : '')).join('') + (rems.length > 7 ? '<div class="st-note">and ' + (rems.length - 7) + ' more</div>' : ''),
+    'Your plan today: ' + rems.slice(0, 5).map((r) => r.task + (r.due < d0 ? ', overdue' : ' at ' + L.fmtTime(r.due))).join('. ') + '.');
+  if (inToday.length || inWeek.length) add('linear-gradient(160deg,#0d2a1c,#0b0d14 65%)', 'Money coming in',
+    '<div class="st-title">' + (inToday.length ? 'Collect <b class="good">' + money(sum(inToday)) + '</b> today' : 'Nothing to collect today') + '</div>' +
+    inToday.map((x) => li(esc(x.party) + (x.late ? ' · overdue' : ''), money(x.amount), 'good')).join('') +
+    (inWeek.length ? '<div class="st-sub">Next 5 days · ' + money(sum(inWeek)) + '</div>' + inWeek.slice(0, 5).map((x) => li(esc(x.party) + ' · ' + dd(x.day), money(x.amount))).join('') : '') +
+    '<div class="st-note">Every client pays on the due date. Send the reminder the same morning.</div>',
+    (inToday.length ? 'Collect today: ' + inToday.map((x) => x.party + ', ' + money(x.amount) + (x.late ? ', overdue' : '')).join('. ') + '.' : 'Nothing to collect today.') + (inWeek.length ? ' Coming in the next five days: ' + inWeek.slice(0, 6).map((x) => x.party + ', ' + money(x.amount) + ' on ' + dd(x.day)).join('. ') + '.' : ''));
+  if (outToday.length || outWeek.length) add('linear-gradient(160deg,#2a1414,#0b0d14 65%)', 'Money going out',
+    '<div class="st-title">' + (outToday.length ? 'Pay <b class="warn">' + money(sum(outToday)) + '</b> today' : 'Nothing to pay today') + '</div>' +
+    outToday.map((o) => li(esc(o.party) + ' · ' + (ST_LABEL[o.kind] || 'Payment'), money(o.amount) + (o.payDay && o.payDay > d0 ? ' on ' + dd(o.payDay) : !o.payDay ? ' · short' : ''), !o.payDay ? 'bad' : '')).join('') +
+    (outWeek.length ? '<div class="st-sub">Next 5 days · ' + money(sum(outWeek)) + '</div>' + outWeek.slice(0, 5).map((o) => li(esc(o.party) + ' · ' + dd(o.due), money(o.amount))).join('') : ''),
+    (outToday.length ? 'To pay today: ' + outToday.map((o) => o.party + ', ' + money(o.amount)).join('. ') + '.' : 'Nothing to pay today.') + (outWeek.length ? ' In the next five days: ' + outWeek.slice(0, 6).map((o) => o.party + ', ' + money(o.amount) + ' on ' + dd(o.due)).join('. ') + '.' : ''));
+  const short5 = P.outs.filter((o) => !o.reserve && !o.payDay && o.due < d6);
+  if (short5.length) add('linear-gradient(160deg,#2b2209,#0b0d14 65%)', 'Lucy\'s settlement',
+    '<div class="st-title">' + short5.length + ' payment' + (short5.length > 1 ? 's' : '') + ' not covered yet</div>' + short5.slice(0, 6).map((o) => li(esc(o.party), money(o.amount), 'bad')).join('') +
+    '<div class="st-note">Your order: EMIs and loans, salaries, rent, one-time payments, home. Collect on time and these move into place.</div>',
+    short5.length + ' payments are not covered yet. Collecting every client on time is the key this week.');
+  const team = S.employees.filter((e) => e.active !== false && !e.past && Number(e.salary) > 0).map((e) => { const c0 = B.salaryCycle(0, e), paid = B.salaryPaidOf(e, c0.month) >= Number(e.salary), c = paid ? B.salaryCycle(1, e) : c0; return { e: e, at: c.payDay }; }).sort((a, b2) => a.at - b2.at);
+  if (team.length) add('linear-gradient(160deg,#10203a,#0b0d14 65%)', 'Your team',
+    '<div class="st-title">Next salaries</div>' + team.slice(0, 7).map((x) => li(esc(x.e.name), money(x.e.salary) + ' · ' + dd(x.at), x.at < d6 ? 'warn' : '')).join(''),
+    'Next salaries: ' + team.filter((x) => x.at < d6).concat(team.filter((x) => x.at < d6).length ? [] : [team[0]]).map((x) => x.e.name + ', ' + money(x.e.salary) + ' on ' + dd(x.at)).join('. ') + '.');
+  const rv = B.revenue(), pct = rv.mrr ? Math.min(100, Math.round(100 * rv.collected / rv.mrr)) : 0;
+  add('linear-gradient(160deg,#211a33,#0b0d14 65%)', L.MON[new Date(now).getMonth()] + ' so far',
+    '<div class="st-title">Received <b class="good">' + money(rv.collected) + '</b></div><div class="st-bar"><i style="width:' + pct + '%"></i></div><div class="st-sub">' + pct + '% of your ' + money(rv.mrr) + ' monthly retainers</div>' +
+    (gotToday ? li('Received today', money(gotToday), 'good') : '') + (doneToday ? li('Done today', doneToday + ' task' + (doneToday > 1 ? 's' : '')) : ''),
+    'This month you have received ' + money(rv.collected) + ', ' + pct + ' percent of your monthly retainers.');
+  const sp = SP.upcoming(7);
+  if (sp.length) add('linear-gradient(160deg,#331429,#0b0d14 65%)', 'Special days',
+    '<div class="st-title">Coming up</div>' + sp.slice(0, 5).map((x) => li(esc(SP.specialTitle(x.sd, x.at)), dd(x.at), SP.daysUntil(x.at) <= 1 ? 'warn' : '')).join(''),
+    'Coming up: ' + sp.slice(0, 3).map((x) => SP.specialTitle(x.sd, x.at) + ' on ' + dd(x.at)).join(', ') + '.');
+  const ds = S.dreams.filter((x) => !x.achieved), d = ds.length ? ds[Math.floor(now / L.DAY) % ds.length] : null;
+  if (d) {
+    const left = d.targetDate ? Math.ceil((d.targetDate - now) / L.DAY) : 0, monthly = d.target && left > 0 ? Math.round((Number(d.target) - Number(d.saved || 0)) / Math.max(1, left / 30)) : 0;
+    slides.push({ bg: d.img ? 'center/cover no-repeat url(' + d.img + ')' : 'linear-gradient(160deg,#2b2209,#0b0d14 65%)', dim: !!d.img,
+      html: '<div class="st-eyebrow">Your dream</div><div class="st-dream"><div class="st-title">' + esc(d.title) + '</div>' + (d.target ? '<div class="st-sub">' + money(d.saved || 0) + ' of ' + money(d.target) + (left > 0 ? ' · ' + left + ' days to go' : '') + '</div>' : '') + (monthly ? '<div class="st-note">Put aside about ' + money(monthly) + ' a month and it is yours.</div>' : '') + '</div>',
+      say: 'And never forget why: ' + d.title + (left > 0 ? ', ' + left + ' days to go.' : '.') });
+  }
+  add('linear-gradient(160deg,#1b1530,#0b0d14 60%,#2a1f0c)', 'That is your day',
+    '<div class="st-big">You\'ve got this,<br><b>' + esc(name) + '</b>.</div><div class="st-note">One step at a time. I\'ll remind you when it matters.</div>',
+    'That is your day. You have got this, ' + name + '.');
+  return slides;
+}
+let story = null;
+function openStories(voice) {
+  const slides = buildStories();
+  let el = $('#stories'); if (!el) { el = document.createElement('div'); el.id = 'stories'; document.body.appendChild(el); }
+  story = { i: 0, slides: slides, t0: 0, left: 0, paused: false, timer: null, voice: voice === true || !!S.settings.speak };
+  el.hidden = false; showStory(0);
+}
+function storyDur() { const s = story.slides[story.i]; return story.voice ? Math.max(4000, String(s.say || '').length * 72) : Math.max(5500, Math.min(14000, String(s.say || '').length * 65)); }
+function showStory(i) {
+  if (!story) return;
+  if (i < 0) i = 0;
+  if (i >= story.slides.length) return closeStories();
+  story.i = i; const s = story.slides[i], el = $('#stories');
+  el.innerHTML = '<div class="st-bg" style="background:' + s.bg + '"></div>' + (s.dim ? '<div class="st-dim"></div>' : '') +
+    '<div class="st-bars">' + story.slides.map((x, j) => '<i><b style="' + (j < i ? 'width:100%' : j > i ? 'width:0' : '') + '" ' + (j === i ? 'class="run"' : '') + '></b></i>').join('') + '</div>' +
+    '<div class="st-head"><span class="st-av">' + avatar('small') + '</span><b>Lucy</b><span class="sub">' + L.fmtTime(Date.now()) + '</span><button class="st-btn" data-a="st-voice">' + icon(story.voice ? 'volume' : 'stop', 18) + '</button><button class="st-btn" data-a="st-close">' + icon('x', 20) + '</button></div>' +
+    '<div class="st-body">' + s.html + '</div><div class="st-tap l" data-a="st-prev"></div><div class="st-tap r" data-a="st-next"></div>';
+  const bar = el.querySelector('.st-bars .run'); story.left = storyDur();
+  if (bar) { bar.style.transition = 'none'; bar.style.width = '0'; void bar.offsetWidth; bar.style.transition = 'width ' + story.left + 'ms linear'; bar.style.width = '100%'; }
+  story.t0 = Date.now(); clearTimeout(story.timer);
+  if (story.voice) {
+    // with voice on (for driving), each story moves on when Lucy finishes speaking it
+    const mine = i; story.timer = setTimeout(() => showStory(story.i + 1), story.left + 20000);
+    V.speak(s.say || '', { force: true }).then(() => { if (story && story.i === mine && !story.paused) { clearTimeout(story.timer); story.timer = setTimeout(() => showStory(mine + 1), Math.max(700, 4000 - (Date.now() - story.t0))); } });
+  } else { V.stopSpeaking(); story.timer = setTimeout(() => showStory(story.i + 1), story.left); }
+}
+function pauseStory(on) {
+  if (!story) return; const bar = $('#stories .st-bars .run');
+  if (on && !story.paused) { story.paused = true; clearTimeout(story.timer); story.left -= Date.now() - story.t0; if (bar) { const w = getComputedStyle(bar).width; bar.style.transition = 'none'; bar.style.width = w; } try { speechSynthesis.pause(); } catch (e) {} }
+  else if (!on && story.paused) { story.paused = false; story.t0 = Date.now(); story.timer = setTimeout(() => showStory(story.i + 1), story.left); if (bar) { bar.style.transition = 'width ' + story.left + 'ms linear'; bar.style.width = '100%'; } try { speechSynthesis.resume(); } catch (e) {} }
+}
+function closeStories() { if (!story) return; clearTimeout(story.timer); V.stopSpeaking(); story = null; const el = $('#stories'); if (el) { el.hidden = true; el.innerHTML = ''; } }
+// hold anywhere to pause, like Instagram
+document.addEventListener('pointerdown', (e) => { if (story && e.target.closest && e.target.closest('#stories') && !e.target.closest('.st-btn')) { story.hold = setTimeout(() => pauseStory(true), 220); } });
+document.addEventListener('pointerup', () => { if (story) { clearTimeout(story.hold); if (story.paused) { story.wasPaused = true; pauseStory(false); } } });
 function msgHtml(m, i) {
   const idx = S.chat.length - Math.min(30, S.chat.length) + i;
   if (m.role === 'user') return '<div class="msg me">' + esc(m.content) + '</div>';
@@ -872,7 +961,7 @@ function renderMore() {
     row('wa', 'chat', 'WhatsApp and bank', 'Ready messages you can edit · 3 bank accounts') +
     // reports removed from the menu (Nov 2026); data kept
     row('review', 'chart', 'Weekly review', 'Personal · company · money · ascend') +
-    row('connections', 'link', 'Connections', (H.ready() ? 'Helper connected' : 'Set up notifications, Drive and AI')) +
+    row('connections', 'link', 'Connections', (H.ready() ? 'Helper connected' : 'Set up notifications and Drive')) +
     row('settings', 'gear', 'Settings', 'Voice, notifications, business rules') +
     row('backup', 'cloud', 'Backup', H.driveEnabled() ? 'Google Drive on · last ' + (H.sync.last ? L.fmtWhen(H.sync.last) : 'never') : 'Copy or restore your data');
 }
@@ -946,18 +1035,14 @@ function renderReview() {
 function renderSettings() {
   const st = S.settings, bz = st.business;
   const sel = (key, opts, val) => '<select data-set="' + key + '">' + opts.map((o) => '<option value="' + o[0] + '" ' + (String(val) === String(o[0]) ? 'selected' : '') + '>' + o[1] + '</option>').join('') + '</select>';
-  const vs = V.indianVoices();
   return topbar('Settings', { back: 'More' }) +
     '<h2>Paused sections</h2><div class="panel"><div class="sub">Paused sections are hidden and send no notifications. Everything you wrote is kept. Tick to bring one back.</div>' +
       [['journal', 'Journal'], ['manifest', 'Manifestation'], ['affirm', 'Affirmations'], ['mission', 'Money mission']].map((x) => '<label class="row mt" style="gap:8px"><input type="checkbox" data-pause="' + x[0] + '" ' + (B.paused(x[0]) ? '' : 'checked') + '> ' + x[1] + (B.paused(x[0]) ? ' <span class="sub">(paused)</span>' : '') + '</label>').join('') + '</div>' +
     '<h2>You</h2><label>Your name</label><input data-set="name" value="' + esc(st.name) + '">' +
     '<label>Monthly revenue target (₹)</label><input type="number" data-set="revenueTarget" value="' + esc(st.revenueTarget) + '">' +
     '<h2>Lucy\'s voice and look</h2><div class="panel"><div class="row"><div class="grow"><b>Lucy speaks</b><div class="sub">Reads briefings, affirmations and replies aloud</div></div>' + sw(st.speak, 'toggle', 'speak') + '</div>' +
-    '<div class="row mt"><div class="grow"><b>Speak AI replies automatically</b></div>' + sw(st.autoSpeakReplies, 'toggle', 'autoSpeakReplies') + '</div></div>' +
-    '<label>Choose Lucy\'s voice on this device</label><div class="sub" style="margin-bottom:8px">Tap play to hear each one, then tap Use. Each device keeps its own choice.</div>' +
-    '<div class="list">' + vs.slice(0, 12).map((v, i) => { const cur = (V.deviceVoice() || (vs[0] && vs[0].voiceURI)) === v.voiceURI; return '<div class="item"><button class="iconbtn" data-a="voice-try" data-v="' + esc(v.voiceURI) + '" aria-label="Play">' + icon('volume', 16) + '</button><div class="grow"><div class="t">' + esc(v.name.replace(/\s*\(.*?\)\s*/g, ' ').trim()) + (/(premium|enhanced|natural|neural)/i.test(v.name) ? ' <span class="kind">natural</span>' : '') + '</div><div class="m">' + esc(v.lang) + (i === 0 ? ' · Lucy\'s pick' : '') + '</div></div>' + (cur ? '<span class="pill">In use</span>' : '<button class="btn small ghost" data-a="voice-use" data-v="' + esc(v.voiceURI) + '">Use</button>') + '</div>'; }).join('') + '</div>' +
-    (vs.length ? '' : '<div class="panel empty">Voices are still loading. Open this page again in a moment.</div>') +
-    '<div class="hint">For the most natural voice on iPhone: Settings &gt; Accessibility &gt; Spoken Content &gt; Voices &gt; English, and download a voice marked <b>Enhanced</b> or <b>Premium</b> (for example Ava, Zoe or Samantha). It will then appear here.</div>' +
+    '<div class="row mt"><div class="grow"><b>Speak Lucy\'s replies automatically</b></div>' + sw(st.autoSpeakReplies, 'toggle', 'autoSpeakReplies') + '</div></div>' +
+    '<div class="panel"><b>Lucy\'s voice: Google UK English Female</b><div class="sub mt">On this device: ' + esc(V.voiceName() || 'loading…') + '</div>' + (V.isGoogleUK() ? '' : '<div class="hint">This device does not have the Google UK English Female voice (it comes with Chrome on Mac, Windows and Android). Lucy uses the closest British female voice here. On iPhone or iPad, download Serena or Kate (Enhanced) in Settings &gt; Accessibility &gt; Spoken Content &gt; Voices &gt; English and Lucy will pick it up.</div>') + '</div>' +
     '<div class="grid2"><div><label>Speed</label>' + sel('voiceRate', [[0.85, 'Slower'], [0.92, 'Gentle'], [1, 'Natural'], [1.08, 'Faster']], st.voiceRate) + '</div><div><label>Tone</label>' + sel('voicePitch', [[0.97, 'Deeper'], [1.03, 'Soft'], [1.1, 'Brighter']], st.voicePitch) + '</div></div>' +
     '<button class="btn ghost block" data-a="test-voice">' + icon('volume', 16) + 'Test Lucy\'s voice</button>' +
     '<label>Lucy\'s appearance</label><div class="row"><input type="file" accept="image/*" id="avatar-file"><button class="btn small ghost" data-a="avatar-reset">Default</button></div><div class="hint">Upload any image to replace the drawn android, for example one you generate later.</div>' +
@@ -1423,6 +1508,12 @@ document.addEventListener('click', async (ev) => {
     case 'del-rem': toPast('reminders', id); closeSheet(); render(); break;
     case 'snooze': { const r = remById(id); r.snoozeUntil = Date.now() + Number(v) * L.MIN; save(); closeSheet(); render(); toast('Snoozed till ' + L.fmtTime(r.snoozeUntil)); break; }
     case 'tomorrow': { const r = remById(id); const t = new Date(alertStart(r)); r.snoozeUntil = 0; r.due = L.atTime(L.addDays(L.startOfDay(Date.now()), 1), t.getHours(), t.getMinutes()); if (r.repeat) r.start = r.due; save(); closeSheet(); render(); toast('Moved to ' + L.fmtWhen(r.due)); break; }
+    case 'st-open': openStories(v === 'voice'); break;
+    case 'st-close': closeStories(); break;
+    case 'st-next': if (story && story.wasPaused) { story.wasPaused = false; break; } if (story) showStory(story.i + 1); break;
+    case 'st-prev': if (story && story.wasPaused) { story.wasPaused = false; break; } if (story) showStory(story.i - 1); break;
+    case 'st-voice': if (story) { story.voice = !story.voice; showStory(story.i); } break;
+    case 'home-day': view.homeDay = Number(v) || 0; render(); break;
     case 'new-rem-cat': reminderSheet(null, { cat: v, due: L.atTime(Date.now(), new Date().getHours() + 1, 0) }); break;
     case 'new-rem-client': reminderSheet(null, { cat: 'Follow-up', clientId: id }); break;
     // money
@@ -1663,8 +1754,6 @@ document.addEventListener('click', async (ev) => {
     case 'toggle': S.settings[v] = !S.settings[v]; save(); render(); break;
     case 'rt': { const it = S.routine[Number(el.dataset.i)]; it[el.dataset.f] = !it[el.dataset.f]; save(); render(); break; }
     case 'rt-reset': if (confirm('Reset your routine to the default timings?')) { S.routine = C.ROUTINE_DEFAULT.map((r) => ({ key: r.key, icon: r.icon, label: r.label, time: r.time, on: true, ring: !!r.ring, speak: true })); save(); render(); } break;
-    case 'voice-try': V.speak('Hi ' + nm() + ', I am Lucy. How can I help you today?', { force: true, voiceURI: v }); break;
-    case 'voice-use': V.setDeviceVoice(v); render(); V.speak('Thank you, ' + nm() + '. I will use this voice from now on.', { force: true }); toast('Voice saved on this device'); break;
     case 'test-voice': V.speak('Hi ' + nm() + '. I am Lucy, your assistant. I will gently remind you of everything that matters and help you whenever you need me.', { force: true }); break;
     case 'avatar-reset': S.settings.avatarImg = ''; save(); render(); break;
     // connections

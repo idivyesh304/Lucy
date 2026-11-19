@@ -34,14 +34,19 @@ export function femaleVoices() {
   return voices().filter((v) => !isMale(v)).sort((a, b) => rank(a) - rank(b) || (/enhanced|premium|natural/i.test(b.name) - /enhanced|premium|natural/i.test(a.name)));
 }
 export function indianVoices() { return femaleVoices(); }
-function chooseVoice(force) {
+// Lucy has one voice: Google UK English Female. Where a device does not have it (iPhone, iPad),
+// the closest British female voice is used, then any natural female voice.
+const BRIT_F = /\b(serena|kate|martha|stephanie|fiona|libby|sonia|mia|hazel|susan)\b/i;
+function chooseVoice() {
+  const all = voices();
+  const g = all.find((v) => /google uk english female/i.test(v.name));
+  if (g) return g;
   const list = femaleVoices();
-  if (force) { const f = list.find((x) => x.voiceURI === force); if (f) return f; }
-  // the voice is chosen per device (iPhone and Mac have different voices)
-  let want = ''; try { want = localStorage.getItem('lucy.dev.voice') || ''; } catch (e) {}
-  if (want) { const v = list.find((x) => x.voiceURI === want || x.name === want); if (v) return v; }
-  return list[0] || null;
+  const gb = list.filter((v) => /en[-_]GB/i.test(v.lang));
+  return gb.find((v) => BRIT_F.test(v.name) && /enhanced|premium|natural/i.test(v.name)) || gb.find((v) => BRIT_F.test(v.name)) || gb[0] || list[0] || null;
 }
+export function voiceName() { const v = chooseVoice(); return v ? v.name : ''; }
+export function isGoogleUK() { const v = chooseVoice(); return !!v && /google uk english female/i.test(v.name); }
 // Speech that works on iPhone too: short sentence chunks (long text stalls), resume (iOS gets stuck paused),
 // a small gap after cancel (iOS drops speech started right after cancel), and a retry with the
 // default voice if the chosen one never starts (some iPhone voices fail silently).
@@ -70,7 +75,7 @@ export function speak(text, opts) {
       if (my !== job) return resolve();
       if (i >= list.length) return finish();
       const u = new SpeechSynthesisUtterance(list[i]);
-      const v = useDefault ? null : chooseVoice(opts.voiceURI);
+      const v = useDefault ? null : chooseVoice();
       if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-IN';
       u.rate = Number(S.settings.voiceRate) || 0.92;
       u.pitch = Number(S.settings.voicePitch) || 1.03;
@@ -135,5 +140,3 @@ export function matchScore(target, said) {
 
 if ('speechSynthesis' in window) { try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => {}; } catch (e) {} }
 
-export function setDeviceVoice(uri) { try { if (uri) localStorage.setItem('lucy.dev.voice', uri); else localStorage.removeItem('lucy.dev.voice'); } catch (e) {} }
-export function deviceVoice() { try { return localStorage.getItem('lucy.dev.voice') || ''; } catch (e) { return ''; } }

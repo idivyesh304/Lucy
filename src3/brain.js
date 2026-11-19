@@ -362,9 +362,10 @@ export function billGst() {
 
 // Office expenses: monthly bills with due day; variable bills (light, water) use what was actually paid.
 export function officePaidOf(o, mk) { const x = o.paid && o.paid[mk]; return x ? liveParts(x.parts, x.partsGone).reduce((a, y) => a + Number(y.amt || 0), 0) : 0; }
-export function officeMonth() {
+// scope 'home' = home expenses (kept in the same list, marked home); anything else = office expenses
+export function officeMonth(scope) {
   const mk = monthKey(Date.now());
-  const items = S.office || [];
+  const items = (S.office || []).filter((o) => (scope === 'home' ? !!o.home : !o.home));
   const rows = items.map((o) => { const paid = officePaidOf(o, mk), amt = Number(o.amount) || 0; const due = o.variable ? Math.max(amt, paid) : amt;
     return { o: o, paid: paid, due: due, left: Math.max(0, amt - paid), status: !amt && !paid ? 'unset' : paid >= amt && paid > 0 ? 'paid' : paid > 0 ? 'part' : 'due' }; });
   rows.forEach((r) => { if (r.o.active === false) r.status = 'off'; });

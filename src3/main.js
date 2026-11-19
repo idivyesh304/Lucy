@@ -382,7 +382,7 @@ function remRow(r, timeOnly) {
 
 /* =============================== MONEY =============================== */
 function loanTitle(l) { return l.type === 'friend' ? 'Pay ' + (l.lender || 'friend') : (l.title || l.lender || 'Loan') + ' EMI'; }
-const DUE_KIND = { pay: { label: 'Payments', one: 'Payment', icon: 'card' }, client: { label: 'Clients', one: 'Client', icon: 'briefcase' }, salary: { label: 'Salaries', one: 'Salary', icon: 'users' }, office: { label: 'Office', one: 'Office', icon: 'building' }, emi: { label: 'EMIs', one: 'EMI', icon: 'bank' }, friend: { label: 'Friend loans', one: 'Friend loan', icon: 'heart' } };
+const DUE_KIND = { home: { label: 'Home', one: 'Home', icon: 'house' }, gst: { label: 'GST', one: 'GST', icon: 'doc' },  pay: { label: 'Payments', one: 'Payment', icon: 'card' }, client: { label: 'Clients', one: 'Client', icon: 'briefcase' }, salary: { label: 'Salaries', one: 'Salary', icon: 'users' }, office: { label: 'Office', one: 'Office', icon: 'building' }, emi: { label: 'EMIs', one: 'EMI', icon: 'bank' }, friend: { label: 'Friend loans', one: 'Friend loan', icon: 'heart' } };
 // Every receivable and payable from every section, in one list.
 function allDues(days) {
   const now = Date.now(), d0 = L.startOfDay(now), horizon = L.addDays(d0, days || 35), mk = B.payroll().month, dIn = [], dOut = [], done = [];
@@ -403,11 +403,11 @@ function allDues(days) {
       else if (off === 0) { const ps = ((e.paid || {})[cyc.month] || {}).parts || []; done.push({ dir: 'out', kind: 'salary', party: e.name, amount: paid, at: ps.length ? ps[ps.length - 1].at : now }); }
     });
   });
-  B.officeMonth().rows.forEach((r) => {
+  B.officeMonth().rows.concat(B.officeMonth('home').rows).forEach((r) => {
     const o = r.o; if (o.active === false || !Number(o.amount)) return;
     const due = new Date(y, m, Math.min(Number(o.dueDay) || 1, new Date(y, m + 1, 0).getDate())).getTime();
-    if (r.left > 0) dOut.push({ kind: 'office', party: o.name, sub: (o.note ? o.note + ' · ' : '') + (r.paid ? 'part ' + money(r.paid) + ' paid' : 'Office bill'), amount: r.left, due: due, a: 'open-office', sid: o.id });
-    else done.push({ dir: 'out', kind: 'office', party: o.name, amount: r.paid, at: now });
+    if (r.left > 0) dOut.push({ kind: o.home ? 'home' : 'office', party: o.name, sub: (o.note ? o.note + ' · ' : '') + (r.paid ? 'part ' + money(r.paid) + ' paid' : 'Office bill'), amount: r.left, due: due, a: 'open-office', sid: o.id });
+    else done.push({ dir: 'out', kind: o.home ? 'home' : 'office', party: o.name, amount: r.paid, at: now });
   });
   S.loans.filter((l) => !l.closed).forEach((l) => {
     const due = nextLoanDue(l, now);
@@ -426,8 +426,11 @@ function allDues(days) {
 // 3. When money is tight, pay in this order: GST and taxes (interest and penalty), EMIs (bounce charges, credit score),
 //    salaries (smallest first, so more people are paid on time), office bills, other payments, friendly loans.
 // 4. GST collected is not income: the GST for bills raised now is kept aside until it is due.
-const ST_PRI = { gst: 1, emi: 2, salary: 3, office: 4, pay: 5, friend: 6 };
-const ST_LABEL = { gst: 'GST', emi: 'EMI', salary: 'Salary', office: 'Office', pay: 'Payment', friend: 'Friendly loan' };
+// Divyesh's order: 1 EMIs, loans, friendly loans (and GST, which carries interest), 2 salaries in his order, 3 rent and office bills, 4 one-time settlements, 5 home expenses
+const ST_PRI = { gst: 1, emi: 1, friend: 1, salary: 2, rent: 3, office: 3, pay: 4, home: 5 };
+const ST_LABEL = { gst: 'GST', emi: 'EMI', salary: 'Salary', office: 'Office', rent: 'Rent', pay: 'Payment', friend: 'Friendly loan', home: 'Home' };
+const SAL_ORDER = () => (S.settings.salaryOrder || ['pratik', 'jay', 'darshil', 'ashwin', 'chaitanya', 'yash']);
+const salRank = (name) => { const f = String(name || '').toLowerCase().split(/\s+/)[0]; const i = SAL_ORDER().indexOf(f); return i < 0 ? 99 : i; };
 function settlePlan() {
   const now = Date.now(), d0 = L.startOfDay(now), horizon = L.addDays(d0, 42), D = allDues(42), DAY = L.DAY;
   const opening = Math.max(0, Number(S.settings.cashInHand) || 0);
@@ -451,12 +454,13 @@ function settlePlan() {
     const p = x.a === 'settle' ? payById(x.id) : null;
     const kind = p && p.gst ? 'gst' : x.kind === 'pay' && p && /loan/i.test(p.note || '') ? 'friend' : x.kind;
     const l = x.kind === 'emi' || x.kind === 'friend' ? (S.loans.find((y) => y.id === x.id) || {}) : {};
+    const kind2 = kind === 'office' && /rent/i.test(x.party) ? 'rent' : kind;
     const note = kind === 'emi' ? (l.emisLeft ? l.emisLeft + ' EMIs left' : 'EMI') : p ? p.note || '' : String(x.sub || '').replace(/(\s·\s*)+$/, '');
-    outs.push({ a: x.a, id: x.id, sid: x.sid, kind: kind, party: x.party, note: note, day: Math.max(d0, L.startOfDay(x.due || now)), due: L.startOfDay(x.due || now), amount: x.amount, from: l.debitBank || '' });
+    outs.push({ a: x.a, id: x.id, sid: x.sid, kind: kind2, party: x.party, note: note, day: Math.max(d0, L.startOfDay(x.due || now)), due: L.startOfDay(x.due || now), amount: x.amount, from: l.debitBank || '' });
   });
   (S.office || []).filter((o) => o.active !== false && Number(o.amount) > 0).forEach((o) => {
     const n = new Date(now), due = new Date(n.getFullYear(), n.getMonth() + 1, Math.min(Number(o.dueDay) || 1, new Date(n.getFullYear(), n.getMonth() + 2, 0).getDate())).getTime();
-    if (due <= horizon) outs.push({ kind: 'office', party: o.name, note: o.vendor || o.note || 'Office bill', day: due, due: due, amount: Number(o.amount) });
+    if (due <= horizon) outs.push({ kind: o.home ? 'home' : /rent/i.test(o.name) ? 'rent' : 'office', party: o.name, note: o.vendor || o.note || 'Office bill', day: due, due: due, amount: Number(o.amount) });
   });
   S.loans.filter((l) => !l.closed && l.type !== 'friend' && Number(l.emi) > 0).forEach((l) => {
     // allDues lists the next EMI; add the one after it when it also falls inside the plan
@@ -475,7 +479,7 @@ function settlePlan() {
   // day by day: money arrives, bills fall due, each bill is paid in full when there is enough
   let bal = opening, low = { amount: opening, day: d0 }, need = 0, run = opening;
   const queue = [], days = {}; let lastIn = null;
-  ins.forEach((x) => { x.funds = []; });
+  ins.forEach((x) => { x.funds = []; }); outs.forEach((o) => { o.paid = 0; o.parts = []; });
   const dayOf = (t) => (days[t] = days[t] || { day: t, ins: [], pays: [], bal: 0 });
   // money needed to pay everything exactly on its due date
   const events = ins.map((x) => [x.day, x.amount]).concat(outs.map((o) => [o.due, -o.amount])).sort((a, b2) => a[0] - b2[0] || b2[1] - a[1]);
@@ -484,20 +488,24 @@ function settlePlan() {
     const tt = L.startOfDay(t);
     ins.filter((x) => x.day === tt).forEach((x) => { bal += x.amount; dayOf(tt).ins.push(x); lastIn = x; });
     outs.filter((o) => o.day === tt).forEach((o) => queue.push(o));
-    queue.sort((a, b2) => (ST_PRI[a.kind] || 9) - (ST_PRI[b2.kind] || 9) || (a.kind === 'salary' ? a.amount - b2.amount : a.due - b2.due));
+    queue.sort((a, b2) => (ST_PRI[a.kind] || 9) - (ST_PRI[b2.kind] || 9) || (a.kind === 'salary' && b2.kind === 'salary' ? salRank(a.party) - salRank(b2.party) || a.due - b2.due : a.due - b2.due));
     // the first day a given balance reaches a target, counting only money still to come
     const reachDay = (start, target) => { let b2 = start; if (b2 >= target) return tt; for (const x of ins.filter((y) => y.day > tt).sort((a, c) => a.day - c.day)) { b2 += x.amount; if (b2 >= target) return x.day; } return Infinity; };
-    let waiting = 0; // full amounts of more important bills that are still waiting
+    let waiting = 0; // amounts of more important bills that are still waiting
     for (let i = 0; i < queue.length; i++) {
-      const o = queue[i];
-      if (o.amount > bal) { waiting += o.amount; continue; }
-      // a smaller bill may go first only if it does not delay any more important bill
-      // and keep money for more important bills due in the next 7 days
+      const o = queue[i], rest = o.amount - (o.paid || 0);
+      const pay = (amt) => { bal -= amt; o.paid = (o.paid || 0) + amt; (o.parts = o.parts || []).push({ day: tt, amount: amt, by: lastIn }); if (lastIn) lastIn.funds.push({ o: o, amount: amt, part: o.parts.length }); dayOf(tt).pays.push({ o: o, amount: amt, part: o.parts.length }); };
+      if (rest > bal) {
+        // at most two parts: the most important waiting bill may take what is here now (at least 40 percent), the rest is paid in one go later
+        if (!waiting && !(o.parts || []).length && o.amount >= 5000 && bal >= o.amount * 0.4) { pay(Math.floor(bal / 100) * 100); }
+        waiting += o.amount - (o.paid || 0); continue;
+      }
+      // a less important bill may go first only if it does not delay a more important one
       const soon = outs.filter((x) => !x.payDay && !queue.includes(x) && x.day > tt && x.day <= tt + 7 * DAY && (ST_PRI[x.kind] || 9) < (ST_PRI[o.kind] || 9)).reduce((n, x) => n + x.amount, 0);
       const hold = waiting + soon;
-      if (hold && bal - o.amount < hold) { const r1 = reachDay(bal - o.amount, hold), r0 = reachDay(bal, hold); const small = r0 === Infinity && o.amount <= hold * 0.1; // a small bill (like a server) can go when the big ones cannot be paid in this period anyway
-        if (!small && (r1 === Infinity || r1 > r0)) { waiting += o.amount; continue; } }
-      bal -= o.amount; o.payDay = tt; o.lateDays = Math.round((tt - o.due) / DAY); o.by = lastIn; if (lastIn) lastIn.funds.push(o); dayOf(tt).pays.push(o); queue.splice(i, 1); i--;
+      if (hold && bal - rest < hold) { const r1 = reachDay(bal - rest, hold), r0 = reachDay(bal, hold); const small = r0 === Infinity && rest <= hold * 0.1;
+        if (!small && (r1 === Infinity || r1 > r0)) { waiting += rest; continue; } }
+      pay(rest); o.payDay = tt; o.lateDays = Math.round((tt - o.due) / DAY); o.by = lastIn; queue.splice(i, 1); i--;
     }
     if (days[tt]) days[tt].bal = bal;
     if (bal < low.amount) low = { amount: bal, day: tt };
@@ -516,34 +524,41 @@ function renderInOut() {
     stat('Clients income', '<span class="good">' + short(rv.collected) + '</span>', 'received in ' + monName + ' · ' + short(rv.mrr) + ' a month') +
     stat('Team salaries', short(pr.total), pr.list.length + ' people a month') +
     stat('Office expenses', short(om.total), 'a month') +
-    stat('EMIs', short(emi), S.loans.filter((l) => !l.closed).length + ' running a month') + '</div>';
+    stat('EMIs', short(emi), S.loans.filter((l) => !l.closed).length + ' running a month') +
+    stat('Home expenses', short(B.officeMonth('home').total), B.officeMonth('home').rows.length ? 'a month' : 'tap Home tab to add') + '</div>';
   const ins = P.ins.slice().sort((a, b2) => a.day - b2.day), outs = P.outs.filter((o) => !o.reserve).sort((a, b2) => a.due - b2.due);
   const totIn = ins.reduce((n, x) => n + x.amount, 0), totOut = outs.reduce((n, o) => n + o.amount, 0);
   h += seg('cashdir', [['in', 'To collect · ' + short(totIn)], ['out', 'To pay · ' + short(totOut)]], t);
   const kindTag = (k) => '<span class="kind">' + (ST_LABEL[k] || 'Payment') + '</span>';
   const payBtn = (o) => o.a ? '<button class="btn small" data-a="' + o.a + '"' + (o.sid ? ' data-id="' + esc(o.sid) + '"' : ' data-id="' + o.id + '"') + '>Pay</button>' : '';
   if (t === 'in') {
-    h += '<div class="sub" style="margin:2px 2px 10px">Who pays you in the next 6 weeks, and what Lucy suggests you pay in full once it arrives.</div>';
-    const hand = P.outs.filter((o) => o.payDay && !o.by && !o.reserve);
+    h += '<div class="sub" style="margin:2px 2px 10px">Who pays you in the next 6 weeks, and what Lucy suggests you pay once it arrives.</div>';
+    const hand = [];
+    P.outs.forEach((o) => (o.parts || []).forEach((pt, k) => { if (!pt.by && !o.reserve) hand.push({ o: o, amount: pt.amount, part: k + 1, day0: pt.day }); }));
     const card = (title, sub, amount, right, funds, left) => '<div class="panel">' +
       '<div class="row"><div class="grow" style="min-width:0"><b>' + title + '</b><div class="sub">' + sub + '</div></div><div class="right stack"><div class="amount in">' + amount + '</div>' + (right || '') + '</div></div>' +
-      (funds.length ? '<div class="eyebrow" style="margin-top:12px">Lucy suggests paying</div>' + funds.map((o) => '<div class="st-row"><div class="grow"><div class="t">' + esc(o.party) + ' ' + kindTag(o.kind) + '</div><div class="m" style="font-size:12px;opacity:.7">' +
-        (o.lateDays > 0 ? '<span class="gold">was due ' + dd(o.due) + '</span>' : 'due ' + dd(o.due)) + (o.note ? ' · ' + esc(o.note) : '') + '</div></div><span class="amount out">' + money(o.amount) + '</span></div>').join('') : '') +
+      (funds.length ? '<div class="eyebrow" style="margin-top:12px">Lucy suggests paying</div>' + funds.map((f) => { const o = f.o, two = o.parts.length > 1 || o.paid < o.amount;
+        return '<div class="st-row"><div class="grow"><div class="t">' + esc(o.party) + ' ' + kindTag(o.kind) + '</div><div class="m" style="font-size:12px;opacity:.7">' +
+        (o.due < f.day0 ? '<span class="gold">was due ' + dd(o.due) + '</span>' : 'due ' + dd(o.due)) + (o.note ? ' · ' + esc(o.note) : '') + (two ? ' · <b class="gold">' + (f.part === 1 ? 'part 1 of 2, total ' + money(o.amount) : 'rest of ' + money(o.amount)) + '</b>' : '') + '</div></div><span class="amount out">' + money(f.amount) + '</span></div>'; }).join('') : '') +
       (left != null ? '<div class="sub mt">' + (left > 0 ? 'Keep <b class="good">' + money(left) + '</b> after this' : 'Nothing left after this') + '</div>' : '') + '</div>';
     if (P.opening || hand.length) h += card('Money in hand now', 'what you entered below', money(P.opening), '', hand, null);
     let running = P.opening;
     h += ins.length ? ins.map((x) => {
-      running += x.amount - x.funds.reduce((n, o) => n + o.amount, 0);
+      running += x.amount - x.funds.reduce((n, f) => n + f.amount, 0);
+      x.funds.forEach((f) => { f.day0 = x.day; });
       const right = x.pid ? '<button class="link wa-link" data-a="wa-pay" data-id="' + x.pid + '">' + icon('chat', 13) + ' Remind</button><button class="link" data-a="settle" data-id="' + x.pid + '">Received</button>' : '';
       return card(esc(x.party), (x.late ? '<span class="bad">Overdue since ' + dd(x.due) + '</span>' : (x.pid ? 'Due ' : 'Renews ') + dd(x.day)) + (x.acct ? ' · ' + esc(x.acct) : '') + (x.gst ? ' · incl. GST ' + money(x.gst) : ''), money(x.amount), right, x.funds, Math.max(0, running));
     }).join('') : '<div class="panel empty">Nobody owes you anything right now.</div>';
     h += '<label>Money in hand now (₹, bank plus cash you can use)</label><input type="number" inputmode="numeric" data-set="cashInHand" value="' + (P.opening || '') + '" placeholder="e.g. 50000">' +
-      '<div class="hint" style="margin:6px 2px 14px">Lucy always suggests full payments, never part. When money is short she pays in this order: GST, EMIs, salaries, office bills, other payments, friendly loans.</div>';
+      '<div class="hint" style="margin:6px 2px 14px">Lucy pays in full where she can, and splits a payment into at most 2 parts. Order: 1 EMIs, loans and friendly loans (and GST), 2 salaries (Pratik, Jay, Darshil, Ashwin, Chaitanya, Yash), 3 rent and office bills, 4 one-time settlements, 5 home expenses.</div>';
   } else {
-    h += '<div class="sub" style="margin:2px 2px 10px">Whom you pay in the next 6 weeks, in date order. Each line says when Lucy suggests paying it in full.</div>';
+    h += '<div class="sub" style="margin:2px 2px 10px">Whom you pay in the next 6 weeks, in date order. Each line says when Lucy suggests paying it, in full or in 2 parts at most.</div>';
     h += outs.length ? '<div class="list">' + outs.map((o) => {
-      const plan = !o.payDay ? '<span class="bad">Not enough money yet</span>' : o.lateDays > 0 ? '<span class="gold">Pay ' + dd(o.payDay) + (o.by ? ', after ' + esc(o.by.party) + ' pays' : '') + '</span>' : '<span class="good">On time' + (o.by ? ', from ' + esc(o.by.party) : ' from money in hand') + '</span>';
-      return '<div class="item due-row"><div class="badge" style="width:34px;height:34px">' + icon(o.kind === 'salary' ? 'users' : o.kind === 'emi' ? 'bank' : o.kind === 'office' ? 'building' : o.kind === 'gst' ? 'doc' : 'card', 16) + '</div>' +
+      const pts = o.parts || [], who = (pt) => (pt.by ? esc(pt.by.party) : 'money in hand');
+      const plan = pts.length > 1 ? '<span class="gold">Pay ' + money(pts[0].amount) + ' on ' + dd(pts[0].day) + ' (from ' + who(pts[0]) + '), rest ' + money(pts[1].amount) + ' on ' + dd(pts[1].day) + ' (from ' + who(pts[1]) + ')</span>'
+        : pts.length === 1 && !o.payDay ? '<span class="gold">Pay ' + money(pts[0].amount) + ' on ' + dd(pts[0].day) + ' (from ' + who(pts[0]) + '); rest ' + money(o.amount - pts[0].amount) + ' needs more money</span>'
+        : !o.payDay ? '<span class="bad">Not enough money yet</span>' : o.lateDays > 0 ? '<span class="gold">Pay ' + dd(o.payDay) + (o.by ? ', after ' + esc(o.by.party) + ' pays' : '') + '</span>' : '<span class="good">On time' + (o.by ? ', from ' + esc(o.by.party) : ' from money in hand') + '</span>';
+      return '<div class="item due-row"><div class="badge" style="width:34px;height:34px">' + icon(o.kind === 'salary' ? 'users' : o.kind === 'emi' ? 'bank' : o.kind === 'office' || o.kind === 'rent' ? 'building' : o.kind === 'home' ? 'house' : o.kind === 'gst' ? 'doc' : 'card', 16) + '</div>' +
         '<div class="grow"><div class="t">' + esc(o.party) + ' ' + kindTag(o.kind) + '</div><div class="m' + (o.due < L.startOfDay(Date.now()) ? ' late' : '') + '">Due ' + dd(o.due) + (o.note ? ' · ' + esc(o.note) : '') + (o.from ? ' · from ' + esc(o.from) : '') + '</div><div class="m" style="font-size:12px">' + plan + '</div></div>' +
         '<div class="right"><div class="amount out">' + money(o.amount) + '</div>' + payBtn(o) + '</div></div>';
     }).join('') + '</div>' : '<div class="panel empty">Nothing to pay right now.</div>';
@@ -554,32 +569,6 @@ function renderInOut() {
   const tot = (arr) => arr.reduce((a, x) => a + x.amount, 0);
   const D = allDues(), done = D.done.filter((x) => x.dir === t);
   if (done.length) h += '<h2>' + (t === 'in' ? 'Received' : 'Paid') + ' in ' + monName + ' · ' + money(tot(done)) + '</h2>' + listOf(done.map(doneRow));
-  return h;
-}
-function renderSettle() {
-  const P = settlePlan(), dd = (t) => L.fmtDate(t);
-  let h = '<div class="panel gold"><div class="eyebrow">Settlement plan · next 6 weeks · till ' + dd(P.horizon) + '</div>' +
-    '<div class="stats" style="margin-top:8px">' + stat('Coming in', '<span class="good">' + short(P.inTotal) + '</span>', 'incl. ' + short(P.gstIn) + ' GST') + stat('Going out', short(P.outTotal), P.outs.length + ' payments') +
-    stat('On time', P.onTime + ' / ' + P.outs.length, P.late.length ? P.late.length + ' late' : 'all on time') + stat(P.need ? 'Extra needed' : 'Left at the end', '<span class="' + (P.need ? 'bad' : 'good') + '">' + short(P.need || P.end) + '</span>', P.need ? 'to pay everything on its date' : 'after every payment') + '</div>' +
-    '<label>Money in hand now (₹, bank plus cash you can use)</label><input type="number" inputmode="numeric" data-set="cashInHand" value="' + (P.opening || '') + '" placeholder="e.g. 50000"></div>';
-  // advice
-  const tips = [];
-  if (P.need) tips.push('To pay everything on its due date you need <b class="gold">' + money(P.need) + '</b> more than what is expected. Collect overdue client money first, then ask for an advance from a regular client, or move a friendly loan to a later date.');
-  const lateIns = P.ins.filter((x) => x.late);
-  if (lateIns.length) tips.push('Overdue from clients: ' + lateIns.map((x) => esc(x.party) + ' ' + money(x.amount)).join(', ') + '. Collecting these first eases everything else.');
-  const fixed = P.outs.filter((o) => ['salary', 'office', 'emi'].includes(o.kind) && o.due <= L.addDays(L.startOfDay(Date.now()), 31)).reduce((n, o) => n + o.amount, 0);
-  if (fixed) tips.push('Aim to always keep one month of fixed costs (salaries, office, EMIs, about ' + money(fixed) + ') as a safety buffer.');
-  if (P.gstIn) tips.push('GST of ' + money(P.gstIn) + ' comes in with client payments in this period. It is not income: keep it aside for GSTR-3B.');
-  h += tips.length ? '<div class="panel"><b>Lucy\'s advice</b>' + tips.map((t) => '<div class="sub mt">' + t + '</div>').join('') + '</div>' : '';
-  if (P.unpaid.length || P.late.length) {
-    h += '<h2>Needs attention</h2><div class="list">' + P.late.concat(P.unpaid).map((o) => '<div class="item"><div class="badge" style="--c:var(--warn)">' + icon('alert', 18) + '</div><div class="grow"><div class="t">' + esc(o.party) + ' · ' + money(o.amount) + '</div><div class="m">Due ' + dd(o.due) + ' · ' +
-      (o.payDay ? '<span class="gold">can be paid in full on ' + dd(o.payDay) + ', ' + o.lateDays + ' day' + (o.lateDays > 1 ? 's' : '') + ' late</span>' : '<span class="bad">not enough money in this period</span>') + '</div></div></div>').join('') + '</div>';
-  }
-  h += '<h2>Day by day</h2>';
-  h += P.days.filter((d) => d.ins.length || d.pays.length).map((d) => '<div class="st-day"><b>' + dd(d.day) + '</b><span class="sub">Balance after: <b class="' + (d.bal < 0 ? 'bad' : '') + '">' + money(d.bal) + '</b></span></div><div class="panel" style="padding:4px 14px">' +
-    d.ins.map((x) => '<div class="st-row"><div class="badge" style="--c:var(--good);width:30px;height:30px">' + icon('coins', 14) + '</div><div class="grow"><div class="t">' + esc(x.party) + '</div><div class="m" style="font-size:12px;opacity:.7">' + (x.late ? 'Overdue, collect now' : x.projected ? 'Renewal' : 'Client payment') + (x.acct ? ' · ' + esc(x.acct) : '') + (x.gst ? ' · incl. GST ' + money(x.gst) : '') + '</div></div><span class="amount in">+' + money(x.amount) + '</span></div>').join('') +
-    d.pays.map((o) => '<div class="st-row"><div class="badge" style="width:30px;height:30px">' + icon(o.kind === 'salary' ? 'users' : o.kind === 'emi' ? 'bank' : o.kind === 'office' ? 'building' : o.kind === 'gst' ? 'doc' : 'card', 14) + '</div><div class="grow"><div class="t">' + esc(o.party) + ' <span class="kind">' + (ST_LABEL[o.kind] || 'Payment') + '</span></div><div class="m" style="font-size:12px;opacity:.7">' + esc(o.note || '') + (o.from ? ' · from ' + esc(o.from) : '') + '</div></div><div class="right"><div class="amount out">−' + money(o.amount) + '</div><span class="st-tag ' + (o.reserve ? '' : o.lateDays > 0 ? 'late' : 'ok') + '">' + (o.reserve ? 'set aside' : o.lateDays > 0 ? o.lateDays + 'd late' : 'on time · full') + '</span></div></div>').join('') + '</div>').join('');
-  h += '<div class="hint" style="margin:10px 2px 14px">Every payment is planned in full, never split. Order when money is tight: GST, EMIs, salaries (smallest first), office bills, other payments, friendly loans. Client renewals are expected on their renewal dates; real dates can move, so check this before paying.</div>';
   return h;
 }
 function dueRow(x) {
@@ -601,8 +590,8 @@ function payRow(p) {
     '<div class="right"><div class="amount ' + p.type + '">' + money(p.status === 'pending' ? left : p.amount) + '</div>' + (p.status === 'pending' ? '<button class="link" data-a="settle" data-id="' + p.id + '">' + (p.type === 'in' ? 'Receive' : 'Pay') + '</button>' : '') + '</div></div>';
 }
 function renderMoney() {
-  const s0 = segOf('money', 'cash'), s = ['cash', 'office', 'loans', 'mission'].includes(s0) ? s0 : 'cash';
-  let h = topbar('Money', { eyebrow: 'Money magnet' }) + seg('money', [['cash', 'In & out'], ['office', 'Office'], ['loans', 'EMIs'], ['mission', 'Mission']], s);
+  const s0 = segOf('money', 'cash'), s = ['cash', 'office', 'home', 'loans', 'mission'].includes(s0) ? s0 : 'cash';
+  let h = topbar('Money', { eyebrow: 'Money magnet' }) + seg('money', [['cash', 'In & out'], ['office', 'Office'], ['home', 'Home'], ['loans', 'EMIs'], ['mission', 'Mission']], s);
   if (s === 'mission') {
     const r = B.revenue();
     h += '<div class="panel gold hero"><div class="eyebrow">Revenue mission · ' + L.MON[new Date().getMonth()] + '</div>' +
@@ -637,11 +626,11 @@ function renderMoney() {
     if (!S.loans.filter((l) => !l.closed).length) h += '<div class="panel empty">No loans added. Tap + to add a bank loan, personal loan, product EMI or a friendly loan.</div>';
     const closed = S.loans.filter((l) => l.closed);
     if (closed.length) h += '<h2>Closed</h2>' + listOf(closed.map((l) => loanRow(l, 'check')));
-  } else if (s === 'office') {
-    const om = B.officeMonth();
-    h += '<div class="stats">' + stat('Office bills this month', short(om.total), '') + stat('Paid', short(om.paid), short(Math.max(0, om.total - om.paid)) + ' left') + '</div>';
-    h += '<div class="sub" style="margin:0 2px 10px">Tap any item to set its amount, due day and pay it. Lucy reminds you before each due day.</div><h2>Office expenses<button class="link" data-a="new-office">Add</button></h2><div class="list">' + om.rows.map((r) => { const o = r.o;
-      return '<div class="item' + (r.status === 'off' ? ' off' : '') + '" data-a="open-office" data-id="' + esc(o.id) + '"><div class="badge" style="width:36px;height:36px">' + icon(OFFICE_ICON[o.cat] || 'building', 17) + '</div><div class="grow"><div class="t">' + esc(o.name) + '</div><div class="m">' + (r.status === 'off' ? 'Not tracking' : r.status === 'unset' ? 'Tap to set amount' : (o.variable ? 'About ' : '') + money(o.amount) + ' · due on ' + o.dueDay + (o.note ? ' · ' + esc(o.note) : '')) + '</div></div>' +
+  } else if (s === 'office' || s === 'home') {
+    const home = s === 'home', om = B.officeMonth(home ? 'home' : '');
+    h += '<div class="stats">' + stat((home ? 'Home' : 'Office') + ' bills this month', short(om.total), '') + stat('Paid', short(om.paid), short(Math.max(0, om.total - om.paid)) + ' left') + '</div>';
+    h += '<div class="sub" style="margin:0 2px 10px">Tap any item to set its amount, due day and pay it. Lucy reminds you before each due day.</div><h2>' + (home ? 'Home expenses' : 'Office expenses') + '<button class="link" data-a="new-office" data-v="' + (home ? 'home' : '') + '">Add</button></h2>' + (home && !om.rows.length ? '<div class="panel empty">Add your monthly home bills: rent or maintenance, light bill, gas, internet, groceries, school fees.</div>' : '') + '<div class="list">' + om.rows.map((r) => { const o = r.o;
+      return '<div class="item' + (r.status === 'off' ? ' off' : '') + '" data-a="open-office" data-id="' + esc(o.id) + '"><div class="badge" style="width:36px;height:36px">' + icon(o.home ? 'house' : OFFICE_ICON[o.cat] || 'building', 17) + '</div><div class="grow"><div class="t">' + esc(o.name) + '</div><div class="m">' + (r.status === 'off' ? 'Not tracking' : r.status === 'unset' ? 'Tap to set amount' : (o.variable ? 'About ' : '') + money(o.amount) + ' · due on ' + o.dueDay + (o.note ? ' · ' + esc(o.note) : '')) + '</div></div>' +
         '<div class="right"><div class="m" style="font-size:12px">' + (r.status === 'paid' ? '<span class="good">Paid ' + money(r.paid) + '</span>' : r.status === 'part' ? '<span class="gold">Part ' + money(r.paid) + '</span>' : r.status === 'due' ? '<span class="warn">Due</span>' : '') + '</div></div></div>'; }).join('') + '</div>';
   } else {
     const mk = L.dayKey(Date.now()).slice(0, 7);
@@ -1107,7 +1096,7 @@ const OFFICE_ICON = { 'Rent': 'building', 'Light bill': 'bolt', 'Internet': 'glo
 function officeSheet(o) {
   const mk = B.officeMonth().mk, paid = B.officePaidOf(o, mk), amt = Number(o.amount) || 0, left = Math.max(0, amt - paid);
   const parts = o.paid && o.paid[mk] ? o.paid[mk].parts || [] : [];
-  openSheet('<div class="eyebrow">Office expense · ' + L.MON[new Date().getMonth()] + '</div><h3 class="mt">' + esc(o.name) + '</h3>' +
+  openSheet('<div class="eyebrow">' + (o.home ? 'Home' : 'Office') + ' expense · ' + L.MON[new Date().getMonth()] + '</div><h3 class="mt">' + esc(o.name) + '</h3>' +
     '<div class="grid2"><div><label>' + (o.variable ? 'Usual amount (₹)' : 'Monthly amount (₹)') + '</label><input id="of-amt" type="number" inputmode="numeric" value="' + (amt || '') + '"></div><div><label>Due day of month</label><select id="of-day">' + Array.from({ length: 31 }, (_, i) => '<option ' + (Number(o.dueDay) === i + 1 ? 'selected' : '') + '>' + (i + 1) + '</option>').join('') + '</select></div></div>' +
     '<label>Name</label><input id="of-name" value="' + esc(o.name) + '"><label>Vendor or note</label><input id="of-note" value="' + esc(o.note || '') + '" placeholder="e.g. Jio Fiber, ChatGPT + Claude">' +
     '<div class="row mt"><input type="checkbox" id="of-var" ' + (o.variable ? 'checked' : '') + '><span>Amount changes every month (like light bill)</span></div>' +
@@ -1436,7 +1425,7 @@ document.addEventListener('click', async (ev) => {
     case 'mg-hear-thanks': V.speak(MG.gratitudeInAdvance().join(' '), { force: true }); break;
     case 'mg-thanks': { const k = B.today(); S.manifest[k] = Object.assign(S.manifest[k] || {}, { thanks: true }); save(); render(); celebrate('small'); break; }
     case 'open-office': officeSheet(S.office.find((x) => x.id === el.dataset.id)); break;
-    case 'new-office': { const o = { id: 'of-' + nid(), cat: 'Other', name: 'New office expense', amount: 0, dueDay: 5, variable: false, paid: {}, note: '' }; S.office.push(o); save({ local: true }); officeSheet(o); break; }
+    case 'new-office': { const o = { id: 'of-' + nid(), cat: 'Other', name: v === 'home' ? 'New home expense' : 'New office expense', amount: 0, dueDay: 5, variable: false, paid: {}, note: '', home: v === 'home' }; S.office.push(o); save({ local: true }); officeSheet(o); break; }
     case 'save-office': { const o = S.office.find((x) => x.id === el.dataset.id); Object.assign(o, { amount: Number($('#of-amt').value) || 0, dueDay: Number($('#of-day').value) || 1, name: $('#of-name').value.trim() || o.name, note: $('#of-note').value.trim(), variable: $('#of-var').checked }); save(); toast('Saved'); officeSheet(o); render(); break; }
     case 'office-pay': {
       const o = S.office.find((x) => x.id === el.dataset.id), mk = B.officeMonth().mk, amt = chosenAmt(Number($('#sheet').dataset.left));

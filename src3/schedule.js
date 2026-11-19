@@ -5,6 +5,7 @@ import * as L from '../src/logic.js';
 import * as C from './content.js';
 import { S } from './store.js';
 import { pickAffirmation } from './brain.js';
+import * as WA from './wa.js';
 
 function hm(s) { const p = String(s || '0:0').split(':'); return { h: +p[0] || 0, m: +p[1] || 0 }; }
 const alertStart = (r) => Math.max(r.due, r.snoozeUntil || 0);
@@ -22,7 +23,8 @@ export function buildSchedule() {
     const c = r.clientId ? client(r.clientId) : null;
     const who = c ? ' · ' + (c.company || c.firstName) : '';
     occs.forEach((t, i) => {
-      push(t, r.task + who, 'Reminder from Lucy. Open to mark it done.', 'rem-' + r.id, '#plan');
+      const waOk = r.waPhone || WA.contactIn(r.task);
+      push(t, r.task + who, waOk ? 'Tap for the WhatsApp message Lucy wrote.' : 'Reminder from Lucy. Open to mark it done.', 'rem-' + r.id, waOk ? '#wa-rem-' + r.id : '#plan');
       if (i === 0) for (let k = 1; k <= st.nagCount; k++) push(t + k * st.nagMin * L.MIN, 'Still pending: ' + r.task, k === st.nagCount ? 'Last nudge, ' + nm + '. Two minutes and it is done.' : 'Tap to open Lucy and finish it.', 'rem-' + r.id, '#plan');
     });
   });
@@ -32,7 +34,7 @@ export function buildSchedule() {
     if (!l.followUp || ['Won', 'Lost'].includes(l.status)) return;
     const who = l.name + (l.contactName ? ' · ' + l.contactName : '');
     const what = l.nextAction || ('Call or WhatsApp ' + (l.contactName || 'them') + (l.phone ? ' on ' + l.phone : ''));
-    push(l.followUp, 'Follow up: ' + who, what, 'lead-' + l.id, '#more-leads');
+    push(l.followUp, 'Follow up: ' + who, (l.phone || l.whatsapp) ? what + ' · Tap for the WhatsApp message.' : what, 'lead-' + l.id, (l.phone || l.whatsapp) ? '#wa-lead-' + l.id : '#more-leads');
     push(L.atTime(L.addDays(l.followUp, 1), 10, 15), 'Still to follow up: ' + l.name, 'Open Lucy and log the call so this lead does not go cold.', 'lead-' + l.id, '#more-leads');
   });
 

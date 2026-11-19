@@ -204,7 +204,7 @@ function spRow(x) {
   const when = d === 0 ? '<span class="gold">Today</span>' : d === 1 ? 'Tomorrow' : 'In ' + d + ' days';
   const ic = sd.type === 'Birthday' ? 'cake' : sd.type === 'Anniversary' ? 'heart' : 'star';
   return '<div class="item sp-item ' + (d <= 1 ? 'soon' : '') + '"' + (sd.self ? ' data-a="sub-profile"' : ' data-a="edit-sp" data-id="' + sd.id + '"') + '><div class="badge" style="--c:' + (sd.type === 'Anniversary' ? '#F08BC4' : sd.type === 'Birthday' ? 'var(--gold)' : 'var(--cyan)') + '">' + icon(ic, 18) + '</div>' +
-    '<div class="grow"><div class="t">' + esc(SP.specialTitle(sd, x.at)) + '</div><div class="m">' + L.fmtDate(x.at) + (sd.relation ? ' · ' + esc(sd.relation) : '') + '</div></div><div class="right sp-when">' + when + (!sd.self && d <= 1 ? '<button class="link wa-link" data-a="wa-sp" data-id="' + sd.id + '">' + icon('chat', 13) + ' Wish</button>' : '') + '</div></div>';
+    '<div class="grow"><div class="t">' + esc(SP.specialTitle(sd, x.at)) + '</div><div class="m">' + L.fmtDate(x.at) + (sd.relation ? ' · ' + esc(sd.relation) : '') + '</div></div><div class="right sp-when">' + when + (!sd.self ? '<button class="link wa-link" data-a="wa-sp" data-id="' + sd.id + '">' + icon('chat', 13) + ' Wish</button>' : '') + '</div></div>';
 }
 function renderSpecial() {
   const all = SP.upcoming();
@@ -260,7 +260,7 @@ function empSheet(e, role) {
   const tel = String(e.phone || '').replace(/[^\d+]/g, ''), wa = tel.startsWith('+') ? tel.slice(1) : (tel.length === 10 ? '91' + tel : tel);
   const roles = S.growth.team.map((m) => m.role);
   openSheet('<h3>' + (e.id ? esc(e.name) : 'New team member') + '</h3>' +
-    (e.id ? '<div class="actions" style="margin-top:4px">' + (tel ? '<a class="btn small ghost" href="tel:' + esc(tel) + '">' + icon('phone', 15) + 'Call</a><a class="btn small ghost" href="https://wa.me/' + esc(wa) + '" target="_blank" rel="noopener">' + icon('chat', 15) + 'WhatsApp</a>' : '') +
+    (e.id ? '<div class="actions" style="margin-top:4px">' + (tel ? '<a class="btn small ghost" href="tel:' + esc(tel) + '">' + icon('phone', 15) + 'Call</a><button class="btn small ghost" data-a="wa-emp" data-id="' + e.id + '">' + icon('chat', 15) + 'WhatsApp</button>' : '') +
       '<button class="btn small" data-a="emp-paid" data-id="' + e.id + '">' + icon('wallet', 15) + (paid >= (Number(e.salary) || 0) && paid > 0 ? 'Salary paid · view' : paid ? 'Pay rest of salary' : 'Pay salary') + '</button></div>' : '') +
     '<label>Full name</label><input id="em-name" value="' + esc(e.name) + '">' +
     '<label>Role</label><select id="em-role">' + roles.concat(roles.includes(e.role) || !e.role ? [] : [e.role]).map((r) => '<option ' + (r === e.role ? 'selected' : '') + '>' + esc(r) + '</option>').join('') + '</select>' +
@@ -283,7 +283,6 @@ function renderProfile() {
     f('spouse', 'Spouse') + '<div class="grid2"><div>' + f('phone', 'Phone', 'tel') + '</div><div>' + f('altPhone', 'Other phone', 'tel') + '</div></div>' + f('email', 'Email', 'email') +
     f('city', 'City') + f('address', 'Home address') + '<div class="grid2"><div>' + f('bloodGroup', 'Blood group') + '</div><div>' + f('emergencyPhone', 'Emergency phone', 'tel') + '</div></div>' + f('emergencyName', 'Emergency contact name') +
     '<h2>Work</h2>' + f('company', 'Company') + f('role', 'Role') + f('website', 'Website') + f('officeAddress', 'Office address') +
-    '<h2>Payment details for WhatsApp reminders</h2>' + f('upi', 'UPI ID clients should pay to') + f('bank', 'Bank details (optional, one line)') +
     '<h2>Social</h2>' + f('instagram', 'Instagram', 'text', '@handle') + f('linkedin', 'LinkedIn') + f('youtube', 'YouTube') +
     '<h2>About me</h2><textarea data-prof="about" placeholder="Anything Lucy should know about you: goals, habits, what motivates you">' + esc(p.about || '') + '</textarea>' +
     '<div class="hint">Saved automatically and synced to all your devices. Lucy uses your profile to personalise her help.</div>';
@@ -295,7 +294,7 @@ function remRow(r, timeOnly) {
   if (r.repeat) meta.push(L.repeatLabel(r));
   if (r.clientId) meta.push(clientName(clientById(r.clientId)));
   return '<div class="item ' + (r.status === 'done' ? 'done' : '') + '"><button class="check ' + (r.status === 'done' ? 'on' : '') + '" data-a="' + (r.status === 'done' ? 'undo' : 'done') + '" data-id="' + r.id + '">' + (r.status === 'done' ? icon('check', 16) : '') + '</button>' +
-    '<div class="badge" ' + catStyle(r.cat) + ' style="width:32px;height:32px">' + icon(catIcon(r.cat), 16) + '</div><div class="grow" data-a="edit-rem" data-id="' + r.id + '"><div class="t">' + esc(r.task) + '</div><div class="m ' + (late ? 'late' : '') + '">' + esc(meta.join(' · ')) + '</div></div></div>';
+    '<div class="badge" ' + catStyle(r.cat) + ' style="width:32px;height:32px">' + icon(catIcon(r.cat), 16) + '</div><div class="grow" data-a="edit-rem" data-id="' + r.id + '"><div class="t">' + esc(r.task) + '</div><div class="m ' + (late ? 'late' : '') + '">' + esc(meta.join(' · ')) + '</div></div>' + (r.status === 'pending' ? '<button class="iconbtn wa-ico" data-a="wa-rem" data-id="' + r.id + '" aria-label="WhatsApp">' + icon('chat', 16) + '</button>' : '') + '</div>';
 }
 
 /* =============================== MONEY =============================== */
@@ -596,7 +595,7 @@ function approveAction(i, j) {
 
 /* =============================== MORE =============================== */
 function renderMore() {
-  const subs = { team: renderTeam, profile: renderProfile, clients: renderClients, leads: renderLeads, ideas: renderIdeas, notes: renderNotes, shopping: renderShopping, learning: renderLearning, review: renderReview, settings: renderSettings, connections: renderConnections, backup: renderBackup, past: renderPast, reports: renderReports };
+  const subs = { team: renderTeam, profile: renderProfile, clients: renderClients, leads: renderLeads, ideas: renderIdeas, notes: renderNotes, shopping: renderShopping, learning: renderLearning, review: renderReview, settings: renderSettings, connections: renderConnections, backup: renderBackup, past: renderPast, reports: renderReports, wa: renderWaSettings };
   if (view.sub && subs[view.sub]) return subs[view.sub]();
   const row = (sub, ic, t, s) => '<button class="mrow" data-a="sub" data-v="' + sub + '"><div class="badge">' + icon(ic, 20) + '</div><span class="grow"><b>' + t + '</b><small>' + s + '</small></span>' + icon('right', 18, 'chev') + '</button>';
   const openLeads = S.leads.filter((l) => !['Won', 'Lost'].includes(l.status)).length;
@@ -610,6 +609,7 @@ function renderMore() {
     row('shopping', 'cart', 'Shopping', S.shopping.filter((x) => !x.done).length + ' to buy') +
     row('learning', 'book', 'Learning', S.learning.filter((x) => !x.done).length + ' in queue') +
     row('past', 'clock', 'Past', 'Old clients, past team and anything moved out · all history kept') +
+    row('wa', 'chat', 'WhatsApp and bank', 'Ready messages you can edit · 3 bank accounts') +
     row('reports', 'trend', 'Reports and coach', (() => { const n = CO.questions().length; return (n ? n + ' question' + (n > 1 ? 's' : '') + ' from Lucy · ' : '') + 'scores, books, what you watch'; })()) +
     row('review', 'chart', 'Weekly review', 'Personal · company · money · ascend') +
     row('connections', 'link', 'Connections', (H.ready() ? 'Helper connected' : 'Set up notifications, Drive and AI')) +
@@ -633,7 +633,7 @@ function renderClient(c) {
   const det = [['Contact', c.phone || c.personalPhone], ['Package', c.pkg], ['Billing', c.billing === 'once' ? 'One time · ' + money(c.amount || 0) : Number(c.retainer || c.amount) ? money(c.retainer || c.amount) + ' every month' : ''], [c.billing === 'once' ? 'Due' : 'Next renewal', c.nextDate ? L.fmtDate(c.nextDate) : '']].filter((d) => d[1]);
   return topbar(esc(clientName(c)), { back: c.past ? 'Past' : 'Clients' }) +
     (c.past ? '<div class="panel gold"><div class="row"><div class="grow"><b>Past client</b><div class="sub">Moved to Past on ' + L.fmtDate(c.past) + '. Everything below is kept.</div></div><button class="btn small" data-a="past-client-back" data-id="' + c.id + '">Bring back</button></div></div>' : '') +
-    '<div class="actions" style="margin-top:0">' + btn((c.phone || c.personalPhone) && 'tel:' + tel(c.phone || c.personalPhone), 'phone', 'Call') + btn((c.phone || c.personalPhone) && 'https://wa.me/' + wa(c.phone || c.personalPhone), 'chat', 'WhatsApp') + '<button class="btn small line" data-a="edit-client" data-id="' + c.id + '">' + icon('edit', 15) + 'Edit</button></div>' +
+    '<div class="actions" style="margin-top:0">' + btn((c.phone || c.personalPhone) && 'tel:' + tel(c.phone || c.personalPhone), 'phone', 'Call') + '<button class="btn small ghost" data-a="wa-client" data-id="' + c.id + '">' + icon('chat', 15) + 'WhatsApp</button>' + '<button class="btn small line" data-a="edit-client" data-id="' + c.id + '">' + icon('edit', 15) + 'Edit</button></div>' +
     (det.length ? '<div class="list mt">' + det.map((d) => '<div class="item"><div class="grow"><div class="m">' + d[0] + '</div><div class="t">' + esc(d[1]) + '</div></div></div>').join('') + '</div>' : '') +
     '<h2>Notes and meeting prep</h2><textarea id="client-notes" data-cid="' + c.id + '" placeholder="What they want, budget, last discussion">' + esc(c.notes || '') + '</textarea>' +
     '<h2>Follow-ups<button class="link" data-a="new-rem-client" data-id="' + c.id + '">Add</button></h2>' + listOf(rems.map((r) => remRow(r)), 'No pending follow-ups.') +
@@ -1307,12 +1307,25 @@ document.addEventListener('click', async (ev) => {
     case 'open-lead': go('more', 'leads', id); break;
     case 'lead-filter': view.leadFilter = v; render(); break;
     case 'rep-period': view.repPeriod = v; render(); break;
-    case 'wa-pay': { const p = payById(id); if (p) waSheet(Object.assign(WA.paymentMessages(p), { kind: 'pay', ref: p.id, title: 'Payment reminder' })); break; }
-    case 'wa-renew': { const c = clientById(id); if (c) waSheet(Object.assign(WA.renewalMessages(c), { kind: 'renew', ref: c.id + ':' + L.dayKey(c.nextDate), title: 'Renewal reminder' })); break; }
-    case 'wa-sp': { const sd = S.specialDays.find((x) => x.id === id); if (sd) waSheet(Object.assign(WA.wishMessages(sd), { kind: 'wish', ref: sd.id + ':' + new Date().getFullYear(), title: sd.type + ' wish', spId: sd.id })); break; }
-    case 'wa-lead': { const l = leadById(id); if (l) waSheet(Object.assign(WA.leadMessages(l), { kind: 'lead', ref: l.id, title: 'Follow-up', leadId: l.id })); break; }
-    case 'wa-rem': { const r = S.reminders.find((x) => x.id === id); if (r) { closeSheet(); setTimeout(() => waSheet(Object.assign(WA.reminderMessages(r), { kind: 'rem', ref: r.id, title: 'Reminder message', remId: r.id })), 250); } break; }
-    case 'wa-tone': { const vs = window.__waVariants || []; const x = vs[Number(v)]; if (x) { $('#wa-text').value = x.text; } $$('#wa-tones .chip').forEach((c2) => c2.classList.toggle('on', c2 === el)); waRefresh(); break; }
+    case 'wa-pay': { const p = payById(id); if (p) waSheet(Object.assign(WA.forPayment(p), { kind: 'pay', ref: p.id, title: 'Payment', payId: p.id })); break; }
+    case 'wa-renew': { const c = clientById(id); if (c) waSheet(Object.assign(WA.forClient(c), { kind: 'renew', ref: c.id + ':' + L.dayKey(c.nextDate), title: 'Renewal', clientId: c.id })); break; }
+    case 'wa-client': { const c = clientById(id); if (c) waSheet(Object.assign(WA.forClient(c), { kind: 'client', ref: c.id, title: clientName(c), clientId: c.id, pick: el.dataset.v || 'renewal:friendly' })); break; }
+    case 'wa-emp': { const e = S.employees.find((x) => x.id === id); if (e) { closeSheet(); setTimeout(() => waSheet(Object.assign(WA.forEmployee(e), { kind: 'emp', ref: e.id, title: 'Team · ' + e.name, empId: e.id, pick: el.dataset.v || 'salary:salary-credited' })), 250); } break; }
+    case 'wa-sp': { const sd = S.specialDays.find((x) => x.id === id); if (sd) { closeSheet(); setTimeout(() => waSheet(Object.assign(WA.forSpecial(sd), { kind: 'wish', ref: sd.id + ':' + new Date().getFullYear(), title: sd.type + ' wish', spId: sd.id })), 200); } break; }
+    case 'wa-lead': { const l = leadById(id); if (l) waSheet(Object.assign(WA.forLead(l), { kind: 'lead', ref: l.id, title: l.name, leadId: l.id })); break; }
+    case 'wa-rem': { const r = S.reminders.find((x) => x.id === id); if (r) { closeSheet(); setTimeout(() => waSheet(Object.assign(WA.forReminder(r), { kind: 'rem', ref: r.id, title: 'Reminder', remId: r.id })), 250); } break; }
+    case 'wa-cat': { const m = window.__waMeta; m.cat = v; m.tpl = null; waFill(); break; }
+    case 'wa-tpl': { const m = window.__waMeta; m.tpl = v; waFill(); break; }
+    case 'wa-bank': { const m = window.__waMeta; m.bank = v; waFill(); break; }
+    case 'wa-settings': view.waCat = view.waCat || 'payment'; go('more', 'wa'); break;
+    case 'wa-set-cat': view.waCat = v; render(); break;
+    case 'bank-save': bankSave(); break;
+    case 'tpl-edit': tplSheet(WA.templates().find((t) => t.id === el.dataset.v)); break;
+    case 'tpl-new': tplSheet({ id: '', cat: view.waCat || 'payment', label: '', text: '' }); break;
+    case 'tpl-save': tplSave(el.dataset.v); break;
+    case 'tpl-reset': { S.waTemplates = (S.waTemplates || []).filter((t) => t.id !== el.dataset.v); save(); closeSheet(); render(); toast('Back to Lucy\'s version'); break; }
+    case 'tpl-remove': { const t = WA.templates().find((x) => x.id === el.dataset.v); if (t) { S.waTemplates = (S.waTemplates || []).filter((x) => x.id !== t.id).concat([Object.assign({}, t, { removed: true })]); save(); closeSheet(); render(); toast('Removed'); } break; }
+    case 'tpl-field': { const ta = $('#tpl-text'); if (ta) { const p0 = ta.selectionStart || ta.value.length; ta.value = ta.value.slice(0, p0) + v + ta.value.slice(p0); ta.focus(); } break; }
     case 'wa-copy': { try { navigator.clipboard.writeText($('#wa-text').value); toast('Copied'); } catch (e) { toast('Could not copy'); } break; }
     case 'mm-done': { const k = B.today(); S.moneyMoves[k] = S.moneyMoves[k] || {}; if (S.moneyMoves[k][v]) delete S.moneyMoves[k][v]; else { S.moneyMoves[k][v] = { at: Date.now() }; logEvent('mission', { task: 'Money move: ' + v, cat: 'Money' }); const n = Object.keys(S.moneyMoves[k]).length; if (n === 5) celebrate('big', { title: 'All 5 money moves done', sub: 'This is how money comes, ' + nm() + '. Same again tomorrow.' }); else celebrate('small'); } save(); render(); break; }
     case 'mm-go': { const hsh = el.dataset.v; if (hsh) { history.replaceState(null, '', location.pathname + hsh); openHash(); render(); } break; }
@@ -1558,7 +1571,7 @@ function openHash() {
   } else if (h === '#plan' || h === '#money' || h === '#ascend' || h === '#home') { view.tab = h.slice(1); }
   else if (h === '#money-loans') { view.tab = 'money'; view.seg.money = 'loans'; }
   else if (h === '#more-team') { view.tab = 'more'; view.sub = 'team'; }
-  else if (/^#wa-(pay|sp|renew|lead)-/.test(h)) { const mm = h.match(/^#wa-(pay|sp|renew|lead)-(.+)$/); view.tab = 'home'; view.skipOpening = true; setTimeout(() => { const el = document.createElement('button'); el.dataset.a = 'wa-' + mm[1]; el.dataset.id = mm[2]; el.hidden = true; document.body.appendChild(el); el.click(); el.remove(); }, 600); }
+  else if (/^#wa-(pay|sp|renew|lead|rem|client|emp)-/.test(h)) { const mm = h.match(/^#wa-(pay|sp|renew|lead|rem|client|emp)-(.+)$/); view.tab = 'home'; view.skipOpening = true; setTimeout(() => { const el = document.createElement('button'); el.dataset.a = 'wa-' + mm[1]; el.dataset.id = mm[2]; el.hidden = true; document.body.appendChild(el); el.click(); el.remove(); }, 600); }
   else if (h === '#more-clients') { view.tab = 'more'; view.sub = 'clients'; view.id = null; }
   else if (h === '#more-reports') { view.tab = 'more'; view.sub = 'reports'; view.seg.rep = 'ask'; }
   else if (h === '#more-leads') { view.tab = 'more'; view.sub = 'leads'; view.id = null; }
@@ -1683,7 +1696,7 @@ function leadRow(l) {
   return '<div class="item" data-a="open-lead" data-id="' + l.id + '"><div class="badge" style="--c:' + (tempColor[l.temp] || 'var(--gold)') + '">' + icon('building', 18) + '</div>' +
     '<div class="grow"><div class="t">' + esc(l.name) + '</div><div class="m">' + esc([leadContactName(l), l.industry, l.area || l.city].filter(Boolean).join(' · ')) + '</div>' +
     '<div class="m" style="font-size:12px;margin-top:2px">' + esc(l.status) + (l.temp ? ' · ' + esc(l.temp) : '') + (fu ? ' · ' + fu : '') + '</div></div>' +
-    '<div class="right">' + (Number(l.dealMonthly) ? '<div class="amount in">' + short(l.dealMonthly) + '</div><div class="m" style="font-size:11px">per month</div>' : Number(l.dealOnce) ? '<div class="amount in">' + short(l.dealOnce) + '</div><div class="m" style="font-size:11px">one time</div>' : '') + '</div></div>';
+    '<div class="right">' + ((l.phone || l.whatsapp) && !['Won', 'Lost'].includes(l.status) ? '<button class="link wa-link" data-a="wa-lead" data-id="' + l.id + '">' + icon('chat', 13) + ' WhatsApp</button>' : '') + (Number(l.dealMonthly) ? '<div class="amount in">' + short(l.dealMonthly) + '</div><div class="m" style="font-size:11px">per month</div>' : Number(l.dealOnce) ? '<div class="amount in">' + short(l.dealOnce) + '</div><div class="m" style="font-size:11px">one time</div>' : '') + '</div></div>';
 }
 function renderLead(l) {
   if (!l) { view.id = null; return renderLeads(); }
@@ -1975,17 +1988,34 @@ function moneyMovesPanel(full) {
 
 /* ---------------- WhatsApp: Lucy writes, you tap Send ---------------- */
 function waSheet(m) {
-  window.__waVariants = m.variants; window.__waMeta = m;
-  const v = m.variants[m.pick || 0];
+  window.__waMeta = m;
+  const tl = m.cats.reduce((a, c) => a.concat(WA.templates(c)), []);
+  m.tpl = (tl.find((t) => t.id === m.pick) || tl[0] || {}).id;
+  m.cat = (tl.find((t) => t.id === m.tpl) || {}).cat || m.cats[0];
   const sent = WA.sentRecently(m.kind, m.ref, 3);
   openSheet('<div class="eyebrow">WhatsApp · ' + esc(m.title || 'Message') + '</div><h3 class="mt">' + esc(m.to || 'Who should get this?') + '</h3>' +
     (sent ? '<div class="sub" style="color:var(--gold)">You already sent this in the last 3 days.</div>' : '') +
     '<label>WhatsApp number</label><input id="wa-phone" type="tel" value="' + esc(m.phone || '') + '" placeholder="+91 98xxxxxxxx">' +
-    '<label>Tone</label><div class="chips" id="wa-tones">' + m.variants.map((x, i) => '<button class="chip' + (i === (m.pick || 0) ? ' on' : '') + '" data-a="wa-tone" data-v="' + i + '">' + esc(x.label) + '</button>').join('') + '</div>' +
-    '<label>Message (you can edit it)</label><textarea id="wa-text" style="min-height:190px;font-size:15px;line-height:1.45">' + esc(v.text) + '</textarea>' +
+    (m.cats.length > 1 ? '<label>Type</label><div class="hscroll" id="wa-cats">' + m.cats.filter((c) => WA.templates(c).length).map((c) => '<button class="chip' + (c === m.cat ? ' on' : '') + '" data-a="wa-cat" data-v="' + c + '">' + esc((WA.CATS.find((x) => x[0] === c) || [c, c])[1]) + '</button>').join('') + '</div>' : '') +
+    '<label>Template</label><div class="chips" id="wa-tpls"></div>' +
+    '<div id="wa-bankrow"><label>Payment details to include</label><div class="chips" id="wa-banks">' + WA.banks().map((b) => '<button class="chip" data-a="wa-bank" data-v="' + b.id + '">' + esc(b.label.split(' ')[0] === 'DZYN' ? 'DZYN LAB' : b.label.split(' ')[0]) + '</button>').join('') + '<button class="chip" data-a="wa-bank" data-v="">None</button></div></div>' +
+    '<label>Message (edit anything before sending)</label><textarea id="wa-text" style="min-height:200px;font-size:15px;line-height:1.45"></textarea>' +
     '<a id="wa-go" class="btn block" href="#" target="_blank" rel="noopener" style="background:#25D366;color:#04130A;border-color:#25D366">' + icon('chat', 16) + 'Open WhatsApp and send</a>' +
     '<button class="btn ghost block" data-a="wa-copy">Copy message</button>' +
-    '<div class="hint">WhatsApp opens with this message ready. You press Send. It goes from your own number.</div>');
+    '<div class="hint">WhatsApp opens with this message ready, and you press Send. Edit the ready messages any time in More → WhatsApp and bank.</div>');
+  waFill();
+}
+function waFill(keepText) {
+  const m = window.__waMeta; if (!m) return;
+  const tl = WA.templates(m.cat);
+  if (!tl.some((t) => t.id === m.tpl)) m.tpl = (tl[0] || {}).id;
+  $('#wa-tpls').innerHTML = tl.map((t) => '<button class="chip' + (t.id === m.tpl ? ' on' : '') + '" data-a="wa-tpl" data-v="' + esc(t.id) + '">' + esc(t.label) + '</button>').join('');
+  $$('#wa-cats .chip').forEach((c) => c.classList.toggle('on', c.dataset.v === m.cat));
+  const t = tl.find((x) => x.id === m.tpl) || { text: '' };
+  const usesBank = /\{bank\}/.test(t.text);
+  $('#wa-bankrow').hidden = !usesBank;
+  $$('#wa-banks .chip').forEach((c) => c.classList.toggle('on', c.dataset.v === (m.bank || '')));
+  if (!keepText) $('#wa-text').value = WA.fill(t.text, Object.assign({}, m.ctx, { bank: usesBank ? WA.bankText(m.bank) : '' }));
   waRefresh();
 }
 function waRefresh() {
@@ -2003,7 +2033,9 @@ document.addEventListener('click', (ev) => {
   if (m.kind === 'wish' && m.spId) { const sd = S.specialDays.find((x) => x.id === m.spId); if (sd && !sd.phone) sd.phone = ph; }
   if (m.kind === 'lead' && m.leadId) { const l = leadById(m.leadId); if (l && !l.phone && !l.whatsapp) l.phone = ph; }
   if (m.kind === 'rem' && m.remId) { const r = S.reminders.find((x) => x.id === m.remId); if (r) { r.waPhone = ph; r.waTo = m.to || ''; } }
-  if (m.kind === 'pay') { const p = payById(m.ref); const c = p && p.clientId ? clientById(p.clientId) : null; if (c && !c.phone) c.phone = ph; else if (p && !c && !p.phone) p.phone = ph; }
+  if (m.kind === 'pay') { const p = payById(m.ref); const c = p && p.clientId ? clientById(p.clientId) : null; if (c && !c.phone) c.phone = ph; else if (p && !c && !p.phone) p.phone = ph; if (m.bank) { if (c) c.payTo = m.bank; else if (p) p.payTo = m.bank; } }
+  if ((m.kind === 'client' || m.kind === 'renew') && m.clientId) { const c = clientById(m.clientId); if (c) { if (!c.phone) c.phone = ph; if (m.bank) c.payTo = m.bank; } }
+  if (m.kind === 'emp' && m.empId) { const e = S.employees.find((x) => x.id === m.empId); if (e && !e.phone) e.phone = ph; }
   S.waLog = S.waLog || [];
   S.waLog.push({ id: nid(), at: Date.now(), kind: m.kind, ref: m.ref, to: m.to || '', phone: ph });
   if (m.kind === 'pay') { const p = payById(m.ref); if (p) p.lastNudge = Date.now(); }
@@ -2032,9 +2064,64 @@ function waQueue() {
     if (WA.sentRecently('lead', l.id, 1)) return;
     out.push({ a: 'wa-lead', id: l.id, t: 'Follow up: ' + l.name, m: l.nextAction || 'follow-up due', pr: 4 });
   });
+  S.reminders.filter((r) => r.status === 'pending' && r.due < L.addDays(d0, 1) && (r.waPhone || WA.contactIn(r.task))).forEach((r) => {
+    if (WA.sentRecently('rem', r.id, 1)) return;
+    out.push({ a: 'wa-rem', id: r.id, t: 'Message: ' + r.task, m: L.fmtWhen(r.due), pr: 5 });
+  });
+  const mk = B.payroll().month;
+  S.employees.filter((e) => e.active !== false && !e.past && e.phone).forEach((e) => {
+    const parts = ((e.paid || {})[mk] || {}).parts || [];
+    const last = parts.length ? parts[parts.length - 1].at : 0;
+    if (last && now - last < 2 * L.DAY && !WA.sentRecently('emp', e.id, 2)) out.push({ a: 'wa-emp', id: e.id, t: 'Tell ' + e.name + ' salary is credited', m: money(B.salaryPaidOf(e, mk)) + ' paid', pr: 6 });
+  });
   return out.sort((a, b2) => a.pr - b2.pr);
 }
 function waHomeCard() {
   const q = waQueue(); if (!q.length) return '';
   return '<h2>WhatsApp to send · ' + q.length + '</h2><div class="list">' + q.slice(0, 5).map((x) => '<div class="item"><div class="badge" style="--c:#25D366">' + icon('chat', 18) + '</div><div class="grow"><div class="t">' + esc(x.t) + '</div><div class="m">' + esc(x.m) + '</div></div><button class="btn small" data-a="' + x.a + '" data-id="' + x.id + '">Send</button></div>').join('') + '</div>';
+}
+
+/* ---------------- WhatsApp and bank settings ---------------- */
+function renderWaSettings() {
+  const cat = view.waCat || 'payment';
+  let h = topbar('WhatsApp and bank', { back: 'More', eyebrow: 'Ready messages · payment details' });
+  h += '<h2>Bank accounts</h2><div class="sub" style="margin-bottom:8px">Pick one when you send a payment message. Lucy remembers which account each client pays into.</div>';
+  h += WA.banks().map((b) => '<div class="panel"><div class="row"><b class="grow">' + esc(b.label) + '</b>' + (WA.defaultBank() === b.id ? '<span class="pill">Default</span>' : '') + '</div>' +
+    '<div class="grid2">' + [['holder', 'Account name'], ['bank', 'Bank name'], ['acc', 'Account number'], ['ifsc', 'IFSC'], ['branch', 'Branch'], ['upi', 'UPI ID']].map((f) => '<div><label>' + f[1] + '</label><input data-bank="' + b.id + '" data-f="' + f[0] + '" value="' + esc(b[f[0]] || '') + '"' + (f[0] === 'ifsc' ? ' style="text-transform:uppercase"' : '') + (f[0] === 'acc' ? ' inputmode="numeric"' : '') + '></div>').join('') + '</div>' +
+    '<label class="row" style="gap:8px;margin-top:8px"><input type="radio" name="defbank" value="' + b.id + '" ' + (WA.defaultBank() === b.id ? 'checked' : '') + '> Use as default</label></div>').join('');
+  h += '<button class="btn block" data-a="bank-save">Save bank details</button>';
+  h += '<h2>Ready messages</h2><div class="sub">Tap any message to edit it. Words in {brackets} are filled in by Lucy automatically.</div>';
+  h += '<div class="hscroll" style="margin:10px 0">' + WA.CATS.map((c) => '<button class="chip' + (c[0] === cat ? ' on' : '') + '" data-a="wa-set-cat" data-v="' + c[0] + '">' + esc(c[1]) + ' ' + WA.templates(c[0]).length + '</button>').join('') + '</div>';
+  h += '<div class="list">' + WA.templates(cat).map((t) => '<div class="item" data-a="tpl-edit" data-v="' + esc(t.id) + '" style="align-items:flex-start"><div class="badge" style="--c:#25D366">' + icon('chat', 16) + '</div><div class="grow"><div class="t">' + esc(t.label) + ((S.waTemplates || []).some((x) => x.id === t.id) ? ' <span class="kind">edited</span>' : '') + '</div><div class="m" style="white-space:pre-wrap;max-height:4.5em;overflow:hidden">' + esc(t.text) + '</div></div>' + icon('right', 16) + '</div>').join('') + '</div>';
+  h += '<button class="btn ghost block" data-a="tpl-new">' + icon('plus', 15) + 'Add your own message</button>';
+  return h;
+}
+function bankSave() {
+  const list = WA.banks().map((b) => Object.assign({}, b));
+  $$('[data-bank]').forEach((inp) => { const b = list.find((x) => x.id === inp.dataset.bank); if (b) b[inp.dataset.f] = inp.dataset.f === 'ifsc' ? inp.value.trim().toUpperCase() : inp.value.trim(); });
+  const bad = list.find((b) => b.ifsc && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(b.ifsc));
+  if (bad) return toast('IFSC for ' + bad.label + ' looks wrong (example: HDFC0001234)');
+  const badUpi = list.find((b) => b.upi && !/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(b.upi));
+  if (badUpi) return toast('UPI ID for ' + badUpi.label + ' looks wrong (example: name@okhdfcbank)');
+  S.banks = list;
+  const d = $$('input[name="defbank"]').find((x) => x.checked); if (d) S.settings.defaultBank = d.value;
+  save(); render(); toast('Bank details saved');
+}
+function tplSheet(t) {
+  if (!t) return;
+  openSheet('<h3>' + (t.id ? 'Edit message' : 'New message') + '</h3>' +
+    '<div class="grid2"><div><label>Type</label><select id="tpl-cat">' + WA.CATS.map((c) => '<option value="' + c[0] + '" ' + (c[0] === t.cat ? 'selected' : '') + '>' + esc(c[1]) + '</option>').join('') + '</select></div><div><label>Name</label><input id="tpl-label" value="' + esc(t.label) + '" placeholder="e.g. Friendly"></div></div>' +
+    '<label>Message</label><textarea id="tpl-text" style="min-height:220px;font-size:15px;line-height:1.45">' + esc(t.text) + '</textarea>' +
+    '<label>Tap to insert</label><div class="chips">' + WA.FIELDS.map((f) => '<button class="chip" data-a="tpl-field" data-v="' + f[0] + '" title="' + esc(f[1]) + '">' + f[0] + '</button>').join('') + '</div>' +
+    '<div class="hint">Example: {name} becomes "Sumit ji", {amount} becomes "₹25,000", {bank} adds the bank details you choose.</div>' +
+    '<button class="btn block" data-a="tpl-save" data-v="' + esc(t.id) + '">Save</button>' +
+    (t.id && (S.waTemplates || []).some((x) => x.id === t.id) && WA.DEFAULT_TEMPLATES.some((x) => x.id === t.id) ? '<button class="btn ghost block" data-a="tpl-reset" data-v="' + esc(t.id) + '">Go back to Lucy\'s version</button>' : '') +
+    (t.id ? '<button class="btn ghost block" data-a="tpl-remove" data-v="' + esc(t.id) + '">Remove this message</button>' : ''));
+}
+function tplSave(idv) {
+  const label = $('#tpl-label').value.trim(), text = $('#tpl-text').value.trim(), cat = $('#tpl-cat').value;
+  if (!label || !text) return toast('Add a name and the message');
+  const id = idv || ('own:' + nid());
+  S.waTemplates = (S.waTemplates || []).filter((x) => x.id !== id).concat([{ id: id, cat: cat, label: label, text: text }]);
+  view.waCat = cat; save(); closeSheet(); render(); toast('Saved. Lucy will use it.');
 }

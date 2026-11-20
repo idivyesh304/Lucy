@@ -158,13 +158,20 @@ export function nextLoanDue(ln, now) {
   if (ln.closed) return null;
   if (ln.type === 'friend' && !ln.emiDay) return ln.dueDate ? L.startOfDay(ln.dueDate) : null;
   const day = Number(ln.emiDay) || 1;
+  // with a first EMI date, the next EMI is simply first date + EMIs already paid (an unpaid EMI stays due until marked paid)
+  if (ln.firstDue && Number(ln.totalEmis)) {
+    const f = new Date(ln.firstDue), k = Math.max(0, Number(ln.totalEmis) - Number(ln.emisLeft || 0));
+    const y0 = f.getFullYear(), m0 = f.getMonth() + k;
+    return new Date(y0, m0, Math.min(day, new Date(y0, m0 + 1, 0).getDate())).getTime();
+  }
   const d = new Date(now);
   const paidThisMonth = ln.lastPaid && L.dayKey(ln.lastPaid).slice(0, 7) === L.dayKey(now).slice(0, 7);
   let y = d.getFullYear(), m = d.getMonth();
   const mk = (yy, mm) => new Date(yy, mm, Math.min(day, new Date(yy, mm + 1, 0).getDate())).getTime();
   let due = mk(y, m);
   const addedAfterDue = !ln.lastPaid && ln.created && ln.created > due + L.DAY;
-  if (paidThisMonth || addedAfterDue || due <L.startOfDay(now) - 3 * L.DAY) { m++; if (m > 11) { m = 0; y++; } due = mk(y, m); }
+  // an unpaid EMI stays due (and shows as late) until it is marked paid; it no longer jumps to next month by itself
+  if (paidThisMonth || addedAfterDue) { m++; if (m > 11) { m = 0; y++; } due = mk(y, m); }
   return due;
 }
 

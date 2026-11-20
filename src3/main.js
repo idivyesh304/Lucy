@@ -136,6 +136,14 @@ function renderHome() {
     const plan = pts.length > 1 ? 'Pay ' + money(pts[0].amount) + ' on ' + dd(pts[0].day) + ', rest on ' + dd(pts[1].day) : pts.length === 1 && !o.payDay ? 'Pay ' + money(pts[0].amount) + ' on ' + dd(pts[0].day) + ', rest when money comes' : !o.payDay ? '<span class="bad">Not enough money yet</span>' : o.lateDays > 0 ? '<span class="gold">Pay on ' + dd(o.payDay) + '</span>' : '<span class="good">Pay on time</span>';
     return '<div class="item due-row"><div class="badge">' + icon(o.kind === 'salary' ? 'users' : o.kind === 'emi' ? 'bank' : o.kind === 'home' ? 'house' : o.kind === 'gst' ? 'doc' : o.kind === 'office' || o.kind === 'rent' ? 'building' : 'card', 18) + '</div><div class="grow"><div class="t">' + esc(o.party) + ' <span class="kind">' + (ST_LABEL[o.kind] || 'Payment') + '</span></div><div class="m' + (o.due < d0 ? ' late' : '') + '">' + (o.due < d0 ? 'Was due ' : 'Due ') + dd(o.due) + '</div><div class="m" style="font-size:12px">' + plan + '</div></div>' +
       '<div class="right"><div class="amount out">' + money(o.amount) + '</div>' + (o.a ? '<button class="link" data-a="' + o.a + '"' + (o.sid ? ' data-id="' + esc(o.sid) + '"' : ' data-id="' + o.id + '"') + '>Pay</button>' : '') + '</div></div>'; }).join('') + '</div>' : empty('Nothing to pay.'));
+  // EMIs for this month: pending (including anything overdue) and already paid
+  const mEnd = new Date(new Date(d0).getFullYear(), new Date(d0).getMonth() + 1, 1).getTime(), mStart = new Date(new Date(d0).getFullYear(), new Date(d0).getMonth(), 1).getTime();
+  const emiRows = S.loans.filter((l) => !l.closed && l.type !== 'friend' && Number(l.emi) > 0).map((l) => ({ l: l, due: nextLoanDue(l), paidNow: l.lastPaid && l.lastPaid >= mStart })).filter((x) => (x.due && x.due < mEnd) || x.paidNow).sort((a, b2) => (a.due || 0) - (b2.due || 0));
+  const emiLeft = emiRows.filter((x) => x.due && x.due < mEnd);
+  h += sec('EMIs this month', 'bank', emiLeft.length ? money(emiLeft.reduce((n, x) => n + Number(x.l.emi), 0)) + ' pending' : 'all paid', emiRows.length ? '<div class="list">' + emiRows.map((x) => { const late = x.due && x.due < d0, pend = x.due && x.due < mEnd;
+    return '<div class="item due-row"><div class="badge" style="--c:' + (late ? 'var(--bad)' : pend ? 'var(--warn)' : 'var(--good)') + '">' + icon('bank', 18) + '</div><div class="grow"><div class="t">' + esc(x.l.title || x.l.lender) + '</div><div class="m' + (late ? ' late' : '') + '">' +
+      (pend ? (late ? 'Pending since ' : 'Due ') + dd(x.due) : 'Paid this month') + (x.l.lender && x.l.title ? ' · ' + esc(x.l.lender) : '') + (x.l.debitBank ? ' · ' + esc(x.l.debitBank) : '') + '</div></div>' +
+      '<div class="right"><div class="amount out">' + money(x.l.emi) + '</div>' + (pend ? '<button class="link" data-a="loan-paid" data-id="' + x.l.id + '">Paid</button>' : '<span class="st-tag ok">paid</span>') + '</div></div>'; }).join('') + '</div>' : empty('No EMIs this month.'));
   // special days
   const sp = SP.upcoming(6).filter((x) => inDay(x.at));
   h += sec(label + ' special days', 'gift', sp.length, sp.length ? listOf(sp.map(spRow)) : empty('No special days.'));
@@ -1282,6 +1290,7 @@ function loanSheet(l, type) {
       '<div class="grid2"><div><label>' + (t === 'product' ? 'Financed by' : 'Bank / lender') + '</label><input id="ln-lender" value="' + v('lender') + '" placeholder="e.g. HDFC Bank"></div><div><label>Loan number</label><input id="ln-number" value="' + v('number') + '"></div>' +
       '<div><label>EMI amount (₹)</label><input id="ln-emi" type="number" value="' + v('emi') + '"></div><div><label>EMIs left</label><input id="ln-left" type="number" value="' + v('emisLeft') + '"></div>' +
       '<div><label>Total EMIs</label><input id="ln-total" type="number" value="' + v('totalEmis') + '"></div><div><label>EMI day of month</label><input id="ln-day" type="number" min="1" max="31" value="' + v('emiDay') + '"></div></div>' +
+      '<label>First EMI date (optional)</label><input id="ln-first" type="date" value="' + (l && l.firstDue ? L.dayKey(l.firstDue) : '') + '"><div class="hint">Set this when an EMI is already due or pending, so Lucy counts from the right month.</div>' +
       '<label>Debited from (bank account)</label><input id="ln-bank" value="' + v('debitBank') + '" placeholder="e.g. HDFC savings, ICICI current">') +
     '<label>Note</label><input id="ln-note" value="' + v('note') + '">' +
     '<button class="btn block" data-a="save-loan" data-id="' + (l ? l.id : '') + '" data-t="' + t + '">Save</button>' +
@@ -1293,7 +1302,7 @@ function saveLoan(id, t) {
   const n = (s) => Number(g(s)) || 0;
   const data = t === 'friend'
     ? { type: t, lender: g('ln-lender'), purpose: g('ln-purpose'), amount: n('ln-amount'), paid: n('ln-paid'), emi: n('ln-emi'), emiDay: n('ln-day'), dueDate: g('ln-duedate') ? fromInputs(g('ln-duedate'), '09:00') : 0, payMode: g('ln-mode'), note: g('ln-note') }
-    : { type: t, title: g('ln-title'), lender: g('ln-lender'), number: g('ln-number'), emi: n('ln-emi'), emisLeft: n('ln-left'), totalEmis: n('ln-total'), emiDay: n('ln-day'), debitBank: g('ln-bank'), note: g('ln-note') };
+    : { type: t, title: g('ln-title'), lender: g('ln-lender'), number: g('ln-number'), emi: n('ln-emi'), emisLeft: n('ln-left'), totalEmis: n('ln-total'), emiDay: n('ln-day'), firstDue: g('ln-first') ? fromInputs(g('ln-first'), '09:00') : 0, debitBank: g('ln-bank'), note: g('ln-note') };
   if (t === 'friend' ? !data.lender : !(data.title || data.lender)) return toast('Add a name first');
   if (id) Object.assign(loanById(id), data); else S.loans.push(Object.assign({ id: nid(), created: Date.now(), closed: false }, data));
   save(); closeSheet(); render(); toast('Saved');

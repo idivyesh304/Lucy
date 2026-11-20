@@ -88,6 +88,7 @@ export function migrate(d) {
   // Nov 2026: Divyesh paused journal, manifestation, affirmations and the money mission (kept, can be turned back on in Settings)
   if (!out.settings.pausedV1) { out.settings.paused = Object.assign({ journal: true, manifest: true, affirm: true, mission: true }, out.settings.paused || {}); out.settings.pausedV1 = true; }
   if (!out.settings.paused) out.settings.paused = {};
+  if (!out.settings.fixTrueBalance1) { (out.loans || []).forEach((l) => { if (/true balance/i.test(l.title || '') && !l.firstDue && !l.lastPaid) l.firstDue = new Date(2026, 10, 15, 9).getTime(); }); out.settings.fixTrueBalance1 = true; }
   if (!out.growth || !Array.isArray(out.growth.tiers)) out.growth = defaults().growth;
   if (!out.growthAI) { if (!out.growth.team.some((m) => /ai artist/i.test(m.role))) out.growth.team.push({ role: 'AI artist', need: 1, have: 0, salary: 0 }); out.growthAI = true; }
   // Nov 2026: Divyesh set his monthly target to Rs 15 lakh (was Rs 25 lakh)

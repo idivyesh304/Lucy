@@ -50,7 +50,7 @@ export function ensureMission() {
     if (t) items.push({ text: t, done: false, ref: x.kind + ':' + x.id });
   });
   const a = todaysAffirmations()[0];
-  if (a && a.action) items.push({ text: a.action, done: false, ref: 'affirm:' + a.id });
+  if (a && a.action && !paused('affirm')) items.push({ text: a.action, done: false, ref: 'affirm:' + a.id });
   const fill = ['Contact five potential clients', 'Create one piece of content for DZYN LAB', 'Spend 20 minutes on your film story'];
   let i = 0;
   while (items.length < 3) items.push({ text: fill[i++], done: false, ref: 'fill' });

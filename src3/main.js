@@ -1369,6 +1369,8 @@ let dreamImg = null;
 
 /* =============================== opening card =============================== */
 function showOpening(force) {
+  // the opening card is an affirmation or manifestation: it stays off while those sections are paused
+  if (B.paused('affirm') || B.paused('manifest')) return;
   const last = Number(device.get('lastOpen', 0));
   if (!force && Date.now() - last < 20 * L.MIN) return;
   device.set('lastOpen', String(Date.now()));

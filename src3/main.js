@@ -34,7 +34,7 @@ function stateLabel(s) { return s === 'speaking' ? 'Speaking' : s === 'listening
 const TABS = [['home', 'Home', 'home'], ['plan', 'Plan', 'plan'], ['lucy', 'Lucy', ''], ['money', 'Money', 'wallet'], ['ascend', 'Ascend', 'ascend']];
 function renderTabs() {
   $('#tabs').innerHTML = TABS.map(([k, l, ic]) => k === 'lucy'
-    ? '<button class="lucy-tab ' + (view.tab === k ? 'on' : '') + '" data-a="tab" data-v="lucy" aria-label="Lucy"><span class="orb"><span class="orb-ring"></span><span class="orb-ring r2"></span><span class="tab-av">' + avatar('mini') + '</span></span><span class="orb-label">' + l + '</span></button>'
+    ? '<button class="lucy-tab" data-a="st-open" data-v="voice" aria-label="Lucy, speak my day"><span class="orb"><span class="orb-ring"></span><span class="orb-ring r2"></span><span class="tab-av">' + avatar('mini') + '</span></span><span class="orb-label">' + l + '</span></button>'
     : '<button class="' + (view.tab === k ? 'on' : '') + '" data-a="tab" data-v="' + k + '">' + icon(ic, 22) + l + '</button>').join('');
 }
 function go(tab, sub, id) {
@@ -100,7 +100,6 @@ function renderHome() {
 
 
   // one tap: Lucy speaks the whole day (made for driving)
-  h += '<button class="btn hear-day" data-a="st-open" data-v="voice">' + icon('volume', 20) + ' Hear my day</button>';
   // Home: one day at a time (today plus the next 5 days), in the order Divyesh asked for
   const k = Math.max(0, Math.min(5, Number(view.homeDay) || 0)), ds = L.addDays(d0, k), de = L.addDays(ds, 1);
   const inDay = (t) => (k === 0 ? t < de : t >= ds && t < de); // today also holds anything overdue

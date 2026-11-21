@@ -762,11 +762,9 @@ function renderLucy() {
     '<div class="hud-corner tl"></div><div class="hud-corner tr"></div><div class="hud-corner bl"></div><div class="hud-corner br"></div>' +
     '<div class="hud-read l"><b>LUCY</b><span>v3 · neural</span></div><div class="hud-read r"><b class="lucy-state-chip">' + stateLabel(st0).toUpperCase() + '</b><span>on this phone</span></div></div>' +
     '<div class="lucy-wave">' + Array.from({ length: 29 }, (_, i) => '<i style="--i:' + i + '"></i>').join('') + '</div><div class="lucy-state">' + stateLabel(st0) + '</div>';
-  h += '<button class="panel gold story-cta" data-a="st-open"><span class="story-ring">' + avatar('small') + '</span><span class="grow"><b>Play my day</b><div class="sub">Your day as stories: plan, money in and out, team, special days and your dream</div></span>' + icon('play', 20) + '</button>';
-  h += '<div class="hscroll">' + QUICK.map((q) => '<button class="chip" data-a="quick" data-v="' + q[0] + '">' + icon({ brief: 'sun', today: 'calendar', collect: 'coins', pay: 'wallet', salary: 'users', emi: 'bank' }[q[0]] || 'spark', 14) + q[1] + '</button>').join('') + '</div>';
-  h += '<div class="chat">' + (S.chat.length ? S.chat.slice(-30).map(msgHtml).join('') : '<div class="msg lucy"><div class="who"><span>Lucy</span></div>Hi ' + esc(nm()) + '. I am here. Ask me anything, or tap a suggestion above. I can plan your day, find clients, price work, and push you towards your dreams.</div>') +
-    (view.chatBusy ? '<div class="msg lucy"><div class="typing"><i></i><i></i><i></i></div></div>' : '') + '<div id="chat-end"></div></div>';
-  h += '<div class="composer"><button class="iconbtn mic" data-a="mic" aria-label="Speak">' + icon('mic', 20) + '</button><textarea id="ask" rows="1" placeholder="Talk to Lucy…" enterkeyhint="send"></textarea><button class="iconbtn send" data-a="send" aria-label="Send">' + icon('send', 19) + '</button></div>';
+  // the Lucy tab does one thing: Lucy speaks today's things (as stories you can see too)
+  h += '<button class="btn hear-day" data-a="st-open" data-v="voice" style="margin-top:18px">' + icon('volume', 22) + ' Lucy, speak my day</button>' +
+    '<div class="sub" style="text-align:center;margin-top:6px">Your plan, money to collect and pay, salaries, EMIs, special days and your dream. Tap the screen to skip, hold to pause.</div>';
   return h;
 }
 /* ---------------- Lucy's day report, told as stories (tap right for next, left for back, hold to pause) ---------------- */
@@ -1401,8 +1399,7 @@ document.addEventListener('pointerdown', (e) => setTapPoint(e.clientX, e.clientY
 document.addEventListener('click', async (ev) => {
   if (ev.target.closest('.lucy-stage') && !ev.target.closest('[data-a]')) {
     if (V.isSpeaking()) { V.stopSpeaking(); return; }
-    const lines = ['Hi ' + nm() + '. I am here whenever you need me. How can I help?', 'Hello ' + nm() + '. Would you like me to read your briefing for today?', 'I am right here, ' + nm() + '. Just tell me what you would like to do next.'];
-    V.speak(lines[Math.floor(Math.random() * lines.length)], { force: true }); return;
+    openStories(true); return;
   }
   const el = ev.target.closest('[data-a]');
   if (!el) return;
